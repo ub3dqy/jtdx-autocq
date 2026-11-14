@@ -740,7 +740,9 @@ namespace JtdxAutoCq
         }
         void Transmitted(string text, DateTime? radioTime, DateTime now)
         {
-            string[] w = Words(text); if (w.Length < 3) return;
+            string[] w = Words(text);
+            bool callsignPair = CallerQueue.IsCallsignPair(w);
+            if (w.Length < 3 && !callsignPair) return;
             if (w[0] == "CQ")
             {
                 if (Monitoring)
@@ -758,12 +760,13 @@ namespace JtdxAutoCq
             if (peer != waitingCall && ((Awaiting73 && now < waitUntil) || ReverseExchangePending))
             { Stop("Передача другой станции началась до окончания ожидания 73. Автомат выключен.", true); return; }
             lastContact = peer;
-            if (w[2] == "RR73" || w[2] == "RRR")
+            string payload = callsignPair ? "" : w[2];
+            if (payload == "RR73" || payload == "RRR")
             {
                 if (waitingCall != peer) lastRemoteFinalCall = null;
                 TerminalTransmitted(peer, now, radioTime, acknowledgement: true);
             }
-            else if (w[2] == "73")
+            else if (payload == "73")
             {
                 DateTime? previousTerminalSlot = lastTerminalSlot;
                 TerminalTransmitted(peer, now, radioTime, acknowledgement: false);
@@ -781,13 +784,13 @@ namespace JtdxAutoCq
                     Confirm73(peer + " передал RR73; наше 73 завершает обмен.");
                 }
             }
-            else if (Report.IsMatch(w[2]) || Grid.IsMatch(w[2]))
+            else if (callsignPair || Report.IsMatch(payload) || Grid.IsMatch(payload))
             {
                 if (attemptCall != peer)
                 {
                     attemptCall = peer; initialTransmissions = 0; attemptAnswered = false; lastInitialSlot = -1; callLimitExceeded = false;
                 }
-                if (w[2].StartsWith("R", StringComparison.Ordinal))
+                if (payload.StartsWith("R", StringComparison.Ordinal))
                 {
                     sentAcknowledgedReports[peer] = radioTime ?? now;
                     attemptAnswered = true;
@@ -802,10 +805,14 @@ namespace JtdxAutoCq
         }
         void Decoded(string text, DateTime? radioTime, DateTime now)
         {
-            string[] w=Words(text); if(w.Length<3 || Status==null || CleanCall(w[0])!=CleanCall(Status.DeCall))return;
-            string peer=CleanCall(w[1]), payload=w[2];
+            string[] w = Words(text);
+            if (w.Length < 2 || Status == null || CleanCall(w[0]) != CleanCall(Status.DeCall)) return;
+            bool callsignPair = CallerQueue.IsCallsignPair(w);
+            if (w.Length == 2 && !callsignPair) return;
+            string peer = CleanCall(w[1]), payload = callsignPair ? "" : w[2];
             bool acknowledgement = CallerQueue.IsAcknowledgement(payload);
-            bool response = CanCall(peer) && (CallerQueue.IsCaller(payload) || waitingCall == peer && (payload == "73" || acknowledgement));
+            bool response = CanCall(peer) && (callsignPair || CallerQueue.IsCaller(payload)
+                || waitingCall == peer && (payload == "73" || acknowledgement));
             if (response && (!radioTime.HasValue || now - radioTime.Value <= SlotDuration + SlotDuration))
                 lastResponseAt = now;
             if (peer == attemptCall && (Report.IsMatch(payload) || acknowledgement)) attemptAnswered = true;

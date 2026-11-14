@@ -483,9 +483,11 @@ static class TestNativeQueue
                 "Queue commands require the loopback AutoCQ port");
             Check(VerifyLine(line, "120015 -18  0.2 1004 ~ K1ABC SV9AUP KM25") == 1
                 && VerifyLine(line, "120015 -18  0.2 1004 : K1ABC SV9AUP KM25") == 1
+                && VerifyLine(line, "120015 -18  0.2 1004 ~ K1ABC PA40XYZAB") == 1
+                && VerifyLine(line, "120015 -18  0.2 1004 : <K1ABC> PA40XYZAB") == 1
                 && VerifyLine(line, "120015 -18  0.2 1004 ~ K1ABC SV9AUP\nKM25") == 0
                 && VerifyLine(line, "120015 -18  0.2 1004 # K1ABC SV9AUP KM25") == 0,
-                "Saved-line path accepts FT8 and FT4 and rejects line injection and other modes");
+                "Saved-line path accepts FT8 and FT4 with or without a payload and rejects line injection and other modes");
             Check(VerifyLine(call, "9J2ZZ") == 1 && VerifyLine(call, "W3ABC/P") == 1
                 && VerifyLine(call, "W3ABC\nCQ") == 0 && VerifyLine(call, "/W3ABC") == 0
                 && VerifyLine(call, "W3ABC/") == 0 && VerifyLine(call, "W3/ABC/P") == 0

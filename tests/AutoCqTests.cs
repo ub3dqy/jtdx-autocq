@@ -841,6 +841,68 @@ class AutoCqTests
                     Assert(engine.Waiting.Find("W3ABC") == null && engine.Waiting.Find("W4ABC") != null,
                         "The completed call was not removed from the manual list");
                 });
+                Run("An addressed pair of callsigns in FT8 and FT4 takes priority over the manual queue", () => {
+                    const string caller = "PA40XYZAB";
+                    foreach (string mode in new[] { "FT8", "FT4" })
+                    {
+                        var engine = new AutoCqEngine { UseNativeSelection = true };
+                        var commands = new List<string>();
+                        engine.RequestDirectCall = call => commands.Add("DIRECT " + call);
+                        engine.RequestCallerReply = decode => commands.Add("CALLER " + decode.Message);
+                        engine.RequestCq = () => commands.Add("CQ");
+                        var active = S(true, "W1AW");
+                        active.Mode = mode;
+                        engine.OnStatus(active, At);
+                        engine.Start(At);
+                        engine.AddQueuedCall("W3ABC", At);
+                        engine.OnLine(Tx(At, "W1AW", "RR73").Replace("FT8:", mode + ":"), At);
+                        engine.OnLine("QSO logged: W1AW", At);
+
+                        double slot = mode == "FT4" ? 7.5 : 15;
+                        DateTime received = At.AddSeconds(2 * slot - 0.5);
+                        var decodeMessage = D(At.AddSeconds(slot), caller, "");
+                        decodeMessage.Mode = mode == "FT4" ? ":" : "~";
+                        foreach (string unrelated in new[] { "<...> " + caller, "W2ABC " + caller, "K1ABC FN20", "K1ABC 73", "K1ABC RR73" })
+                        {
+                            decodeMessage.Message = unrelated;
+                            engine.OnDecode(QtPacket.Parse(DecodePacket(decodeMessage)).Decode, received);
+                        }
+                        Assert(engine.Waiting.Rows.Single().Call == "W3ABC", "An unrelated or ambiguous message became a caller");
+
+                        string addressed = (mode == "FT4" ? "<K1ABC> " : "K1ABC ") + caller;
+                        decodeMessage.Message = addressed;
+                        engine.OnDecode(QtPacket.Parse(DecodePacket(decodeMessage)).Decode, received);
+                        engine.Tick(received, true);
+                        Assert(commands.Count == 0, "An incoming call interrupted the current exchange");
+
+                        decodeMessage.Message = "K1ABC W1AW 73";
+                        engine.OnDecode(QtPacket.Parse(DecodePacket(decodeMessage)).Decode, received);
+                        engine.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog ", received.AddMilliseconds(100));
+                        RadioStatus idle = S(false, "");
+                        idle.Mode = mode;
+                        engine.OnStatus(idle, received.AddMilliseconds(200));
+                        engine.Tick(received.AddMilliseconds(400), true);
+                        Assert(commands.SequenceEqual(new[] { "CALLER " + addressed })
+                            && engine.Waiting.Find("W3ABC") != null, "The addressed call was passed over after final 73");
+                    }
+                });
+                Run("A transmission with two callsigns counts towards the configured call limit", () => {
+                    const string caller = "PA40XYZAB";
+                    var engine = new AutoCqEngine();
+                    engine.Options.CallAttempts = 1;
+                    RadioStatus active = S(true, caller);
+                    engine.OnStatus(active, At);
+                    engine.Start(At);
+                    engine.OnLine(Tx(At, caller, ""), At);
+                    int halts = 0;
+                    engine.RequestHalt = () => halts++;
+                    var finished = At.AddSeconds(29);
+                    engine.Tick(finished, true);
+                    Assert(halts == 0, "The reply slot was cut short");
+                    engine.OnLine(DecodeFinished(finished), finished);
+                    engine.Tick(finished, true);
+                    Assert(halts == 1, "The two-callsign transmission did not count as an attempt");
+                });
                 Run("An unheard manual target added during own CQ is called after the reply slot", () => {
                     List<string> commands;
                     AutoCqEngine engine = SearchActive(out commands);

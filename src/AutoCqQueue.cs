@@ -161,6 +161,18 @@ namespace JtdxAutoCq
             if (payload == "RR73" || payload == "RRR" || payload == "73") return false;
             return Regex.IsMatch(payload, @"^(?:R?[+-]\d{2}|[A-R]{2}\d{2}(?:[A-X]{2})?)$", RegexOptions.CultureInvariant);
         }
+        internal static bool IsCallsignPair(string[] words)
+        {
+            if (words.Length != 2) return false;
+            string recipient = Callsign.Parse(words[0]);
+            string sender = Callsign.Parse(words[1]);
+            if (!Callsign.IsDirect(recipient) || !Callsign.IsDirect(sender) || recipient == sender || IsAcknowledgement(sender))
+                return false;
+            // JTDX can show the resolved callsigns with or without angle brackets.
+            // A bare locator is ambiguous unless a bracket identifies the frame.
+            return !IsCaller(words[1]) || (words[0].StartsWith("<", StringComparison.Ordinal)
+                && words[0].EndsWith(">", StringComparison.Ordinal));
+        }
         public void Observe(DecodedMessage decode, RadioStatus status, string activeCall, DateTime now)
         { Observe(decode,status,activeCall,now,true); }
         public void Observe(DecodedMessage decode, RadioStatus status, string activeCall, DateTime now, bool reactivateFailed)
@@ -183,8 +195,10 @@ namespace JtdxAutoCq
             if (status == null || decode == null || decode.OffAir || (status.Mode != "FT8" && status.Mode != "FT4")) return false;
             if ((status.Mode == "FT8" && decode.Mode != "~") || (status.Mode == "FT4" && decode.Mode != ":" && decode.Mode != "+")) return false;
             string[] words = (decode.Message ?? "").ToUpperInvariant().Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries);
-            if (words.Length != 3 || Callsign.Clean(words[0]) != Callsign.Clean(status.DeCall)) return false;
-            if (acknowledgement ? (!decode.IsNew || !IsAcknowledgement(words[2])) : !IsCaller(words[2])) return false;
+            if (words.Length < 2 || words.Length > 3 || Callsign.Clean(words[0]) != Callsign.Clean(status.DeCall)) return false;
+            string payload = words.Length == 3 ? words[2] : "";
+            if (acknowledgement ? (!decode.IsNew || !IsAcknowledgement(payload))
+                : !(IsCaller(payload) || IsCallsignPair(words))) return false;
             string call;
             try { call = Callsign.Require(words[1]); } catch (InvalidOperationException) { return false; }
             if (call == Callsign.Clean(status.DeCall)) return false;
@@ -206,8 +220,8 @@ namespace JtdxAutoCq
             if (row == null)
             {
                 if (!decode.IsNew || call == Callsign.Clean(activeCall) || call == Callsign.Clean(status.DxCall)) return false;
-                if (worked && (!AnswerWorkedB4 || time <= workedAt || words[2].StartsWith("R+", StringComparison.Ordinal)
-                    || words[2].StartsWith("R-", StringComparison.Ordinal))) return false;
+                if (worked && (!AnswerWorkedB4 || time <= workedAt || payload.StartsWith("R+", StringComparison.Ordinal)
+                    || payload.StartsWith("R-", StringComparison.Ordinal))) return false;
                 DateTime removed;if(removedThrough.TryGetValue(call,out removed) && time<=removed)return false;
                 rows.Add(cached); Changed(); return true;
             }

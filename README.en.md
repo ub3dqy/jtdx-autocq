@@ -16,7 +16,7 @@ Set the timer for an hour, for example, and when it expires AutoCQ will finish t
 - **How long to wait for a reply.** Set the number of call attempts and how many receive periods to wait for a final 73, RR73, or RRR. AutoCQ can then try another station or return to CQ.
 - **Which stations to call first.** Choose the DXCC entities you want to prioritize. Before sending its own CQ, AutoCQ can call a priority station if JTDX's left pane shows a recent CQ, 73, RRR, or RR73 from that station. Use the DXCC exclusion list to skip selected entities.
 - **How to find a station for an award.** In monitoring mode, AutoCQ listens and calls only your chosen DXCC entities, callsigns, or callsign patterns.
-- **How to manage callers.** AutoCQ queues stations that call you while you are working someone else. You can add, move, or remove callsigns and choose how long to keep them in the queue.
+- **How to manage callers.** AutoCQ queues stations that call you while you are working someone else, including messages containing just two callsigns. You can add, move, or remove callsigns and choose how long to keep them in the queue.
 
 ## What you need
 
@@ -41,7 +41,7 @@ Downloads from EcoAlfa require signing in. The upstream release notes include th
 
 ## Install AutoCQ
 
-To upgrade to 0.9.0, close JTDX and AutoCQ, unpack the new version, and run the commands in step 3. The script updates the previous patch using the `jtdx.exe.autocq-original` backup.
+If you already use the patch from AutoCQ 0.9.0, close AutoCQ and replace `JTDX-AutoCQ.exe` with the file in the latest archive. If you are updating from an earlier version, run the commands in step 3. The script updates the previous patch using the `jtdx.exe.autocq-original` backup.
 
 1. Download the **32A, 64-bit** JTDX build above. Extract the ZIP and check the SHA-256 of `jtdx-2.2.160-32A-rc10-win64.exe` against the table below.
 2. Install JTDX and open it once to check your callsign, audio, and rig control. If you use LogHX, point it to this `jtdx.exe` and check that JTDX starts from LogHX. Then close JTDX.
