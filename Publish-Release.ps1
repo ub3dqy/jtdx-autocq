@@ -30,6 +30,7 @@ if (@(Invoke-ReleaseGit @('status', '--porcelain')).Count) {
     throw 'Commit the source and release notes before building or publishing a release.'
 }
 $head = (Invoke-ReleaseGit @('rev-parse', 'HEAD')).Trim()
+$release = $null
 
 if (!$PackageOnly) {
     $gh = (Get-Command $GitHubCli -CommandType Application).Source
@@ -45,12 +46,23 @@ if (!$PackageOnly) {
         "git@github.com:$repository.git", "ssh://git@github.com/$repository.git") {
         throw 'Set the origin remote to ub3dqy/jtdx-autocq.'
     }
-    $published = & $gh release view $tag --repo $repository --json url,assets,isDraft,targetCommitish 2>&1
-    if ($LASTEXITCODE -eq 0) {
+    # Windows PowerShell 5.1 turns redirected stderr into an error record.
+    # For these two lookups, inspect the exit code and the HTTP response.
+    $published, $publishedExit, $remoteTag, $remoteTagExit = & {
+        $ErrorActionPreference = 'Continue'
+        $details = & $gh release view $tag --repo $repository --json url,assets,isDraft,targetCommitish 2>&1
+        $detailsExit = $LASTEXITCODE
+        $commit = & $gh api "repos/$repository/commits/$tag" --jq '.sha' 2>&1
+        $commitExit = $LASTEXITCODE
+        ,@($details)
+        $detailsExit
+        ,@($commit)
+        $commitExit
+    }
+    if ($publishedExit -eq 0) {
         $release = $published | ConvertFrom-Json
         if (!$release.isDraft) {
-            $publishedCommit = (Invoke-ReleaseGh @('api', "repos/$repository/commits/$tag", '--jq', '.sha')).Trim()
-            if ($publishedCommit -ne $head) {
+            if ($remoteTagExit -ne 0 -or ($remoteTag -join '').Trim() -ne $head) {
                 throw "The release $tag is already published. Use a new version for the next program update."
             }
             if (@($release.assets.name | Where-Object { $_ -in $name, 'SHA256SUMS.txt' }).Count -ne 2) {
@@ -65,9 +77,8 @@ if (!$PackageOnly) {
     } elseif (($published | Out-String) -notmatch 'release not found|HTTP 404') {
         throw ($published | Out-String)
     }
-    $remoteTag = & $gh api "repos/$repository/commits/$tag" --jq '.sha' 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        if ($remoteTag.Trim() -ne $head) { throw "Tag $tag already points to a different commit." }
+    if ($remoteTagExit -eq 0) {
+        if (($remoteTag -join '').Trim() -ne $head) { throw "Tag $tag already points to a different commit." }
     } elseif (($remoteTag | Out-String) -notmatch 'HTTP (404|422)') {
         throw ($remoteTag | Out-String)
     }
