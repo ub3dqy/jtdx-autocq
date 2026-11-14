@@ -68,7 +68,7 @@ namespace JtdxAutoCq
             bool thirdParty = recipientBase != ownBase && BaseCall(call) != ownBase && recipient != call
                 && (words[0] == "<...>" || Callsign.Parse(recipient) != null);
             string signoff = !generalCall && thirdParty && words.Length == 3
-                && (words[2] == "73" || words[2] == "RRR") ? words[2] : null;
+                && (words[2] == "73" || words[2] == "RRR" || words[2] == "RR73") ? words[2] : null;
             CqStation row = Find(call);
             if (signoff != null && !visible)
             {
@@ -133,15 +133,15 @@ namespace JtdxAutoCq
             double age = row.Signoff == null ? 120 : row.Decode.Mode == "~" ? 30.5 : 15.5;
             return now - row.HeardUtc <= TimeSpan.FromSeconds(age);
         }
-        public bool CanTry(CqStation row, DateTime now)
-        { return Fresh(row, now) && !row.Worked && now >= row.NextTryUtc; }
+        public bool CanTry(CqStation row, DateTime now, bool allowWorked = false)
+        { return Fresh(row, now) && (allowWorked || !row.Worked) && now >= row.NextTryUtc; }
 
         public CqStation Next(DateTime now, Predicate<string> canCall = null, bool includeSignoffs = false,
-            Predicate<CqStation> eligible = null)
+            Predicate<CqStation> eligible = null, bool allowWorked = false)
         {
             // A recent CQ is more likely to remain actionable in JTDX and to
             // describe a station still calling. Keep the caller FIFO separate.
-            return rows.Where(r=>CanTry(r, now) && (includeSignoffs || r.Signoff == null)
+            return rows.Where(r=>CanTry(r, now, allowWorked) && (includeSignoffs || r.Signoff == null)
                     && (canCall == null || canCall(r.Call)) && (eligible == null || eligible(r)))
                 .OrderByDescending(r=>r.HeardUtc).ThenBy(r=>r.LastAttemptUtc).FirstOrDefault();
         }

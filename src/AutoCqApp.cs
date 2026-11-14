@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -13,9 +14,10 @@ using System.Xml.Serialization;
 using System.Xml;
 using System.Reflection;
 using System.Security.Cryptography;
+using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.8.9.0")]
-[assembly: AssemblyFileVersion("0.8.9.0")]
+[assembly: AssemblyVersion("0.9.0.0")]
+[assembly: AssemblyFileVersion("0.9.0.0")]
 
 namespace JtdxAutoCq
 {
@@ -195,9 +197,9 @@ namespace JtdxAutoCq
 
     public sealed class MainForm : Form
     {
-        const string ModuleVersion = "0.8.9";
+        const string ModuleVersion = "0.9.0";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
-        const string NativeQueueHash = "EB846375E60FB972467246B8A3C1061A8B2B32984BBF838EAA47571F9814C5A9";
+        const string NativeQueueHash = "0ABBA5EA8429CE4158DF0D2822D9A3108DD629A7C17E8332A8D40736ED6A413A";
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
         static readonly Color Ink = Color.FromArgb(21, 38, 58);
         static readonly Color Slate = Color.FromArgb(79, 96, 112);
@@ -241,8 +243,8 @@ namespace JtdxAutoCq
         readonly TextBox callEntry = new TextBox();
         readonly NumericUpDown runMinutes = new NumericUpDown(), cqAttempts = new NumericUpDown();
         readonly NumericUpDown switchMinutes = new NumericUpDown(), queueMinutes = new NumericUpDown();
-        readonly CheckBox searchEnabled = new CheckBox(), priorityAfter73 = new CheckBox();
-        readonly Button exclusions = new Button(), priorities = new Button();
+        readonly CheckBox searchEnabled = new CheckBox(), priorityAfter73 = new CheckBox(), monitor = new CheckBox();
+        readonly Button exclusions = new Button(), priorities = new Button(), monitorSetup = new Button();
         readonly Label sessionInfo = new Label(), listHint = new Label(), optionsHint = new Label();
         readonly TabControl lists = new TabControl();
         readonly ListView cqView = new ListView();
@@ -262,7 +264,7 @@ namespace JtdxAutoCq
                 jtdxPresent = JtdxRunning();
             }
             engine.Waiting.Changed = delegate { queueDirty = true; queueUiDirty = true; };
-            engine.Cqs.Changed = delegate { cqUiDirty = true; queueUiDirty |= engine.Waiting.HasManualEntries; };
+            engine.Cqs.Changed = delegate { cqUiDirty = true; };
             Text = "AutoCQ " + ModuleVersion + " — JTDX" + (demo ? " [ДЕМО]" : "");
             using (Stream iconStream = typeof(MainForm).Assembly.GetManifestResourceStream("AutoCQ.ico"))
                 if (iconStream != null) Icon = new Icon(iconStream);
@@ -317,11 +319,18 @@ namespace JtdxAutoCq
             StyleButton(priorities, Color.White, Ink, Color.FromArgb(201, 213, 224));
             priorities.Click += delegate { Guard(() => EditCountries("Приоритетные DXCC", true)); };
             optionsPanel.Controls.Add(priorities);
-            priorityAfter73.SetBounds(14, 104, 475, 22);
-            priorityAfter73.Text = "Вызывать приоритетные станции после 73 или RRR";
+            priorityAfter73.SetBounds(14, 103, 488, 24);
+            priorityAfter73.Text = "Вызывать приоритетные DXCC после 73, RRR или RR73";
             priorityAfter73.Checked = engine.Options.PriorityAfter73;
             optionsPanel.Controls.Add(priorityAfter73);
-            priorityAfter73.CheckedChanged += delegate { ChangeOptions(); cqUiDirty = queueUiDirty = true; };
+            priorityAfter73.CheckedChanged += delegate { ChangeOptions(); cqUiDirty = true; };
+            monitor.SetBounds(511, 103, 192, 24);
+            monitor.Text = "Режим мониторинга"; monitor.Checked = engine.Options.MonitorEnabled;
+            monitor.CheckedChanged += delegate { ChangeOptions(); UpdateUi(); };
+            monitorSetup.SetBounds(711, 102, 181, 26);
+            StyleButton(monitorSetup, Color.White, Ink, Color.FromArgb(201, 213, 224));
+            monitorSetup.Click += delegate { Guard(EditMonitorTargets); };
+            optionsPanel.Controls.AddRange(new Control[] { monitor, monitorSetup });
             optionsHint.Font = new Font("Segoe UI", 9F); optionsHint.ForeColor = Slate;
             optionsHint.SetBounds(14, 128, 880, 21); optionsPanel.Controls.Add(optionsHint);
 
@@ -368,9 +377,13 @@ namespace JtdxAutoCq
             engine.Notice = Log;
             engine.RequestCq = SendCq; engine.RequestHalt = SendHalt; engine.RequestReply = SendReply;
             engine.RequestCallerReply = decode => SendReply(decode, true);
+            engine.RequestDirectCall = SendDirectCall;
             engine.UseNativeSelection = !demo;
             engine.CanCall = CanCallCountry;
             engine.IsPriorityCall = IsPriorityCountry;
+            engine.DxccForCall = call => { var country = dxcc == null ? null : dxcc.Find(call); return country == null ? null : country.Prefix; };
+            engine.WorkedCallsOnBand = (band, call) => demo ? new HashSet<string>()
+                : JtdxAdif.WorkedCalls(Path.Combine(settings.Profile, "wsjtx_log.adi"), band, call);
             open.Click += delegate { Guard(PrepareConnection); };
             start.Click += delegate { Guard(StartAutomation); };
             stop.Click += delegate { engine.Stop("Остановлено оператором.", true); UpdateUi(); };
@@ -450,8 +463,18 @@ namespace JtdxAutoCq
 
         void EditCountries(string title, bool editPriorities)
         {
+            string[] chosen = ChooseCountries(title, editPriorities ? engine.Options.PriorityDxcc : engine.Options.ExcludedDxcc, this);
+            if (chosen == null) return;
+            if (editPriorities) engine.Options.PriorityDxcc = chosen;
+            else engine.Options.ExcludedDxcc = chosen;
+            queueDirty = queueUiDirty = cqUiDirty = true;
+            SaveOperatorState(); UpdateUi();
+        }
+
+        string[] ChooseCountries(string title, string[] prefixes, IWin32Window owner)
+        {
             DxccCountry[] countries = CountryTable().Countries.OrderBy(country => country.Name).ToArray();
-            var checkedPrefixes = new HashSet<string>(editPriorities ? engine.Options.PriorityDxcc : engine.Options.ExcludedDxcc);
+            var checkedPrefixes = new HashSet<string>(prefixes);
             using (var dialog = new Form())
             using (var search = new TextBox())
             using (var matches = new CheckedListBox())
@@ -497,12 +520,74 @@ namespace JtdxAutoCq
                 dialog.Controls.AddRange(new Control[] { label, search, matches, apply, cancel, reset });
                 dialog.AcceptButton = apply; dialog.CancelButton = cancel;
                 filter();
+                if (dialog.ShowDialog(owner) != DialogResult.OK) return null;
+            }
+            return checkedPrefixes.OrderBy(prefix => prefix).ToArray();
+        }
+
+        void EditMonitorTargets()
+        {
+            AutoCqOptions options = engine.Options;
+            string[] countries = options.MonitorDxcc;
+            using (var dialog = new Form
+            {
+                Text = "Цели мониторинга", Icon = Icon, Font = Font, ClientSize = new Size(574, 385), AutoScaleMode = AutoScaleMode.Dpi,
+                StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false, MinimizeBox = false
+            })
+            {
+                var description = new Label { Text = "AutoCQ вызывает цели по CQ, 73 или RRR из левого окна JTDX." };
+                description.SetBounds(16, 15, 542, 24);
+                var pick = new Button { Text = "Выбрать DXCC" };
+                pick.SetBounds(16, 48, 155, 31);
+                var selected = new Label { AutoEllipsis = true, TextAlign = ContentAlignment.MiddleLeft };
+                selected.SetBounds(183, 48, 375, 31);
+                Action showCountries = () => selected.Text = countries.Length == 0 ? "Страны не выбраны" : String.Join(", ", countries);
+                pick.Click += delegate
+                {
+                    try
+                    {
+                        string[] chosen = ChooseCountries("Страны DXCC для мониторинга", countries, dialog);
+                        if (chosen != null) { countries = chosen; showCountries(); }
+                    }
+                    catch (IOException e) { MessageBox.Show(dialog, e.Message, dialog.Text); }
+                    catch (UnauthorizedAccessException e) { MessageBox.Show(dialog, e.Message, dialog.Text); }
+                };
+                showCountries();
+                var callsLabel = new Label { Text = "Точные позывные через пробел, запятую или с новой строки" };
+                callsLabel.SetBounds(16, 88, 542, 23);
+                var calls = new TextBox { AccessibleName = "Точные позывные", Multiline = true, ScrollBars = ScrollBars.Vertical,
+                    CharacterCasing = CharacterCasing.Upper, Text = String.Join(Environment.NewLine, options.MonitorCalls) };
+                calls.SetBounds(16, 115, 542, 66);
+                var masksLabel = new Label { Text = "Маски  ·  * — любое число знаков, ? — один знак" };
+                masksLabel.SetBounds(16, 194, 542, 23);
+                var masks = new TextBox { AccessibleName = "Маски позывных", Multiline = true, ScrollBars = ScrollBars.Vertical,
+                    CharacterCasing = CharacterCasing.Upper, Text = String.Join(Environment.NewLine, options.MonitorMasks) };
+                masks.SetBounds(16, 221, 542, 66);
+                var once = new CheckBox { Text = "Одна связь на цель на диапазоне", Checked = options.MonitorOnePerBand };
+                once.SetBounds(16, 301, 542, 24);
+                var save = new Button { Text = "Сохранить" };
+                var cancel = new Button { Text = "Отмена", DialogResult = DialogResult.Cancel };
+                save.SetBounds(332, 340, 110, 32); cancel.SetBounds(448, 340, 110, 32);
+                StyleButton(save, Teal, Color.White, Teal);
+                save.Click += delegate
+                {
+                    char[] separators = { ' ', '\r', '\n', '\t', ',', ';' };
+                    try
+                    {
+                        string[] exact = MonitorTargets.NormalizeCalls(calls.Text.Split(separators, StringSplitOptions.RemoveEmptyEntries));
+                        string[] patterns = MonitorTargets.NormalizeMasks(masks.Text.Split(separators, StringSplitOptions.RemoveEmptyEntries));
+                        options.MonitorDxcc = countries; options.MonitorCalls = exact; options.MonitorMasks = patterns;
+                        options.MonitorOnePerBand = once.Checked;
+                        dialog.DialogResult = DialogResult.OK;
+                    }
+                    catch (InvalidOperationException e) { MessageBox.Show(dialog, e.Message, dialog.Text); }
+                };
+                dialog.Controls.AddRange(new Control[] { description, pick, selected, callsLabel, calls, masksLabel, masks, once, save, cancel });
+                dialog.AcceptButton = save; dialog.CancelButton = cancel;
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
             }
-            string[] chosen = checkedPrefixes.OrderBy(prefix => prefix).ToArray();
-            if (editPriorities) engine.Options.PriorityDxcc = chosen;
-            else engine.Options.ExcludedDxcc = chosen;
-            queueDirty = queueUiDirty = cqUiDirty = true;
+            queueDirty = true;
             SaveOperatorState(); UpdateUi();
         }
 
@@ -515,8 +600,13 @@ namespace JtdxAutoCq
         {
             bool cq=lists.SelectedIndex==1;foreach(Control control in waitEditors)control.Visible=!cq;
             callSelectedCq.Visible=retrySelectedCq.Visible=cq;
-            listHint.Text = cq ? "Свежие CQ, 73 и RRR из левого окна JTDX. Двойной щелчок выбирает станцию для вызова."
-                : "Сначала ответы на ваш позывной. Затем AutoCQ вызывает добавленную станцию по свежему сообщению.";
+            UpdateListHint();
+        }
+        void UpdateListHint()
+        {
+            listHint.Text = engine.Monitoring ? "Мониторинг вызывает выбранные цели по CQ, 73 или RRR из левого окна."
+                : lists.SelectedIndex == 1 ? "Свежие CQ, 73, RRR и RR73 из левого окна JTDX. Двойной щелчок выбирает станцию."
+                : "После ответов на ваш позывной AutoCQ вызывает добавленные вручную станции напрямую.";
         }
         string SelectedCqCall()
         {
@@ -553,6 +643,7 @@ namespace JtdxAutoCq
             engine.Options.SwitchPeriodMinutes = (int)switchMinutes.Value;
             engine.Options.QueueMinutes = (int)queueMinutes.Value;
             engine.Options.PriorityAfter73 = priorityAfter73.Checked;
+            engine.Options.MonitorEnabled = monitor.Checked;
             queueDirty = true; SaveOperatorState();
         }
         void SaveOperatorState()
@@ -566,20 +657,17 @@ namespace JtdxAutoCq
         void RefreshQueue()
         {
             string[] selected = waitingView.SelectedItems.Cast<ListViewItem>().Select(i => (string)i.Tag).ToArray();
-            DateTime now = DateTime.UtcNow;
             refreshingQueue = true; waitingView.BeginUpdate();
             try
             {
                 waitingView.Items.Clear(); int n = 0;
                 foreach (WaitingStation row in engine.Waiting.Rows)
                 {
-                    CqStation heard = row.AddedByOperator ? engine.Cqs.Find(row.Call) : null;
-                    bool useVisible = !row.Available && engine.Cqs.Fresh(heard, now);
-                    DecodedMessage decode = useVisible ? heard.Decode : row.Decode;
-                    DateTime heardUtc = useVisible ? heard.HeardUtc : row.LastHeardUtc;
-                    ulong frequency = useVisible && engine.Status != null ? engine.Status.Frequency : row.Frequency;
-                    string mode = useVisible && engine.Status != null ? engine.Status.Mode : row.Mode;
-                    string state = WaitingState(row, now);
+                    DecodedMessage decode = row.Decode;
+                    DateTime heardUtc = row.LastHeardUtc;
+                    ulong frequency = row.Frequency;
+                    string mode = row.Mode;
+                    string state = WaitingState(row);
                     ListViewItem item = new ListViewItem((++n).ToString()); item.Tag = row.Call;
                     item.SubItems.Add(row.Call); item.SubItems.Add(state);
                     item.SubItems.Add(decode == null ? "" : decode.Snr.ToString("+0;-0;0"));
@@ -618,19 +706,11 @@ namespace JtdxAutoCq
             try { action(); }
             catch (Exception e) { Log(e.Message); MessageBox.Show(this, e.Message, "JTDX AutoCQ", MessageBoxButtons.OK, MessageBoxIcon.Information); }
         }
-        string WaitingState(WaitingStation row, DateTime now)
+        string WaitingState(WaitingStation row)
         {
             if (!CanCallCountry(row.Call)) return "Исключение DXCC";
             RadioStatus current = engine.Status;
             if (current != null && current.TxEnabled && Callsign.Clean(current.DxCall) == row.Call) return "Идёт QSO";
-            if (row.AddedByOperator)
-            {
-                CqStation candidate = engine.Cqs.Find(row.Call);
-                if (engine.QueuedCqReady(candidate, now))
-                    return "Готова к вызову по " + (candidate.Signoff ?? "CQ");
-                if (String.IsNullOrEmpty(row.PauseReason) && !row.Available)
-                    return candidate != null && candidate.Busy ? candidate.Activity : "Ждёт свежего сообщения";
-            }
             string state = engine.Waiting.State(row, engine.Status);
             return state == "Ожидает" && IsPriorityCountry(row.Call) ? "Ожидает · приоритет" : state;
         }
@@ -640,6 +720,11 @@ namespace JtdxAutoCq
             if (!CanCallCountry(row.Call)) return "Исключение DXCC";
             if (row.Call == engine.SelectedCqCall) return "Выбрана следующей";
             string state = engine.Cqs.State(row, now);
+            if (engine.Monitoring)
+            {
+                if (engine.Cqs.CanTry(row, now, allowWorked: true) && engine.IsMonitorCandidate(row, now)) return "Цель мониторинга";
+                return state == "Можно вызвать" ? "Пропущена в мониторинге" : state;
+            }
             bool priority = IsPriorityCountry(row.Call);
             if (state == "Можно вызвать" && row.Signoff != null)
                 return priority && engine.Options.PriorityAfter73 ? "Приоритет DXCC · " + row.Signoff
@@ -679,7 +764,8 @@ namespace JtdxAutoCq
         }
         void StartAutomation()
         {
-            if (engine.Options.ExcludedDxcc.Length > 0 || engine.HasPriorityCountries) CountryTable();
+            if (engine.Options.ExcludedDxcc.Length > 0 || engine.HasPriorityCountries
+                || engine.Options.MonitorEnabled && engine.Options.MonitorDxcc.Length > 0) CountryTable();
             if (!demo)
             {
                 if (client == null || clientId != "JTDX" || clientVersion != "2.2.160-32A-rc10" || (DateTime.UtcNow - lastSeen).TotalSeconds > 35)
@@ -687,7 +773,7 @@ namespace JtdxAutoCq
                 Process[] instances = Process.GetProcessesByName("jtdx");
                 try
                 {
-                    if (instances.Length != 1 || !String.Equals(instances[0].MainModule.FileName, jtdxPath, StringComparison.OrdinalIgnoreCase))
+                    if (instances.Length != 1 || !String.Equals(RunningExecutable(instances[0].Id), jtdxPath, StringComparison.OrdinalIgnoreCase))
                         throw new InvalidOperationException("Запустите единственный экземпляр JTDX из выбранной папки: " + jtdxPath);
                 }
                 finally
@@ -718,6 +804,27 @@ namespace JtdxAutoCq
             UpdateNativeSelection(DateTime.UtcNow);
             UpdateUi();
         }
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern IntPtr OpenProcess(uint access, bool inherit, int processId);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        static extern bool QueryFullProcessImageName(IntPtr process, uint flags, StringBuilder name, ref int size);
+        [DllImport("kernel32.dll")]
+        static extern bool CloseHandle(IntPtr handle);
+
+        internal static string RunningExecutable(int processId)
+        {
+            const uint queryLimitedInformation = 0x1000;
+            IntPtr handle = OpenProcess(queryLimitedInformation, false, processId);
+            if (handle == IntPtr.Zero) throw new Win32Exception();
+            try
+            {
+                var path = new StringBuilder(32768);
+                int size = path.Capacity;
+                if (!QueryFullProcessImageName(handle, 0, path, ref size)) throw new Win32Exception();
+                return path.ToString();
+            }
+            finally { CloseHandle(handle); }
+        }
         void VerifyNativeQueueSupport()
         {
             using (SHA256 sha = SHA256.Create())
@@ -725,7 +832,7 @@ namespace JtdxAutoCq
             {
                 string hash = BitConverter.ToString(sha.ComputeHash(file)).Replace("-", "");
                 if (hash != NativeQueueHash)
-                    throw new InvalidOperationException("Для AutoCQ " + ModuleVersion + " нужна соответствующая сборка JTDX с поддержкой очереди и повторов 73.");
+                    throw new InvalidOperationException("Для AutoCQ " + ModuleVersion + " примените Patch-JTDX.ps1 из этого выпуска при закрытом JTDX.");
             }
         }
         void Send(byte[] data)
@@ -746,11 +853,24 @@ namespace JtdxAutoCq
                 CqStation candidate = queued ? null : engine.Cqs.Rows.FirstOrDefault(row => row.Decode.Message == decode.Message);
                 demoPeer = candidate != null ? candidate.Call
                     : Callsign.Clean(decode.Message.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)[1]);
-                SetDemoStatus(true,false,demoPeer); demoStep = 0; demoNext = DateTime.UtcNow.AddSeconds(2); return;
+                DemoCall(demoPeer, CallerQueue.ReplyFirst(decode, engine.Status.Mode)); return;
             }
             UpdateNativeSelection(DateTime.UtcNow);
             DiagnosticEvent("TX COMMAND " + (queued ? "QueueReply" : "Reply") + " message=" + decode.Message + " time=" + decode.Milliseconds + " snr=" + decode.Snr + " df=" + decode.DeltaFrequency + " endpoint=" + client);
             Send(queued ? QtPacket.ReplyToCaller(clientId, schema, decode) : QtPacket.ReplyToVisibleCq(clientId, schema, decode));
+        }
+        void SendDirectCall(string call)
+        {
+            if (demo) { DemoCall(call, engine.Status.TxFirst); return; }
+            UpdateNativeSelection(DateTime.UtcNow);
+            DiagnosticEvent("TX COMMAND DirectCall call=" + call + " period=" + engine.Status.TxFirst);
+            Send(QtPacket.CallStation(clientId, schema, call));
+        }
+        void DemoCall(string call, bool txFirst)
+        {
+            demoPeer = call;
+            SetDemoStatus(true, false, call, txFirst);
+            demoStep = 0; demoNext = DateTime.UtcNow.AddSeconds(2);
         }
         void SendHalt()
         {
@@ -870,7 +990,12 @@ namespace JtdxAutoCq
             waitPeriods.Enabled = callAttempts.Enabled = !engine.Armed && (demo || !jtdxPresent);
             runMinutes.Enabled = cqAttempts.Enabled = searchEnabled.Enabled = priorityAfter73.Enabled =
                 switchMinutes.Enabled = queueMinutes.Enabled = !engine.Armed;
-            exclusions.Enabled = priorities.Enabled = !engine.Armed;
+            exclusions.Enabled = priorities.Enabled = monitor.Enabled = monitorSetup.Enabled = !engine.Armed;
+            start.Text = monitor.Checked ? "2. Включить мониторинг" : "2. Включить автомат";
+            int targetCount = engine.Options.MonitorDxcc.Length + engine.Options.MonitorCalls.Length + engine.Options.MonitorMasks.Length;
+            monitorSetup.Text = targetCount == 0 ? "Цели мониторинга" : "Цели мониторинга  ·  " + targetCount;
+            callSelectedCq.Enabled = !engine.Monitoring;
+            UpdateListHint();
             exclusions.Text = engine.Options.ExcludedDxcc.Length == 0 ? "Исключения DXCC"
                 : "Исключения DXCC  ·  " + engine.Options.ExcludedDxcc.Length;
             priorities.Text = engine.Options.PriorityDxcc.Length == 0 ? "Приоритетные DXCC"
@@ -900,16 +1025,18 @@ namespace JtdxAutoCq
                 radio.Text = "JTDX не подключён";
                 radio.ForeColor = counts.ForeColor;
             }
-            counts.Text = "QSO в журнале  " + engine.LoggedCount + "    ·    73 получено  " + engine.ConfirmedCount + "    ·    Без 73  " + engine.Missing73Count + "    ·    Очередь  " + engine.Waiting.Rows.Count + "    ·    CQ без ответа  " + engine.UnansweredCqs + "/" + engine.Options.CqAttemptsBeforeSearch;
+            counts.Text = "QSO в журнале  " + engine.LoggedCount + "    ·    73 получено  " + engine.ConfirmedCount + "    ·    Без 73  " + engine.Missing73Count
+                + (engine.Monitoring ? "    ·    Целей мониторинга  " + targetCount
+                    : "    ·    Очередь  " + engine.Waiting.Rows.Count + "    ·    CQ без ответа  " + engine.UnansweredCqs + "/" + engine.Options.CqAttemptsBeforeSearch);
             if(engine.Finishing)
-            {sessionInfo.Text="Завершаю QSO и очередь";sessionInfo.ForeColor=Amber;}
+            {sessionInfo.Text=engine.Monitoring ? "Завершаю текущий вызов" : "Завершаю QSO и очередь";sessionInfo.ForeColor=Amber;}
             else if(engine.Armed)
             {
                 TimeSpan remaining=engine.SessionDeadline-DateTime.UtcNow;if(remaining<TimeSpan.Zero)remaining=TimeSpan.Zero;
-                sessionInfo.Text=String.Format("Осталось {0:00}:{1:00}:{2:00}",(int)remaining.TotalHours,remaining.Minutes,remaining.Seconds);sessionInfo.ForeColor=Mint;
+                sessionInfo.Text=String.Format("{0} {1:00}:{2:00}:{3:00}",engine.Monitoring ? "Мониторинг" : "Осталось",(int)remaining.TotalHours,remaining.Minutes,remaining.Seconds);sessionInfo.ForeColor=Mint;
             }
             else{sessionInfo.Text="AutoCQ выключен";sessionInfo.ForeColor=counts.ForeColor;}
-            if (queueUiDirty || engine.Waiting.HasManualEntries && DateTime.UtcNow >= nextCqRefresh) RefreshQueue();
+            if (queueUiDirty) RefreshQueue();
             if(cqUiDirty || DateTime.UtcNow>=nextCqRefresh)RefreshCqs();
         }
         void Log(string message)
@@ -947,6 +1074,7 @@ namespace JtdxAutoCq
                     x.WriteElementString("Connected", (client != null && (DateTime.UtcNow - lastSeen).TotalSeconds < 35).ToString());
                     x.WriteElementString("JtdxVersion", clientVersion ?? "");
                     x.WriteElementString("Armed", engine.Armed.ToString());
+                    x.WriteElementString("Monitoring", engine.Monitoring.ToString());
                     x.WriteElementString("Pending", engine.Pending.ToString());
                     x.WriteElementString("LoggedQsoCount", engine.LoggedCount.ToString());
                     x.WriteElementString("ConfirmedQsoCount", engine.ConfirmedCount.ToString());
@@ -976,7 +1104,7 @@ namespace JtdxAutoCq
                     x.WriteStartElement("WaitingList");
                     foreach (WaitingStation row in engine.Waiting.Rows)
                     {
-                        x.WriteStartElement("Station"); x.WriteElementString("Call",row.Call); x.WriteElementString("State",WaitingState(row, DateTime.UtcNow));
+                        x.WriteStartElement("Station"); x.WriteElementString("Call",row.Call); x.WriteElementString("State",WaitingState(row));
                         x.WriteElementString("QueuedUtc", row.QueuedUtc.ToString("O"));
                         x.WriteElementString("LastHeardUtc",row.LastHeardUtc.ToString("O")); x.WriteEndElement();
                     }

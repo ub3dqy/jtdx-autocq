@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -37,6 +38,11 @@ static class TestNativeQueue
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate IntPtr Mid(IntPtr output, IntPtr input, int start, int length);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int IndexOf(IntPtr value, IntPtr query, int start, int caseSensitivity);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int SignoffLogGate(int callIndex);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void DirectCall(IntPtr window, IntPtr call, int marker);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void UiAction(IntPtr receiver);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void UiText(IntPtr receiver, IntPtr value);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int UiValue(IntPtr receiver);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void UiSetValue(IntPtr receiver, int value);
 
     static T Function<T>(IntPtr pointer) where T : class
     { return Marshal.GetDelegateForFunctionPointer(pointer, typeof(T)) as T; }
@@ -223,6 +229,110 @@ static class TestNativeQueue
         Marshal.WriteInt32(image, from + 1, to - from - 5);
     }
 
+    static void WriteQtFixtureString(IntPtr obj, string text)
+    {
+        IntPtr data = IntPtr.Add(obj, 8);
+        Marshal.WriteIntPtr(obj, data);
+        Marshal.WriteInt32(data, 4, text.Length);
+        Marshal.WriteInt64(data, 16, 24);
+        byte[] utf16 = Encoding.Unicode.GetBytes(text);
+        Marshal.Copy(utf16, 0, IntPtr.Add(data, 24), utf16.Length);
+    }
+
+    static void TestDirectCall(byte[] code)
+    {
+        const int codeRva = 0x2d17000;
+        const int entry = 0x1000;
+        const int fixtureSize = codeRva + 0x1000;
+        int hook = codeRva + BitConverter.ToInt32(code, 32 * 4);
+        IntPtr image = VirtualAlloc(IntPtr.Zero, (UIntPtr)fixtureSize, 0x3000, 0x04);
+        IntPtr window = VirtualAlloc(IntPtr.Zero, (UIntPtr)0x4000, 0x3000, 0x04);
+        if (image == IntPtr.Zero || window == IntPtr.Zero) throw new Exception("Cannot allocate the direct-call fixture");
+        var actions = new List<string>();
+        var callbacks = new List<Delegate>();
+        try
+        {
+            WriteCode(image, codeRva, code);
+            byte[] frame = {
+                0x53, 0x48, 0x81, 0xec, 0xa0, 2, 0, 0,   // push rbx; sub rsp, 0x2a0
+                0x48, 0x89, 0xcb,                         // mov rbx, rcx
+                0x48, 0x89, 0x94, 0x24, 0x80, 2, 0, 0,   // mov [rsp+0x280], rdx
+                0x44, 0x88, 0x84, 0x24, 0x90, 2, 0, 0    // mov [rsp+0x290], r8b
+            };
+            WriteCode(image, entry, frame);
+            WriteJump(image, entry + frame.Length, hook);
+            byte[] finish = { 0x48, 0x81, 0xc4, 0xa0, 2, 0, 0, 0x5b, 0xc3 };
+            WriteCode(image, 0x09ef68, finish);
+            WriteCode(image, 0x09ef93, finish);
+            Action<int, Delegate> imported = (rva, callback) =>
+            {
+                callbacks.Add(callback);
+                Marshal.WriteIntPtr(image, rva, Marshal.GetFunctionPointerForDelegate(callback));
+            };
+            Action<int, UiAction> native = (rva, callback) =>
+            {
+                callbacks.Add(callback);
+                WriteCode(image, rva, new byte[] { 0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xe0 });
+                Marshal.WriteIntPtr(image, rva + 2, Marshal.GetFunctionPointerForDelegate(callback));
+            };
+            IntPtr ui = IntPtr.Add(window, 0x3000);
+            IntPtr mode = IntPtr.Add(window, 0x3800);
+            IntPtr call = IntPtr.Add(window, 0x3860);
+            IntPtr tx1 = IntPtr.Add(window, 0x38c0);
+            Marshal.WriteIntPtr(window, 0x90, ui);
+            Marshal.WriteIntPtr(window, 0x2ae8, IntPtr.Add(mode, 8));
+            foreach (int widget in new[] { 0x7a8, 0x7b0, 0x9d0, 0xa30, 0xa98, 0xbf0, 0xbf8 })
+                Marshal.WriteIntPtr(ui, widget, (IntPtr)widget);
+            WriteQtFixtureString(mode, "FT8");
+            WriteQtFixtureString(call, "W3ABC");
+            WriteQtFixtureString(tx1, "W3ABC K1ABC FN20");
+            int tab = 0;
+            bool enabled = false;
+            imported(0x2c20670, new UiAction(widget => actions.Add("clear-grid/" + widget.ToInt32().ToString("x"))));
+            imported(0x2c20680, new UiText((widget, value) => actions.Add(widget.ToInt32().ToString("x") + "/" + QtString(value))));
+            imported(0x2c208f8, new UiValue(widget => tab));
+            imported(0x2c20c78, new UiText((output, widget) => Marshal.WriteIntPtr(output, Marshal.ReadIntPtr(tx1))));
+            imported(0x2c1fc40, new UiSetValue((widget, on) => actions.Add("check/" + widget.ToInt32().ToString("x") + "/" + on)));
+            imported(0x2c209e8, new UiValue(widget => enabled ? 1 : 0));
+            imported(0x2c1fc70, new UiAction(widget => actions.Add("click/" + widget.ToInt32().ToString("x"))));
+            native(0x0f9290, receiver => actions.Add("generate"));
+            native(0x0d08d0, receiver => actions.Add("tx1"));
+            native(0x2d91f0, receiver => { });
+            native(0x316690, receiver => actions.Add("status"));
+            uint prior;
+            if (!VirtualProtect(image, (UIntPtr)fixtureSize, 0x20, out prior)) throw new Exception("Cannot protect direct-call code");
+            var receive = Function<DirectCall>(IntPtr.Add(image, entry));
+            foreach (int marker in new[] { 0, 0xa8, 0xa9 }) receive(window, call, marker);
+            Check(actions.Count == 0, "Normal and decoded Reply markers do not select a direct callsign");
+            foreach (int flag in new[] { 0x2e44, 0x2e47, 0x5f8 })
+            {
+                Marshal.WriteByte(window, flag, 1);
+                receive(window, call, 0xaa);
+                Marshal.WriteByte(window, flag, 0);
+            }
+            WriteQtFixtureString(mode, "JT9");
+            receive(window, call, 0xaa);
+            Check(actions.Count == 0, "Direct calls preserve an active transmission, watchdog, tune and other modes");
+            WriteQtFixtureString(mode, "FT8");
+            receive(window, call, 0xaa);
+            Check(String.Join(",", actions) == "clear-grid/7a8,7b0/W3ABC,generate,tx1,click/9d0",
+                "FT8 direct call selects Tx1 and enables TX without reading a decode");
+            actions.Clear();
+            tab = 1; enabled = true;
+            WriteQtFixtureString(mode, "FT4");
+            receive(window, call, 0xaa);
+            Check(String.Join(",", actions) == "clear-grid/7a8,7b0/W3ABC,generate,tx1,bf0/W3ABC K1ABC FN20,check/bf8/1,status"
+                && Marshal.ReadInt32(window, 0x4f4) == 7,
+                "FT4 direct call also selects the generated message in TX tab two and leaves enabled TX enabled");
+        }
+        finally
+        {
+            GC.KeepAlive(callbacks);
+            VirtualFree(window, UIntPtr.Zero, 0x8000);
+            VirtualFree(image, UIntPtr.Zero, 0x8000);
+        }
+    }
+
     static void TestSequencing(byte[] code)
     {
         const int codeRva = 0x2d17000;
@@ -359,6 +469,7 @@ static class TestNativeQueue
             Func<int, IntPtr> at = n => IntPtr.Add(memory, BitConverter.ToInt32(code, n * 4));
             Sender sender = Function<Sender>(at(7));
             Line line = Function<Line>(at(8));
+            Line call = Function<Line>(at(33));
             Lease lease = Function<Lease>(at(11));
             Control control = Function<Control>(at(12));
             IntPtr kernel = LoadLibraryEx(Path.Combine(Environment.SystemDirectory, "kernel32.dll"), IntPtr.Zero, 0);
@@ -375,6 +486,11 @@ static class TestNativeQueue
                 && VerifyLine(line, "120015 -18  0.2 1004 ~ K1ABC SV9AUP\nKM25") == 0
                 && VerifyLine(line, "120015 -18  0.2 1004 # K1ABC SV9AUP KM25") == 0,
                 "Saved-line path accepts FT8 and FT4 and rejects line injection and other modes");
+            Check(VerifyLine(call, "9J2ZZ") == 1 && VerifyLine(call, "W3ABC/P") == 1
+                && VerifyLine(call, "W3ABC\nCQ") == 0 && VerifyLine(call, "/W3ABC") == 0
+                && VerifyLine(call, "W3ABC/") == 0 && VerifyLine(call, "W3/ABC/P") == 0
+                && VerifyLine(call, "WABC") == 0 && VerifyLine(call, "123") == 0,
+                "Direct-call validation accepts real callsigns and rejects malformed payloads");
             byte[] renew = JtdxAutoCq.QtPacket.HoldNativeSelection("JTDX", 2, true);
             Send(control, renew);
             ulong now = GetTickCount64();
@@ -387,6 +503,7 @@ static class TestNativeQueue
             TestQt(args[1]);
             TestPeMapping(args[2], args[1]);
             TestReplyGate(code);
+            TestDirectCall(code);
             TestSequencing(code);
             return 0;
         }

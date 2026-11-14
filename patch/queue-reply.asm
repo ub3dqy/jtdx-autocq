@@ -1,6 +1,6 @@
 ; Extension for the verified JTDX 2.2.160-32A-rc10 build (see build-native.cjs).
-; UDP 52 has the layout of Reply (4), with a marker for a saved caller
-; or a visible CQ. UDP 53 controls native sequencing during AutoCQ. Both are accepted
+; UDP 52 has the layout of Reply (4), with markers for a saved caller,
+; a visible CQ or a direct call. UDP 53 controls native sequencing during AutoCQ. Both are accepted
 ; only from IPv4 loopback and the configured local server port 2247.
 ; Existing Reply (4), including requests from LogHX, keeps its behavior.
 bits 64
@@ -29,8 +29,21 @@ org 0x142d17000
 %define auto_stop       0x14009abf0
 %define auto_cleanup    0x1400a8f00
 %define qstring_from_c  0x1402d91b0
+%define qstring_destroy 0x1402d91f0
+%define after_udp_accept 0x14009ef68
+%define reply_epilogue  0x14009ef93
+%define line_clear      0x142c20670
+%define line_set        0x142c20680
+%define line_text       0x142c20c78
+%define tab_current     0x142c208f8
+%define button_check    0x142c1fc40
+%define button_checked  0x142c209e8
+%define button_click    0x142c1fc70
+%define generate_tx     0x1400f9290
+%define choose_tx1      0x1400d08d0
 %define saved_caller    0xa8
 %define visible_cq      0xa9
+%define direct_call     0xaa
 
 %macro iat_call 1
     db 0xff, 0x15                 ; call qword [RIP + disp32]
@@ -77,6 +90,8 @@ entry skip_early_rr73_stop
 entry keep_terminal_counter
 entry repeat_final_73
 entry hold_s73
+entry after_accept
+entry valid_direct_call
 
 ; Mutable state is placed in a separate non-executable section.
 select_until equ 0x142d18000
@@ -181,6 +196,8 @@ validate_reply:
     cmp byte [rsp+0x63], saved_caller
     je use_reply
     cmp byte [rsp+0x63], visible_cq
+    je use_reply
+    cmp byte [rsp+0x63], direct_call
     jne cleanup_reply
     jmp use_reply
 
@@ -191,12 +208,144 @@ set_internal_flag:
     cmp al, saved_caller
     je .clear_marker
     cmp al, visible_cq            ; ordinary Reply cannot opt into this path
+    je .clear_marker
+    cmp al, direct_call
     jne .store
 .clear_marker:
     xor eax, eax
 .store:
     mov [rsp+0x38], al
     jmp after_flag
+
+after_accept:
+    ; Runs inside replyToUDP after Configuration::accept_udp_requests().
+    ; The ninth argument can carry this marker only for source-checked UDP 52.
+    cmp byte [rsp+0x290], direct_call
+    je .direct
+    mov eax, [rbx+0x594]
+    mov byte [rbx+0x64c], 0
+    jmp after_udp_accept
+.direct:
+    cmp byte [rbx+0x2e44], 0       ; transmitter already active
+    jne reply_epilogue
+    cmp byte [rbx+0x2e47], 0       ; TX watchdog tripped
+    jne reply_epilogue
+    cmp byte [rbx+0x5f8], 0        ; tune
+    jne reply_epilogue
+    mov rax, [rbx+0x2ae8]         ; m_mode
+    cmp dword [rax+4], 3
+    jne reply_epilogue
+    add rax, [rax+0x10]
+    cmp dword [rax], 0x00540046   ; UTF-16 "FT"
+    jne reply_epilogue
+    cmp word [rax+4], '8'
+    je .valid_mode
+    cmp word [rax+4], '4'
+    jne reply_epilogue
+.valid_mode:
+    mov rdx, [rsp+0x280]          ; text argument, a QString with only the DX call
+    mov rax, [rdx]
+    mov edx, [rax+4]
+    add rax, [rax+0x10]
+    mov rcx, rax
+    call valid_direct_call
+    test eax, eax
+    jz reply_epilogue
+
+    ; Use the same controls as the operator: clear the locator, set DX Call,
+    ; generate standard messages and select Tx1. Keep the TX period and audio.
+    mov rax, [rbx+0x90]
+    mov rcx, [rax+0x7a8]
+    iat_call line_clear
+    mov rax, [rbx+0x90]
+    mov rcx, [rax+0x7b0]
+    mov rdx, [rsp+0x280]
+    iat_call line_set
+    mov rcx, rbx
+    call generate_tx
+    mov rcx, rbx
+    call choose_tx1
+
+    ; The second TX tab uses its generated text field for the same Tx1.
+    mov rax, [rbx+0x90]
+    mov rcx, [rax+0xa30]
+    iat_call tab_current
+    cmp eax, 1
+    jne .enable
+    mov rax, [rbx+0x90]
+    mov rdx, [rax+0xa98]
+    lea rcx, [rsp+0x150]
+    iat_call line_text
+    mov rax, [rbx+0x90]
+    mov rcx, [rax+0xbf0]
+    lea rdx, [rsp+0x150]
+    iat_call line_set
+    lea rcx, [rsp+0x150]
+    call qstring_destroy
+    mov dword [rbx+0x4f4], 7
+    mov rax, [rbx+0x90]
+    mov rcx, [rax+0xbf8]
+    mov edx, 1
+    iat_call button_check
+.enable:
+    mov rax, [rbx+0x90]
+    mov rcx, [rax+0x9d0]
+    iat_call button_checked
+    test al, al
+    jnz .report_status
+    mov rax, [rbx+0x90]
+    mov rcx, [rax+0x9d0]
+    iat_call button_click
+    jmp reply_epilogue
+.report_status:
+    mov rcx, rbx
+    call 0x140316690              ; statusUpdate, TX was already enabled
+    jmp reply_epilogue
+
+; Validate the UTF-16 DX field before touching any controls.
+valid_direct_call:
+    xor eax, eax
+    cmp edx, 3
+    jl .done
+    cmp edx, 11
+    jg .done
+    xor r8d, r8d
+    xor r9d, r9d
+.next:
+    movzx r10d, word [rcx+r9*2]
+    cmp r10d, '0'
+    jb .slash
+    cmp r10d, '9'
+    jbe .digit
+    cmp r10d, 'A'
+    jb .done
+    cmp r10d, 'Z'
+    ja .done
+    or r8d, 1
+    jmp .advance
+.digit:
+    or r8d, 2
+    jmp .advance
+.slash:
+    cmp r10d, '/'
+    jne .done
+    test r9d, r9d
+    jz .done
+    lea r11d, [r9+1]
+    cmp r11d, edx
+    je .done
+    test r8b, 4
+    jnz .done
+    or r8d, 4
+.advance:
+    inc r9d
+    cmp r9d, edx
+    jb .next
+    and r8d, 3
+    cmp r8d, 3
+    sete al
+.done:
+    ret
 
 read_window:
     cmp byte [rsp+0x290], saved_caller ; ninth Win64 argument in this frame

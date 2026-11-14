@@ -54,6 +54,21 @@ class AutoCqTests
         e.RequestCq=()=>list.Add("CQ");e.RequestHalt=()=>list.Add("HALT");e.RequestReply=d=>list.Add("REPLY "+d.Message.Split(' ')[1]);
         e.OnStatus(S(true,""),At);e.Start(At);return e;
     }
+    static AutoCqEngine MonitorActive(out List<string> commands, int minutes = 10)
+    {
+        var list = new List<string>(); commands = list;
+        var e = new AutoCqEngine { UseNativeSelection = true };
+        e.Options.MonitorEnabled = true;
+        e.Options.MonitorDxcc = new[] { "JA" };
+        e.Options.RunMinutes = minutes;
+        e.DxccForCall = call => call.StartsWith("JA") ? "JA" : null;
+        e.RequestCq = () => list.Add("CQ");
+        e.RequestHalt = () => list.Add("HALT");
+        e.RequestDirectCall = call => list.Add("DIRECT " + call);
+        e.RequestReply = message => list.Add("REPLY " + message.Message);
+        e.OnStatus(S(false, ""), At); e.Start(At);
+        return e;
+    }
     static void CqListen(AutoCqEngine e)
     {
         e.OnLine(Tx(At,"CQ","FN20"),At);RadioStatus tx=S(true,"");tx.Transmitting=true;e.OnStatus(tx,At.AddSeconds(1));e.OnStatus(S(true,""),At.AddSeconds(14));e.Tick(At.AddSeconds(14),true);
@@ -802,12 +817,9 @@ class AutoCqTests
                     engine.UseNativeSelection = true;
                     engine.Options.SearchEnabled = false;
                     engine.RequestCallerReply = decode => commands.Add("CALLER " + decode.Message);
-                    engine.RequestReply = decode => commands.Add("VISIBLE " + decode.Message);
+                    engine.RequestDirectCall = call => commands.Add("DIRECT " + call);
                     engine.AddQueuedCall("w3abc", At.AddSeconds(18));
                     engine.AddQueuedCall("W4ABC", At.AddSeconds(19));
-                    DecodedMessage target = CqD(At.AddSeconds(15), "W3ABC");
-                    target.IsNew = false;
-                    engine.OnDecode(target, At.AddSeconds(29));
                     engine.OnDecode(D(At.AddSeconds(15), "W2ABC", "FN20"), At.AddSeconds(29));
                     engine.Tick(At.AddSeconds(29.1), true);
                     Assert(commands.Count == 0, "Adding a target interrupted the ongoing QSO");
@@ -818,39 +830,34 @@ class AutoCqTests
                     engine.OnStatus(S(true, "W2ABC"), At.AddSeconds(31.1));
                     engine.OnLine(Tx(At.AddSeconds(60), "W2ABC", "RR73"), At.AddSeconds(60));
                     engine.OnLine("QSO logged: W2ABC", At.AddSeconds(60));
-                    target = CqD(At.AddSeconds(75), "W3ABC");
-                    target.IsNew = false;
-                    engine.OnDecode(target, At.AddSeconds(89));
                     engine.OnLine(Rx(At.AddSeconds(75), "W2ABC", "73"), At.AddSeconds(89.1));
                     engine.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog ", At.AddSeconds(89.2));
                     engine.OnStatus(S(false, ""), At.AddSeconds(89.2));
                     engine.Tick(At.AddSeconds(89.3), true);
-                    Assert(commands.SequenceEqual(new[] { "CALLER K1ABC W2ABC FN20", "VISIBLE CQ W3ABC FN20" }),
-                        "The manual queue did not use the latest CQ without automatic search");
+                    Assert(commands.SequenceEqual(new[] { "CALLER K1ABC W2ABC FN20", "DIRECT W3ABC" }),
+                        "The manual queue did not call a station without any decode");
                     engine.OnStatus(S(true, "W3ABC"), At.AddSeconds(89.4));
                     engine.OnLine("QSO logged: W3ABC", At.AddSeconds(90));
                     Assert(engine.Waiting.Find("W3ABC") == null && engine.Waiting.Find("W4ABC") != null,
                         "The completed call was not removed from the manual list");
                 });
-                Run("A manual target becoming visible during own CQ is called without cutting the reply slot", () => {
+                Run("An unheard manual target added during own CQ is called after the reply slot", () => {
                     List<string> commands;
                     AutoCqEngine engine = SearchActive(out commands);
                     engine.UseNativeSelection = true;
                     engine.Options.SearchEnabled = false;
-                    engine.AddQueuedCall("W3ABC", At);
+                    engine.RequestDirectCall = call => commands.Add("DIRECT " + call);
                     RadioStatus transmitting = S(true, "");
                     transmitting.Transmitting = true;
                     engine.OnLine(Tx(At, "CQ", "FN20"), At);
                     engine.OnStatus(transmitting, At.AddSeconds(1));
+                    engine.AddQueuedCall("W3ABC", At.AddSeconds(2));
                     engine.OnStatus(S(true, ""), At.AddSeconds(14));
                     engine.Tick(At.AddSeconds(14), true);
                     Assert(commands.Count == 0, "A queued callsign stopped an active CQ");
-                    DecodedMessage cq = CqD(At.AddSeconds(15), "W3ABC");
-                    cq.IsNew = false;
-                    engine.OnDecode(cq, At.AddSeconds(29.2));
                     engine.OnLine(DecodeFinished(At.AddSeconds(29.5)), At.AddSeconds(29.5));
                     engine.Tick(At.AddSeconds(29.6), true);
-                    Assert(engine.Armed && commands.SequenceEqual(new[] { "REPLY W3ABC" }),
+                    Assert(engine.Armed && commands.SequenceEqual(new[] { "DIRECT W3ABC" }),
                         "CQ was repeated despite the manually added station");
                 });
                 Run("Manual Halt always overrides an internal CQ-listening stop", () => {
@@ -940,7 +947,8 @@ class AutoCqTests
                 });
                 Run("An unavailable queue row stays editable and does not keep the timer armed", () => {
                     AutoCqEngine e=new AutoCqEngine();e.Options.RunMinutes=1;e.OnStatus(S(true,"W1AW"),At);e.Start(At);
-                    e.Waiting.Add("W2ABC",At);
+                    e.OnDecode(D(At.AddSeconds(15), "W2ABC", "FN20"), At.AddSeconds(29));
+                    e.Waiting.Invalidate();
                     e.OnLine("Halt Tx triggered at RX: m_singleshot, counter triggered ",At.AddSeconds(59));
                     e.OnStatus(S(false,""),At.AddSeconds(59));e.Tick(At.AddSeconds(60),true);
                     Assert(!e.Armed && !e.Finishing && !e.Status.TxEnabled && e.Waiting.Rows.Single().Call == "W2ABC", "Unavailable queue entry blocked the timer or was discarded");
@@ -1432,9 +1440,9 @@ class AutoCqTests
                         "A hidden general call entered the eligible window list");
                     Assert(engine.Waiting.Rows.Single().Call == "SV9AUP", "Display filtering discarded an addressed caller");
                 });
-                Run("A priority station's visible 73 or RRR selects the sender in the next period", () => {
+                Run("A priority station's visible 73, RRR or RR73 selects the sender in the next period", () => {
                     foreach (string mode in new[] { "FT8", "FT4" })
-                    foreach (string signoff in new[] { "73", "RRR" })
+                    foreach (string signoff in new[] { "73", "RRR", "RR73" })
                     using (var radio = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0)))
                     using (var bridge = new UdpBridge(0, "JTDX"))
                     {
@@ -1489,7 +1497,7 @@ class AutoCqTests
                     }
                 });
                 Run("Only an eligible visible sign-off takes priority over CQ", () => {
-                    foreach (string ignored in new[] { "RR73", "hidden", "expired", "busy", "disabled", "excluded", "plain", "own", "portable-own" })
+                    foreach (string ignored in new[] { "hidden", "expired", "busy", "disabled", "excluded", "plain", "own", "portable-own" })
                     {
                         List<string> commands;
                         AutoCqEngine engine = Active(out commands);
@@ -1502,7 +1510,7 @@ class AutoCqTests
                         DateTime slot = ignored == "expired" ? At.AddSeconds(-15) : At.AddSeconds(15);
                         DecodedMessage decode = D(slot, "R3ZZA", "73");
                         string recipient = ignored == "own" ? "K1ABC" : ignored == "portable-own" ? "F/K1ABC" : "R6ZZB";
-                        decode.Message = recipient + " R3ZZA " + (ignored == "RR73" ? "RR73" : "73") + "    ^";
+                        decode.Message = recipient + " R3ZZA 73    ^";
                         decode.IsNew = ignored == "hidden";
                         engine.OnDecode(decode, At.AddSeconds(28));
                         if (ignored == "busy")
@@ -1516,7 +1524,7 @@ class AutoCqTests
                         Assert(commands.SequenceEqual(new[] { "CQ" }), "Ineligible sign-off was called: " + ignored);
                     }
                 });
-                Run("Legacy operator entries survive restart and skip a rejected visible reply", () => {
+                Run("Legacy operator entries are called directly in order with no left-window data", () => {
                     string folder = Fixture();
                     File.WriteAllText(Path.Combine(folder, "operator.xml"),
                         "<OperatorState><Stations><WaitingStation><Call>W2ABC</Call>" +
@@ -1528,23 +1536,121 @@ class AutoCqTests
                     engine.UseNativeSelection = true;
                     engine.Options.SearchEnabled = false;
                     engine.Waiting.Load(store.Load().Stations);
-                    engine.RequestReply = reply => commands.Add(reply.Message);
+                    engine.RequestDirectCall = call => commands.Add("DIRECT " + call);
                     Assert(engine.Waiting.Rows.Single().AddedByOperator && !engine.Waiting.Rows.Single().Available,
                         "An old manually entered callsign was reclassified or given a decoded message");
                     engine.AddQueuedCall("W3ABC", At);
                     engine.Waiting.Move("W3ABC", -1);
-                    foreach (string call in new[] { "W2ABC", "W3ABC" })
-                    {
-                        DecodedMessage cq = CqD(At.AddSeconds(15), call);
-                        cq.IsNew = false;
-                        engine.OnDecode(cq, At.AddSeconds(29));
-                    }
                     Finish(engine, At.AddSeconds(29.2));
                     engine.Tick(At.AddSeconds(31), true);
-                    engine.OnLine("UDP Reply request ignored, decode not found: CQ W3ABC FN20", At.AddSeconds(31.1));
-                    engine.Tick(At.AddSeconds(31.2), true);
-                    Assert(commands.SequenceEqual(new[] { "CQ W3ABC FN20", "CQ W2ABC FN20" }) && engine.Armed,
-                        "Manual ordering or automatic recovery from an erased line failed");
+                    engine.OnStatus(S(true, "W3ABC"), At.AddSeconds(31.1));
+                    engine.OnLine("Halt Tx triggered at RX: AutoCQ, counter triggered", At.AddSeconds(89.9));
+                    engine.OnStatus(S(false, ""), At.AddSeconds(90));
+                    engine.Tick(At.AddSeconds(90.1), true);
+                    Assert(commands.SequenceEqual(new[] { "DIRECT W3ABC", "DIRECT W2ABC" }) && engine.Armed,
+                        "A failed direct call blocked the next operator entry.");
+                });
+                Run("Direct call carries the callsign alone in a source-checked extension", () => {
+                    using (var packet = new QtReader(QtPacket.CallStation("JTDX", 2, "w3abc")))
+                    {
+                        Assert(packet.U32() == QtPacket.Magic && packet.U32() == 2 && packet.U32() == 52
+                            && packet.Text() == "JTDX" && packet.U32() == 0 && packet.U32() == 0
+                            && packet.Double() == 0 && packet.U32() == 0 && packet.Text() == ""
+                            && packet.Text() == "W3ABC" && !packet.Bool() && packet.Byte() == 0xaa,
+                            "Direct call was encoded as a received line or a regular Reply.");
+                    }
+                });
+                Run("Monitoring accepts only fresh visible target CQ, 73 or RRR", () => {
+                    foreach (string allowed in new[] { "CQ", "73", "RRR" })
+                    {
+                        List<string> commands;
+                        AutoCqEngine engine = MonitorActive(out commands);
+                        engine.AddQueuedCall("DL3ZZB", At);
+                        engine.OnDecode(D(At, "W3ABC", "FN20"), At.AddSeconds(14));
+                        foreach (string ignored in new[] { "CQ DL1ZZC JO62", "CQ JA1ZZA PM95", "W7ZZD JA2ZZB RR73", "QRZ JA2ZZB" })
+                        {
+                            DecodedMessage decode = D(ignored.StartsWith("CQ JA1") ? At.AddMinutes(-1) : At, "JA2ZZB", "73");
+                            decode.Message = ignored; decode.IsNew = false;
+                            engine.OnDecode(decode, At.AddSeconds(14));
+                        }
+                        var target = D(At, "JA2ZZB", allowed);
+                        target.Message = allowed == "CQ" ? "CQ JA2ZZB PM95" : "W7ZZD JA2ZZB " + allowed;
+                        engine.OnDecode(target, At.AddSeconds(14.2));
+                        engine.Tick(At.AddSeconds(14.3), true);
+                        Assert(engine.Monitoring && engine.HoldNativeSelection && commands.Count == 0,
+                            "An unrelated, stale, hidden or unsupported decode triggered transmission.");
+                        target.IsNew = false;
+                        engine.OnDecode(target, At.AddSeconds(14.4));
+                        engine.Tick(At.AddSeconds(14.5), true);
+                        Assert(commands.SequenceEqual(new[] { "REPLY " + target.Message }), "The visible target was skipped.");
+                    }
+                });
+                Run("Monitoring returns to RX at the limit and can then select a different target", () => {
+                    List<string> commands;
+                    AutoCqEngine engine = MonitorActive(out commands);
+                    var target = CqD(At.AddSeconds(15), "JA2ZZB");
+                    target.IsNew = false;
+                    engine.OnDecode(target, At.AddSeconds(29));
+                    engine.Tick(At.AddSeconds(29.1), true);
+                    engine.OnStatus(S(true, "JA2ZZB"), At.AddSeconds(29.2));
+                    engine.OnLine(Tx(At.AddSeconds(30), "JA2ZZB", "-15"), At.AddSeconds(30));
+                    engine.OnLine(Tx(At.AddSeconds(60), "JA2ZZB", "-15"), At.AddSeconds(60));
+                    engine.OnLine(DecodeFinished(At.AddSeconds(89)), At.AddSeconds(89));
+                    engine.Tick(At.AddSeconds(89.1), true);
+                    engine.OnLine("Halt Tx triggered at RX: UDP request", At.AddSeconds(89.2));
+                    engine.OnStatus(S(false, "JA2ZZB"), At.AddSeconds(89.3));
+                    engine.Tick(At.AddSeconds(89.4), true);
+                    engine.Tick(At.AddSeconds(89.5), true);
+                    Assert(engine.Monitoring && commands.SequenceEqual(new[] { "REPLY CQ JA2ZZB FN20", "HALT" }),
+                        "The retry limit started CQ or stopped monitoring.");
+                    target = CqD(At.AddSeconds(90), "JA3ZZC");
+                    target.IsNew = false;
+                    engine.OnDecode(target, At.AddSeconds(104));
+                    engine.Tick(At.AddSeconds(104.2), true);
+                    Assert(commands.Last() == "REPLY CQ JA3ZZC FN20", "Monitoring did not resume after the failed call.");
+                });
+                Run("Monitoring settles a logged exchange before stopping at the deadline", () => {
+                    List<string> commands;
+                    AutoCqEngine engine = MonitorActive(out commands, 1);
+                    var target = CqD(At.AddSeconds(15), "JA2ZZB");
+                    target.IsNew = false;
+                    engine.OnDecode(target, At.AddSeconds(29));
+                    engine.Tick(At.AddSeconds(29.1), true);
+                    engine.OnStatus(S(true, "JA2ZZB"), At.AddSeconds(29.2));
+                    engine.OnLine(Tx(At.AddSeconds(60), "JA2ZZB", "RR73"), At.AddSeconds(60));
+                    engine.OnLine("QSO logged: JA2ZZB", At.AddSeconds(60));
+                    engine.Tick(At.AddSeconds(61), true);
+                    Assert(engine.Monitoring && engine.Finishing && commands.Count == 1, "The deadline interrupted the exchange.");
+                    engine.OnLine(Rx(At.AddSeconds(75), "JA2ZZB", "73"), At.AddSeconds(89));
+                    engine.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(89.1));
+                    engine.OnStatus(S(false, "JA2ZZB"), At.AddSeconds(89.2));
+                    engine.Tick(At.AddSeconds(89.3), true);
+                    Assert(!engine.Armed && engine.ConfirmedCount == 1 && commands.Count == 1, "Timer queued a new call after the target completed.");
+                });
+                Run("Monitoring one per band uses exact, mask and DXCC targets and restores completed targets from ADIF", () => {
+                    var options = new AutoCqOptions { MonitorDxcc = new[] { "JA" }, MonitorCalls = new[] { "w1aw" },
+                        MonitorMasks = new[] { "k?abc", "EA8*" } };
+                    options.Validate();
+                    string adif = "<ADIF_VER:5>3.1.6<EOH><COMMENT:12><call:3>X0A <CALL:6>JA1ZZA<BAND:3>20m<EOR>"
+                        + "<CALL:5>EA8ZZ<FREQ:6>14.074<EOR><CALL:5>K2ABC<BAND:3>40M<EOR>"
+                        + "<CALL:4>W1AW<BAND:3>20m<station_callsign:5>K8ABC<EOR>"
+                        + "<CALL:4>W1AW<BAND:3>20m<swl:1>Y<EOR><CALL:4>W1AW<BAND:3>20m";
+                    var worked = JtdxAdif.WorkedCallsFromText(adif, JtdxAdif.Band(14074000), "K1ABC");
+                    Assert(worked.SetEquals(new[] { "JA1ZZA", "EA8ZZ" }), "ADIF band, station or incomplete record was misread.");
+                    var targets = new MonitorTargets(options, call => call.StartsWith("JA") ? "JA" : null, worked);
+                    Assert(!targets.CanTry("JA2ZZB") && !targets.CanTry("EA8A") && !targets.CanTry("DL1ZZA")
+                        && targets.CanTry("W1AW") && targets.CanTry("K2ABC") && !targets.CanTry("K22ABC"),
+                        "Matching or completion of one target per band failed.");
+                    targets.Complete("K2ABC");
+                    Assert(!targets.CanTry("K3ABC") && targets.CanTry("W1AW"), "A QSO did not satisfy its mask.");
+                    options.MonitorOnePerBand = false;
+                    Assert(new MonitorTargets(options, call => "JA", worked).CanTry("JA2ZZB"), "The checkbox could not disable ADIF limits.");
+                    var store = new OperatorStateStore(Fixture());
+                    store.Save(options, new WaitingStation[0]);
+                    var saved = store.Load().Options;
+                    Assert(!saved.MonitorOnePerBand && saved.MonitorDxcc.SequenceEqual(options.MonitorDxcc)
+                        && saved.MonitorCalls.SequenceEqual(new[] { "W1AW" }) && saved.MonitorMasks.SequenceEqual(options.MonitorMasks),
+                        "Monitoring targets did not survive a restart.");
                 });
                 Run("Native AutoSelect is adopted after final 73 without a competing Reply", () => {
                     var engine = new AutoCqEngine { UseNativeSelection = true };

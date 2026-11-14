@@ -14,7 +14,8 @@ Set the timer for an hour, for example, and when it expires AutoCQ will finish t
 
 - **When to look for a station.** Choose how many unanswered CQs to send before AutoCQ looks through received CQs. You can also set how long to keep calling CQ before switching to the other TX period.
 - **How long to wait for a reply.** Set the number of call attempts and how many receive periods to wait for a final 73, RR73, or RRR. AutoCQ can then try another station or return to CQ.
-- **Which stations to call first.** Choose the DXCC entities you want to prioritize. Before sending its own CQ, AutoCQ can call a priority station if JTDX's left pane shows a recent CQ, 73, or RRR from that station. Use the DXCC exclusion list to skip selected entities.
+- **Which stations to call first.** Choose the DXCC entities you want to prioritize. Before sending its own CQ, AutoCQ can call a priority station if JTDX's left pane shows a recent CQ, 73, RRR, or RR73 from that station. Use the DXCC exclusion list to skip selected entities.
+- **How to find a station for an award.** In monitoring mode, AutoCQ listens and calls only your chosen DXCC entities, callsigns, or callsign patterns.
 - **How to manage callers.** AutoCQ queues stations that call you while you are working someone else. You can add, move, or remove callsigns and choose how long to keep them in the queue.
 
 ## What you need
@@ -40,7 +41,7 @@ Downloads from EcoAlfa require signing in. The upstream release notes include th
 
 ## Install AutoCQ
 
-If you already use AutoCQ with this patch, close both apps, unpack the new version, and open AutoCQ. Check the release notes for any patch updates.
+To upgrade to 0.9.0, close JTDX and AutoCQ, unpack the new version, and run the commands in step 3. The script updates the previous patch using the `jtdx.exe.autocq-original` backup.
 
 1. Download the **32A, 64-bit** JTDX build above. Extract the ZIP and check the SHA-256 of `jtdx-2.2.160-32A-rc10-win64.exe` against the table below.
 2. Install JTDX and open it once to check your callsign, audio, and rig control. If you use LogHX, point it to this `jtdx.exe` and check that JTDX starts from LogHX. Then close JTDX.
@@ -67,7 +68,15 @@ If you already use AutoCQ with this patch, close both apps, unpack the new versi
 
 When the timer expires, AutoCQ finishes the current contact and answers any available callers in the queue. Click **«СТОП — Halt TX»** to stop transmission immediately.
 
-To pick a station yourself, open **«Станции из левого окна JTDX»** (Stations from the JTDX left pane), select a recent message, and click **«Позвать выбранную»** (Call selected station). You can also add a callsign under **«Очередь станций»** (Station queue). After answering stations that are calling you, AutoCQ can call the station you added when it hears a fresh CQ from it.
+To pick a station yourself, open **«Станции из левого окна JTDX»** (Stations from the JTDX left pane), select a recent message, and click **«Позвать выбранную»** (Call selected station). To call a station later, enter its callsign in **«Очередь станций»** (Station queue). After the current contact and any stations calling you, AutoCQ calls the entered callsign directly using JTDX's current TX period and audio offset. Entering the callsign is enough to queue the call.
+
+## Monitor targets
+
+1. In AutoCQ, open **«Цели мониторинга»** (Monitoring targets). Choose DXCC entities, enter exact callsigns, or set callsign patterns. For example, `9J*` matches callsigns starting with 9J, and `K?ABC` matches K1ABC and K2ABC.
+2. Select **«Режим мониторинга»** (Monitoring mode). Choose a band in JTDX and leave it receiving. Click **«2. Включить мониторинг»** (Start monitoring).
+3. AutoCQ calls a target when a recent CQ, 73, or RRR from it appears in the JTDX left pane. It returns to receive after the contact or the configured number of attempts. This mode never sends CQ. When the timer expires, AutoCQ completes the current call and leaves JTDX receiving.
+
+**«Одна связь на цель на диапазоне»** (One contact per target per band) uses your JTDX log. For example, if you select Japan and already have a contact on 20 m, the target is complete on 20 m. It can still be available on 40 m. This option is on by default.
 
 ## Return to standard JTDX
 
@@ -91,7 +100,7 @@ Get-FileHash -Algorithm SHA256 -LiteralPath .\jtdx-2.2.160-32A-rc10-win64.exe
 | --- | --- |
 | `jtdx-2.2.160-32A-rc10-win64.exe` installer | `67276B42561E3D1722BACABBA39B8B467C21BDFB73E4EEBFD832AB6152122574` |
 | Original installed `bin/jtdx.exe` | `6B6718432EDB55B3E3C8A5B884522BDC5EF5E466BF074E9DAC09CC0B64CE399C` |
-| `bin/jtdx.exe` with the AutoCQ 0.8.9 patch | `EB846375E60FB972467246B8A3C1061A8B2B32984BBF838EAA47571F9814C5A9` |
+| `bin/jtdx.exe` with the AutoCQ 0.9.0 patch | `0ABBA5EA8429CE4158DF0D2822D9A3108DD629A7C17E8332A8D40736ED6A413A` |
 
 ## Build and test
 

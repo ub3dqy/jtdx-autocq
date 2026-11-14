@@ -22,10 +22,18 @@ namespace JtdxAutoCq
         public string[] PriorityDxcc = new string[0];
         public bool SearchEnabled = true;
         public bool PriorityAfter73 = true;
+        public bool MonitorEnabled;
+        public bool MonitorOnePerBand = true;
+        public string[] MonitorDxcc = new string[0];
+        public string[] MonitorCalls = new string[0];
+        public string[] MonitorMasks = new string[0];
         public void Validate()
         {
             if (ExcludedDxcc == null) ExcludedDxcc = new string[0];
             if (PriorityDxcc == null) PriorityDxcc = new string[0];
+            if (MonitorDxcc == null) MonitorDxcc = new string[0];
+            MonitorCalls = MonitorTargets.NormalizeCalls(MonitorCalls);
+            MonitorMasks = MonitorTargets.NormalizeMasks(MonitorMasks);
             if (Wait73Periods < 1 || Wait73Periods > 20 || CallAttempts < 1 || CallAttempts > 5)
                 throw new InvalidOperationException("Ожидание 73: от 1 до 20 ответных периодов; вызовов без ответа: от 1 до 5.");
             if (RunMinutes < 1 || RunMinutes > 1440 || CqAttemptsBeforeSearch < 1 || CqAttemptsBeforeSearch > 20)
@@ -79,6 +87,14 @@ namespace JtdxAutoCq
             if (parsed == null) throw new InvalidOperationException("Введите позывной латинскими буквами и цифрами.");
             return parsed;
         }
+        public static string RequireDirect(string call)
+        {
+            string parsed = Require(call);
+            if (!IsDirect(parsed)) throw new InvalidOperationException("Для прямого вызова введите позывной до 11 знаков. Можно использовать один знак /.");
+            return parsed;
+        }
+        public static bool IsDirect(string call)
+        { return call != null && call.Length <= 11 && call.Count(c => c == '/') <= 1; }
     }
 
     // Keep the original decoded fields for Reply, including when the
@@ -92,7 +108,6 @@ namespace JtdxAutoCq
         readonly Dictionary<string, DateTime> completed = new Dictionary<string, DateTime>();
         readonly Dictionary<string,DateTime> removedThrough = new Dictionary<string,DateTime>();
         string context;
-        public bool HasManualEntries { get { return rows.Any(row => row.AddedByOperator); } }
         public Action Changed = delegate { };
         public bool AnswerWorkedB4 { get; set; }
         public ReadOnlyCollection<WaitingStation> Rows { get { return rows.AsReadOnly(); } }
@@ -286,11 +301,23 @@ namespace JtdxAutoCq
         public string State(WaitingStation row, RadioStatus status)
         {
             if (!String.IsNullOrEmpty(row.PauseReason)) return row.PauseReason;
+            if (row.AddedByOperator && !CanReply(row, status)) return "Готов к прямому вызову";
             if (!row.Available || row.Decode == null) return "Ждёт принятого вызова";
             if (status == null || row.Frequency != status.Frequency || row.Mode != status.Mode || row.OwnCall != Callsign.Clean(status.DeCall)) return "Другой диапазон/режим";
             if (!SamePeriod(row,status)) return "Другой период TX";
             if (Callsign.Clean(status.DxCall) == row.Call) return "Идёт QSO";
             return IsAcknowledgement(row.Decode) ? "Завершение QSO" : "Ожидает";
+        }
+        static bool CanReply(WaitingStation row, RadioStatus status)
+        {
+            return status != null && row.Available && row.Decode != null
+                && row.Frequency == status.Frequency && row.Mode == status.Mode && row.OwnCall == Callsign.Clean(status.DeCall);
+        }
+        public WaitingStation NextManual(string ownCall, Predicate<string> canCall)
+        {
+            string own = Callsign.Clean(ownCall);
+            return rows.FirstOrDefault(row => row.AddedByOperator && String.IsNullOrEmpty(row.PauseReason)
+                && row.Call != own && Callsign.IsDirect(row.Call) && canCall(row.Call));
         }
         public WaitingStation Next(RadioStatus status)
         { return Next(status,false); }
@@ -298,7 +325,7 @@ namespace JtdxAutoCq
         {
             return rows.FirstOrDefault(row =>
             {
-                if (canCall != null && !canCall(row.Call)) return false;
+                if (!CanReply(row, status) || canCall != null && !canCall(row.Call)) return false;
                 string state = State(row, status);
                 return state == "Ожидает" || state == "Завершение QSO" || allowPeriodChange && state == "Другой период TX";
             });
