@@ -99,6 +99,7 @@ $entries = [ordered]@{
     'patch/queue-reply.asm' = 'patch/queue-reply.asm'
     'patch/queue-reply.bin' = 'patch/queue-reply.bin'
 }
+Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 try {
     $zip = [IO.Compression.ZipFile]::Open($tempPath, [IO.Compression.ZipArchiveMode]::Create)
