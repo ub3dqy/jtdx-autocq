@@ -1,0 +1,1149 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Globalization;
+
+namespace JtdxAutoCq
+{
+    public sealed class RadioStatus
+    {
+        public ulong Frequency;
+        public string Mode, DxCall, DeCall;
+        public bool TxEnabled, Transmitting, Decoding, Watchdog, TxFirst;
+    }
+
+    public sealed class QtPacket
+    {
+        public const uint Magic = 0xadbccbda;
+        public uint Schema, Type;
+        public string Id, Version;
+        public RadioStatus Status;
+        public DecodedMessage Decode;
+
+        public static QtPacket Parse(byte[] data)
+        {
+            using (QtReader r = new QtReader(data))
+            {
+                if (r.U32() != Magic) throw new InvalidDataException("Неверный пакет");
+                QtPacket p = new QtPacket();
+                p.Schema = r.U32(); p.Type = r.U32(); p.Id = r.Text();
+                if (p.Schema < 2 || p.Schema > 3) throw new InvalidDataException("Версия протокола");
+                if (p.Type == 0) { r.U32(); p.Version = r.Text(); }
+                if (p.Type == 1)
+                {
+                    RadioStatus s = new RadioStatus();
+                    s.Frequency = r.U64(); s.Mode = r.Text(); s.DxCall = r.Text();
+                    r.Text(); r.Text();
+                    s.TxEnabled = r.Bool(); s.Transmitting = r.Bool(); s.Decoding = r.Bool();
+                    r.U32(); r.U32(); s.DeCall = r.Text(); r.Text(); r.Text();
+                    s.Watchdog = r.Bool(); r.Text(); r.Bool(); s.TxFirst = r.Bool();
+                    p.Status = s;
+                }
+                if (p.Type == 2)
+                {
+                    DecodedMessage d = new DecodedMessage();
+                    d.IsNew = r.Bool(); d.Milliseconds = r.U32(); d.Snr = unchecked((int)r.U32());
+                    d.DeltaTime = r.Double(); d.DeltaFrequency = r.U32(); d.Mode = r.Text(); d.Message = r.Text();
+                    d.LowConfidence = r.Bool(); d.OffAir = r.Bool();
+                    if (d.Milliseconds >= 86400000 || Double.IsNaN(d.DeltaTime) || Double.IsInfinity(d.DeltaTime)) throw new InvalidDataException("Неверное декодирование.");
+                    p.Decode = d;
+                }
+                return p;
+            }
+        }
+
+        public static byte[] TriggerCq(string id, uint schema, string direction, bool txFirst, bool send)
+        {
+            using (QtWriter w = new QtWriter(51, id, schema))
+            { w.Text(direction); w.Bool(txFirst); w.Bool(send); return w.Bytes(); }
+        }
+        public static byte[] Halt(string id, uint schema)
+        {
+            using (QtWriter w = new QtWriter(8, id, schema))
+            { w.Bool(false); return w.Bytes(); }
+        }
+        public static byte[] Reply(string id, uint schema, DecodedMessage decode)
+        { return WriteReply(id, schema, decode, 0); }
+
+        public static byte[] ReplyToCaller(string id, uint schema, DecodedMessage decode)
+        { return WriteReply(id, schema, decode, 0xa8); }
+
+        public static byte[] ReplyToVisibleCq(string id, uint schema, DecodedMessage decode)
+        { return WriteReply(id, schema, decode, 0xa9); }
+
+        static byte[] WriteReply(string id, uint schema, DecodedMessage decode, byte marker)
+        {
+            using (QtWriter w = new QtWriter(marker == 0 ? 4u : 52u, id, schema))
+            {
+                w.U32(decode.Milliseconds); w.U32(unchecked((uint)decode.Snr)); w.Double(decode.DeltaTime);
+                w.U32(decode.DeltaFrequency); w.Text(decode.Mode); w.Text(decode.Message);
+                w.Bool(decode.LowConfidence); w.Byte(marker); return w.Bytes();
+            }
+        }
+        public static byte[] HoldNativeSelection(string id, uint schema, bool hold, bool managedSession = false,
+            bool listenAfter73 = false, bool repeatFinal73 = false)
+        {
+            using (QtWriter w = new QtWriter(53, id, schema))
+            {
+                int flags = (hold ? 1 : 0) | (managedSession ? 2 : 0);
+                if (managedSession && listenAfter73) flags |= 8 | (repeatFinal73 ? 4 : 0);
+                w.Byte((byte)flags);
+                return w.Bytes();
+            }
+        }
+        public static byte[] Replay(string id, uint schema)
+        { using (QtWriter w = new QtWriter(7,id,schema)) return w.Bytes(); }
+    }
+
+    public sealed class QtReader : IDisposable
+    {
+        readonly MemoryStream stream;
+        public QtReader(byte[] data) { stream = new MemoryStream(data, false); }
+        public byte Byte()
+        { int x = stream.ReadByte(); if (x < 0) throw new EndOfStreamException(); return (byte)x; }
+        public uint U32() { return ((uint)Byte() << 24) | ((uint)Byte() << 16) | ((uint)Byte() << 8) | Byte(); }
+        public ulong U64() { return ((ulong)U32() << 32) | U32(); }
+        public double Double() { return BitConverter.Int64BitsToDouble(unchecked((long)U64())); }
+        public bool Bool() { byte b = Byte(); if (b > 1) throw new InvalidDataException("bool"); return b != 0; }
+        public string Text()
+        {
+            uint n = U32(); if (n == uint.MaxValue) return "";
+            if (n > 65507 || n > stream.Length - stream.Position) throw new InvalidDataException("Строка");
+            byte[] b = new byte[n]; if (stream.Read(b, 0, b.Length) != b.Length) throw new EndOfStreamException();
+            return new UTF8Encoding(false, true).GetString(b);
+        }
+        public void Dispose() { stream.Dispose(); }
+    }
+
+    public sealed class QtWriter : IDisposable
+    {
+        readonly MemoryStream stream = new MemoryStream();
+        public QtWriter(uint type, string id, uint schema)
+        { U32(QtPacket.Magic); U32(schema); U32(type); Text(id); }
+        public void U32(uint n)
+        { stream.WriteByte((byte)(n >> 24)); stream.WriteByte((byte)(n >> 16)); stream.WriteByte((byte)(n >> 8)); stream.WriteByte((byte)n); }
+        public void U64(ulong n) { U32((uint)(n >> 32)); U32((uint)n); }
+        public void Double(double n) { U64(unchecked((ulong)BitConverter.DoubleToInt64Bits(n))); }
+        public void Byte(byte b) { stream.WriteByte(b); }
+        public void Bool(bool b) { stream.WriteByte(b ? (byte)1 : (byte)0); }
+        public void Text(string s)
+        { byte[] b = Encoding.UTF8.GetBytes(s ?? ""); U32((uint)b.Length); stream.Write(b, 0, b.Length); }
+        public byte[] Bytes() { return stream.ToArray(); }
+        public void Dispose() { stream.Dispose(); }
+    }
+
+    // Only a recognised JTDX automatic stop may schedule another CQ.
+    // In particular, an arbitrary falling Enable Tx edge never schedules a restart.
+    public sealed class AutoCqEngine
+    {
+        public bool Armed { get; private set; }
+        public RadioStatus Status { get; private set; }
+        public int Resumes { get; private set; }
+        public int LoggedCount { get; private set; }
+        public int ConfirmedCount { get; private set; }
+        public int Missing73Count { get; private set; }
+        public int ReplyCommands { get; private set; }
+        public readonly CallerQueue Waiting = new CallerQueue();
+        public readonly HeardCqList Cqs = new HeardCqList();
+        public AutoCqOptions Options = new AutoCqOptions();
+        public DateTime SessionDeadline { get; private set; }
+        public bool CqTxFirst { get { return replyTarget == null ? (expectedPeriod ?? sessionPeriod) : sessionPeriod; } }
+        public int UnansweredCqs { get { return cqCount; } }
+        public bool Searching { get { return hunting; } }
+        public bool Finishing { get { return finishing; } }
+        public bool HasPriorityCountries { get { return Options.PriorityDxcc != null && Options.PriorityDxcc.Length > 0; } }
+        public string SelectedCqCall { get { return manualCq ?? ""; } }
+        public string WaitingCall { get { return waitingCall ?? ""; } }
+        public bool Awaiting73 { get { return waitingCall != null && !received73; } }
+        public DateTime ConfirmationDeadline { get { return waitUntil; } }
+        public Action<string> Notice = delegate { };
+        public Action RequestCq = delegate { };
+        public Action RequestHalt = delegate { };
+        public Action<DecodedMessage> RequestReply = delegate { };
+        public Action<DecodedMessage> RequestCallerReply;
+        public bool UseNativeSelection { get; set; }
+        public Predicate<string> CanCall = delegate { return true; };
+        public Predicate<string> IsPriorityCall = delegate { return false; };
+        public DateTime WaitForVisibleCqsUntil { private get; set; }
+        bool CountryExclusionsActive { get { return Options.ExcludedDxcc != null && Options.ExcludedDxcc.Length > 0; } }
+        bool CountryRulesActive { get { return CountryExclusionsActive || HasPriorityCountries; } }
+        public bool RepeatFinal73 { get { return Armed && reverseNeedsReply; } }
+        public bool ListenAfterFinal73 { get { return Armed && reverse73; } }
+        public bool HoldNativeSelection
+        {
+            get
+            {
+                return Armed && (CountryRulesActive || finishing || Awaiting73 || stoppingRetry != null
+                    || terminalHaltRequested || periodSwitchHalt || activeSearchCall != null || ReverseExchangePending
+                    || commandOutstanding && replyTarget != null);
+            }
+        }
+        ulong sessionFrequency;
+        string sessionMode, loggedCall, lastContact;
+        bool sessionPeriod, pending, commandOutstanding, everEnabled;
+        DateTime due, expires, loggedAt, commandDeadline;
+        string waitingCall, pendingOwner, attemptCall, lastRemoteFinalCall, resumedAcknowledgementCall;
+        string stoppingRetry;
+        bool received73, missing73Recorded, allowClearDx, attemptAnswered;
+        int initialTransmissions;
+        DateTime waitUntil, lastRemoteFinalAt;
+        DateTime? terminalRadioTime, firstTerminalSlot, lastTerminalSlot, receivedFinalAt;
+        bool terminalHaltRequested, sentTerminalAcknowledgement;
+        bool reverse73, reverseNeedsReply, repeatSentInSilentWindow;
+        bool ReverseExchangePending
+        {
+            get { return reverse73 && (reverseNeedsReply || !pending); }
+        }
+        DateTime? unexplainedStop;
+        string replyTarget, selectedQueuedCall;
+        bool replyDuringCq;
+        int sessionWaitPeriods, sessionCallAttempts, sessionSwitchMinutes;
+        DateTime lastResponseAt, lastDecodeFinished;
+        long lastInitialSlot = -1;
+        bool callLimitExceeded;
+        readonly Dictionary<string, DateTime> sentAcknowledgedReports = new Dictionary<string, DateTime>();
+        bool hunting, cqThreshold, cqTxSeen, cqTxEnded, cqHaltExpected, cqListening, completedCurrent;
+        bool cqHaltAcknowledged, periodSwitchHalt;
+        bool? expectedPeriod;
+        int cqCount;
+        long lastCqSlot = -1;
+        DateTime lastCqTime;
+        string manualCq, activeSearchCall;
+        bool finishing;
+        static readonly Regex TxMessage = new Regex(@"\b(?:Transmitting|Retransmitting)\s+.*?\b(?:FT8|FT4):\s*(.+)$", RegexOptions.CultureInvariant);
+        static readonly Regex RxMessage = new Regex(@"^\d{8}_\d{6}\s+[+-]?\d+\s+[+-]?[\d.,]+\s+\d+\s+\S+\s+(.+)$", RegexOptions.CultureInvariant);
+        static readonly Regex ReplySelected = new Regex(@"double click on call processed: (\S+); EnableTx On\b", RegexOptions.CultureInvariant);
+        static readonly Regex Report = new Regex(@"^R?[+-]\d{2}$", RegexOptions.CultureInvariant);
+        static readonly Regex Grid = new Regex(@"^[A-R]{2}\d{2}(?:[A-X]{2})?$", RegexOptions.CultureInvariant);
+        public bool Pending { get { return pending; } }
+
+        public void Start(DateTime now)
+        {
+            if (Status == null) throw new InvalidOperationException("Ожидается состояние JTDX.");
+            if (Status.Mode != "FT8" && Status.Mode != "FT4") throw new InvalidOperationException("Поддерживаются FT8 и FT4.");
+            if (Status.Watchdog) throw new InvalidOperationException("Сработал сторожевой таймер JTDX.");
+            if (Status.TxEnabled && !String.IsNullOrEmpty(Status.DxCall) && !CanCall(Status.DxCall))
+                throw new InvalidOperationException("Текущий позывной входит в исключения DXCC. Завершите связь перед запуском AutoCQ.");
+            Options.Validate(); sessionWaitPeriods = Options.Wait73Periods; sessionCallAttempts = Options.CallAttempts;
+            sessionSwitchMinutes = Options.SwitchPeriodMinutes;
+            SessionDeadline = now.AddMinutes(Options.RunMinutes);
+            if (!Status.TxEnabled && !String.IsNullOrEmpty(Status.DxCall))
+                throw new InvalidOperationException("Очистите DX в JTDX для начала CQ или сначала запустите выбранную связь.");
+            sessionFrequency = Status.Frequency; sessionMode = Status.Mode; sessionPeriod = Status.TxFirst;
+            hunting = finishing = false; manualCq = null; ResetCqRound();
+            lastResponseAt = now; lastDecodeFinished = DateTime.MinValue;
+            Armed = true; pending = false; commandOutstanding = false; loggedCall = null; lastContact = Status.DxCall;
+            everEnabled = Status.TxEnabled; Resumes = 0; LoggedCount = 0;
+            ConfirmedCount = 0; Missing73Count = 0; ReplyCommands = 0; ResetContact();
+            sentAcknowledgedReports.Clear();
+            unexplainedStop = null;
+            Notice("Автомат включён на " + Options.RunMinutes + " мин. CQ без ответа до поиска: " + Options.CqAttemptsBeforeSearch + ".");
+            if (!Status.TxEnabled) Schedule(now, "Первый вызов CQ");
+        }
+
+        public void Stop(string reason, bool halt)
+        {
+            Armed = false; pending = false; commandOutstanding = false; loggedCall = null;
+            unexplainedStop = null;
+            manualCq = null; hunting = finishing = false; ResetCqRound();
+            ResetContact();
+            sentAcknowledgedReports.Clear();
+            Notice(reason);
+            if (halt) RequestHalt();
+        }
+
+        public void OnStatus(RadioStatus status, DateTime now)
+        {
+            string previousCall = Status == null ? "" : CleanCall(Status.DxCall);
+            string nextCall = CleanCall(status.DxCall);
+            bool wasEnabled = Status != null && Status.TxEnabled;
+            bool wasTransmitting = Status != null && Status.Transmitting;
+            bool nativeIdleSelection = Status != null && String.IsNullOrEmpty(Status.DxCall) && !String.IsNullOrEmpty(status.DxCall)
+                && waitingCall == null && (!pending || UseNativeSelection && (replyDuringCq || cqListening || allowClearDx))
+                && !commandOutstanding && selectedQueuedCall == null && (!UseNativeSelection || status.TxEnabled);
+            bool confirmedCurrent = received73 && (completedCurrent || receivedFinalAt.HasValue);
+            bool nativeHandoff = UseNativeSelection && !CountryRulesActive && activeSearchCall == null && !ReverseExchangePending
+                && status.TxEnabled && !terminalHaltRequested && stoppingRetry == null
+                && previousCall != nextCall && nextCall.Length > 0
+                && !commandOutstanding && (selectedQueuedCall == null || confirmedCurrent) && !finishing
+                && (!Awaiting73 || now >= waitUntil)
+                && (previousCall.Length > 0 || nativeIdleSelection || completedCurrent || confirmedCurrent);
+            Status = status;
+            Waiting.SetContext(status);
+            Cqs.SetContext(status);
+            if (!Armed) return;
+            if (CountryExclusionsActive && status.TxEnabled && nextCall.Length > 0 && !CanCall(nextCall))
+            { Stop("JTDX выбрал станцию из исключений DXCC. Автомат выключен.", true); return; }
+            if (wasEnabled && !status.TxEnabled)
+            {
+                if (replyDuringCq && !cqListening) { pending = false; replyDuringCq = false; }
+                if (!pending || UseNativeSelection && cqListening && !cqHaltExpected && !cqHaltAcknowledged)
+                    unexplainedStop = now.AddMilliseconds(900);
+            }
+            if (status.Watchdog) { Stop("Сторожевой таймер JTDX: автомат выключен.", true); return; }
+            bool permittedPeriod = status.TxFirst == sessionPeriod || (commandOutstanding && expectedPeriod.HasValue && status.TxFirst == expectedPeriod.Value);
+            if ((nativeHandoff || nativeIdleSelection && !CountryRulesActive) && status.Frequency == sessionFrequency && status.Mode == sessionMode)
+            {
+                if (nativeHandoff)
+                {
+                    CompleteConfirmedContact();
+                    if (Awaiting73 && !missing73Recorded) Missing73Count++;
+                    loggedCall = null;
+                    ResetContact();
+                    Notice("Автовыбор JTDX: " + nextCall + ".");
+                }
+                SetSessionPeriod(status.TxFirst, now);
+                permittedPeriod = true;
+                pending = replyDuringCq = false;
+                ResetCqRound(keepPendingHalt: cqListening);
+            }
+            if (status.Frequency != sessionFrequency || status.Mode != sessionMode || !permittedPeriod)
+            { Stop("Изменены диапазон, режим или период TX: автомат выключен.", true); return; }
+            if (Awaiting73 && (now < waitUntil || status.Decoding) && !String.IsNullOrEmpty(status.DxCall) && CleanCall(status.DxCall) != waitingCall)
+            { Stop("JTDX выбрал другую станцию до окончания ожидания 73. Автомат выключен.", true); return; }
+            if (ReverseExchangePending && nextCall.Length > 0 && nextCall != waitingCall)
+            { Stop("JTDX сменил корреспондента во время подтверждения 73. Автомат выключен.", true); return; }
+            if (UseNativeSelection && status.TxEnabled && !commandOutstanding && waitingCall == null && selectedQueuedCall == null)
+            {
+                bool dxCleared = previousCall.Length > 0 && nextCall.Length == 0;
+                if (cqListening && (nextCall.Length > 0 || dxCleared))
+                {
+                    // A selected DX takes over the receive window after CQ.
+                    pending = replyDuringCq = hunting = false;
+                    ResetCqRound(keepPendingHalt: true);
+                }
+                else if (dxCleared)
+                    ResetCqRound();
+            }
+            if (UseNativeSelection && nextCall.Length == 0 && waitingCall != null
+                && !commandOutstanding && status.TxEnabled && !pending)
+            {
+                // Native sequencing can drop its DX field before a logged
+                // terminal exchange has consumed all configured RX slots.
+                pendingOwner = waitingCall;
+                allowClearDx = true;
+                Schedule(now, Awaiting73 ? "Ожидаю финальный 73 от " + waitingCall + "."
+                    : "Связь завершена. Выбираю следующую станцию или CQ.");
+                due = now;
+                if ((Awaiting73 || finishing) && !status.Transmitting)
+                {
+                    cqHaltExpected = true;
+                    RequestHalt();
+                }
+            }
+            if (UseNativeSelection && previousCall.Length > 0 && nextCall.Length == 0
+                && !commandOutstanding && waitingCall == null && selectedQueuedCall != null && status.TxEnabled && stoppingRetry == null)
+                ContinueAfterRetry(previousCall, now);
+            if (status.TxEnabled)
+            {
+                unexplainedStop = null;
+                everEnabled = true;
+                if (commandOutstanding && (!expectedPeriod.HasValue || status.TxFirst == expectedPeriod.Value) && (replyTarget == null || CleanCall(status.DxCall) == replyTarget))
+                { SetSessionPeriod(status.TxFirst, now); commandOutstanding = false; pending = false; replyTarget = null; expectedPeriod = null; }
+            }
+            if (!commandOutstanding && selectedQueuedCall != null && !String.IsNullOrEmpty(status.DxCall) && CleanCall(status.DxCall) != selectedQueuedCall)
+            { Stop("Выбрана другая станция во время QSO из очереди. Автомат выключен.", true); return; }
+            if (!String.IsNullOrEmpty(status.DxCall) && status.DxCall != lastContact)
+            { lastContact = status.DxCall; loggedCall = null; }
+            if (lastCqTime != DateTime.MinValue && String.IsNullOrEmpty(status.DxCall))
+            {
+                if (status.Transmitting) cqTxSeen = true;
+                if (wasTransmitting && !status.Transmitting && cqTxSeen) cqTxEnded = true;
+            }
+        }
+
+        // Native selection sees an addressed decode before JTDX's DecodeFinished
+        // callback. Give it that RX period, then use the saved FIFO as fallback.
+        bool LetNativeChoose(DateTime now, WaitingStation next)
+        {
+            if (!UseNativeSelection || CountryRulesActive || finishing || !Status.TxEnabled || manualCq != null) return false;
+            if (next == null || !SameRxPeriod(next.LastHeardUtc, now)) return false;
+            if (!Status.Decoding && lastDecodeFinished >= next.LastHeardUtc.AddMilliseconds(500)) return false;
+            if (lastCqTime != DateTime.MinValue)
+            {
+                double slot = sessionMode == "FT4" ? 7.5 : 15;
+                if (now < lastCqTime.AddSeconds(2 * slot + 0.5)) return true;
+            }
+            return false;
+        }
+
+        void SetSessionPeriod(bool period, DateTime now)
+        {
+            if (sessionPeriod != period) lastResponseAt = now;
+            sessionPeriod = period;
+        }
+
+        bool SameRxPeriod(DateTime heard, DateTime now)
+        {
+            return heard <= now && now < heard.Add(SlotDuration).AddMilliseconds(500);
+        }
+
+        public void OnLine(string line, DateTime now)
+        {
+            int record = line.IndexOf("QSO logged: ", StringComparison.Ordinal);
+            if (record >= 0)
+            {
+                string worked = line.Substring(record + 12).Trim().Split(' ')[0];
+                Waiting.Complete(worked, RadioTime(line) ?? now);
+                Cqs.Complete(worked);
+            }
+            if (!Armed) return;
+            if (line.EndsWith("  Decoding finished", StringComparison.Ordinal))
+                lastDecodeFinished = RadioTime(line) ?? now;
+            if(commandOutstanding && replyTarget!=null && line.IndexOf("UDP Reply request ignored, decode not found",StringComparison.Ordinal)>=0
+                && Regex.IsMatch(line,@"(?:[ <])"+Regex.Escape(replyTarget)+@"(?:[ >]|$)"))
+            {
+                string unavailable=replyTarget;Waiting.InvalidateCall(unavailable);Cqs.InvalidateCall(unavailable);
+                commandOutstanding=false;loggedCall=null;lastContact=null;ResetContact();
+                Schedule(now,"Вызов "+unavailable+" больше не найден в окне JTDX. Жду его повторения; продолжаю очередь.");
+                // JTDX explicitly rejected the request without starting a QSO.
+                // There is no native stop transition to settle before retrying.
+                due=now;
+                replyDuringCq=Status!=null && Status.TxEnabled && String.IsNullOrEmpty(Status.DxCall);return;
+            }
+            Match selected = resumedAcknowledgementCall != null ? ReplySelected.Match(line) : Match.Empty;
+            if (selected.Success && CleanCall(selected.Groups[1].Value) == resumedAcknowledgementCall)
+            {
+                lastRemoteFinalCall = resumedAcknowledgementCall;
+                lastRemoteFinalAt = now;
+            }
+            Match tx = line.IndexOf("ransmitting ", StringComparison.Ordinal) >= 0 ? TxMessage.Match(line) : Match.Empty;
+            if (tx.Success) Transmitted(tx.Groups[1].Value, RadioTime(line), now);
+            if (!Armed) return;
+            Match rx = RxMessage.Match(line);
+            if (rx.Success) Decoded(rx.Groups[1].Value, RadioTime(line), now);
+            int log = line.IndexOf("QSO logged: ", StringComparison.Ordinal);
+            if (log >= 0)
+            {
+                string call = line.Substring(log + 12).Trim().Split(' ')[0];
+                if (Awaiting73 && now < waitUntil && CleanCall(call) != waitingCall)
+                { Stop("Записана другая связь до окончания ожидания 73. Автомат выключен.", true); return; }
+                if (call.Length > 0 && (call != loggedCall || (now - loggedAt).TotalSeconds > 120))
+                {
+                    sentAcknowledgedReports.Remove(CleanCall(call));
+                    loggedCall = call; loggedAt = now; LoggedCount++;
+                    completedCurrent = true;
+                    if (waitingCall == null) BeginWaiting(CleanCall(call), now, RadioTime(line));
+                    Notice("QSO в журнале: " + call + (Awaiting73 ? ". Ожидаю заключительное 73." : "."));
+                }
+            }
+            int halt = line.IndexOf("Halt Tx", StringComparison.Ordinal);
+            if (halt < 0) return;
+            string reason = line.Substring(halt);
+            if (stoppingRetry != null && reason.IndexOf("UDP request", StringComparison.Ordinal) >= 0)
+            { ContinueAfterRetry(stoppingRetry, now); return; }
+            if (cqHaltExpected && reason.IndexOf("UDP request",StringComparison.Ordinal) >= 0)
+            { cqHaltExpected = false; cqHaltAcknowledged = cqListening; unexplainedStop = null; return; }
+            bool finalStop = reason.IndexOf(": FIN, end of QSO", StringComparison.Ordinal) >= 0;
+            bool normalEnd = reason.IndexOf("end of QSO", StringComparison.Ordinal) >= 0
+                || reason.IndexOf("S73, none received", StringComparison.Ordinal) >= 0
+                || reason.IndexOf("SRR73, none received", StringComparison.Ordinal) >= 0;
+            double logWindow = Math.Max(120, sessionWaitPeriods * (sessionMode == "FT4" ? 15 : 30) + 30);
+            bool loggedRecently = loggedCall != null && loggedCall == lastContact && (now - loggedAt).TotalSeconds < logWindow;
+            bool confirmedRecently = receivedFinalAt.HasValue && waitingCall == lastContact
+                && now >= receivedFinalAt.Value && now - receivedFinalAt.Value <= SlotDuration + SlotDuration;
+            // This exact reason is emitted for the ordinary sequencing retry limits.
+            bool retryLimit = reason.IndexOf("counter triggered", StringComparison.Ordinal) >= 0
+                && reason.IndexOf("m_houndMode", StringComparison.Ordinal) < 0;
+            if (everEnabled && ((normalEnd && loggedRecently) || (finalStop && confirmedRecently) || retryLimit))
+            {
+                if (retryLimit && !loggedRecently && waitingCall == null)
+                {
+                    // The module may already have asked for Halt on the same
+                    // boundary. Consume that reply too if it is still in flight.
+                    if (stoppingRetry != null) cqHaltExpected = true;
+                    ContinueAfterRetry(stoppingRetry ?? lastContact, now);
+                    return;
+                }
+                unexplainedStop = null;
+                allowClearDx = true; pendingOwner = waitingCall ?? lastContact;
+                Schedule(now, Awaiting73 ? "Ожидаю 73 от " + waitingCall + ": ответных периодов — " + sessionWaitPeriods + "."
+                    : retryLimit ? "Лимит попыток исчерпан: следующая станция или CQ" : "Завершение подтверждено: следующая станция или CQ");
+                // FIN/counter is an explicit native acknowledgement. Tick still
+                // waits for RX, completed decoding and the final-73 condition.
+                due=now;
+            }
+            else Stop("JTDX остановлен. Автомат выключен: " + reason, false);
+        }
+
+        void ContinueAfterRetry(string call, DateTime now)
+        {
+            Waiting.Pause(call, CallerQueue.NoAnswer, now);
+            Cqs.Failed(call, now);
+            ResetContact();
+            ResetCqRound(keepPendingHalt: true);
+            loggedCall = null;
+            unexplainedStop = null;
+            allowClearDx = true;
+            pendingOwner = call;
+            hunting = false;
+            Schedule(now, "Лимит попыток " + call + " исчерпан. Выбираю следующую станцию или CQ.");
+            due = now;
+        }
+
+        void Schedule(DateTime now, string reason)
+        {
+            pending = true; commandOutstanding = false; replyDuringCq = false; due = now.AddMilliseconds(900);
+            expires = now.AddSeconds(45);
+            if (Awaiting73 && waitUntil.AddSeconds(30) > expires) expires = waitUntil.AddSeconds(30);
+            Notice(reason);
+        }
+
+        static string CleanCall(string call) { return (call ?? "").Trim('<', '>').ToUpperInvariant(); }
+        static string[] Words(string text) { return text.ToUpperInvariant().Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries); }
+        static DateTime? RadioTime(string line)
+        {
+            DateTime value;
+            if (line.Length >= 19 && line[15] == '.' && DateTime.TryParseExact(line.Substring(0,19), "yyyyMMdd_HHmmss.fff", CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out value)) return value;
+            if (line.Length >= 15 && DateTime.TryParseExact(line.Substring(0,15), "yyyyMMdd_HHmmss", CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out value)) return value;
+            return null;
+        }
+        void ResetContact()
+        {
+            waitingCall = null; received73 = false; missing73Recorded = false; terminalRadioTime = null;
+            receivedFinalAt = null;
+            firstTerminalSlot = lastTerminalSlot = null; terminalHaltRequested = sentTerminalAcknowledgement = false;
+            reverse73 = reverseNeedsReply = repeatSentInSilentWindow = false;
+            allowClearDx = false; pendingOwner = null; attemptCall = null; initialTransmissions = 0;
+            attemptAnswered = false; lastRemoteFinalCall = null;
+            callLimitExceeded = false; stoppingRetry = null;
+            resumedAcknowledgementCall = null;
+            replyTarget = null; selectedQueuedCall = null; replyDuringCq = false; lastInitialSlot = -1;
+            expectedPeriod = null; activeSearchCall = null; completedCurrent = false;
+        }
+        void ResetCqRound(bool keepCount = false, bool keepPendingHalt = false)
+        {
+            if (!keepCount) cqCount = 0;
+            lastCqSlot = -1; lastCqTime = DateTime.MinValue;
+            cqThreshold = cqTxSeen = cqTxEnded = cqListening = false;
+            if (!keepPendingHalt) cqHaltExpected = false;
+            cqHaltAcknowledged = periodSwitchHalt = false;
+        }
+
+        TimeSpan SlotDuration
+        { get { return TimeSpan.FromSeconds(sessionMode == "FT4" ? 7.5 : 15); } }
+
+        long SlotNumber(DateTime time)
+        { return (time.Ticks + TimeSpan.FromMilliseconds(500).Ticks) / SlotDuration.Ticks; }
+
+        DateTime SlotStart(long slot)
+        { return new DateTime(slot * SlotDuration.Ticks, DateTimeKind.Utc); }
+
+        void TrackCq(DateTime time, DateTime now)
+        {
+            TimeSpan period = SlotDuration;
+            long slot = SlotNumber(time);
+            if (slot == lastCqSlot) return;
+
+            DateTime slotStart = SlotStart(slot);
+            if (Options.SearchEnabled && cqThreshold && cqCount >= Options.CqAttemptsBeforeSearch && cqTxSeen)
+            {
+                // With native AutoSelect enabled, JTDX can start its CQ at
+                // the TX boundary and replace it when decoding finishes.
+                // Allow only another TX slot of the same phase. Preserve
+                // the pending search and wait for either the native choice
+                // or the end of the frame before issuing a Reply ourselves.
+                long elapsedSlots = slot - lastCqSlot;
+                bool nativeContinuation = UseNativeSelection && !commandOutstanding
+                    && Status != null && Status.TxEnabled && !cqHaltExpected && !unexplainedStop.HasValue
+                    && elapsedSlots >= 2 && elapsedSlots % 2 == 0;
+                if (!nativeContinuation)
+                {
+                    Stop("JTDX начал CQ вне ожидаемого периода. AutoCQ выключен.", true);
+                    return;
+                }
+
+                if (!cqListening)
+                {
+                    due = lastCqTime.AddTicks(2 * period.Ticks);
+                    expires = now.AddSeconds(45);
+                }
+                cqListening = pending = true;
+                replyDuringCq = false;
+                Notice("JTDX начал CQ. Жду его Автовыбор или окончания передачи для продолжения поиска.");
+            }
+
+            lastCqSlot = slot;
+            lastCqTime = slotStart;
+            cqCount++;
+            cqTxSeen = Status != null && Status.Transmitting;
+            cqTxEnded = false;
+            if (Options.SearchEnabled && (cqCount >= Options.CqAttemptsBeforeSearch || hunting)
+                || manualCq != null || finishing)
+                cqThreshold = true;
+        }
+        public void SelectCq(string call,DateTime now)
+        {
+            if(!Armed)throw new InvalidOperationException("Автомат выключен.");
+            if(finishing)throw new InvalidOperationException("Время вышло: завершается текущая связь и очередь. Новый поиск не запускается.");
+            if(!CanCall(call))throw new InvalidOperationException("Станция входит в исключения DXCC.");
+            CqStation row=Cqs.Find(call);
+            if(!Cqs.Fresh(row,now))throw new InvalidOperationException("В левом окне нет свежего сообщения от этой станции.");
+            manualCq=row.Call;
+            if(waitingCall==null && String.IsNullOrEmpty(Status.DxCall) && lastCqTime!=DateTime.MinValue)cqThreshold=true;
+            Notice("Выбрана станция " + row.Call + ". Вызов после текущей связи и ответов на ваш позывной.");
+        }
+
+        public void AddQueuedCall(string call, DateTime now)
+        {
+            call = Callsign.Require(call);
+            EnsureOtherCall(call);
+            Waiting.Add(call, now);
+            Cqs.Retry(call);
+        }
+
+        public void RenameQueuedCall(string oldCall, string newCall)
+        {
+            newCall = Callsign.Require(newCall);
+            EnsureOtherCall(newCall);
+            if (Callsign.Clean(oldCall) == newCall) return;
+            Waiting.Rename(oldCall, newCall);
+            Cqs.Retry(newCall);
+        }
+
+        public void RetryQueuedCall(string call)
+        {
+            Waiting.Retry(call);
+            Cqs.Retry(call);
+        }
+
+        void EnsureOtherCall(string call)
+        {
+            if (Status != null && call == CleanCall(Status.DeCall))
+                throw new InvalidOperationException("Введите позывной другой станции.");
+        }
+        WaitingStation NextCaller()
+        {
+            if (HasPriorityCountries)
+            {
+                WaitingStation priority = Waiting.Next(Status, true, CanCallWithPriority);
+                if (priority != null) return priority;
+            }
+            return Waiting.Next(Status, true, CanCall);
+        }
+
+        bool CanCallWithPriority(string call)
+        { return CanCall(call) && IsPriorityCall(call); }
+
+        public bool QueuedCqReady(CqStation candidate, DateTime now)
+        {
+            return Cqs.CanTry(candidate, now) && CanCall(candidate.Call) && Waiting.CanUseCq(candidate)
+                && (candidate.Signoff == null || Options.PriorityAfter73 && IsPriorityCall(candidate.Call));
+        }
+
+        CqStation NextQueuedCq(DateTime now)
+        {
+            foreach (WaitingStation row in Waiting.Rows)
+            {
+                if (!row.AddedByOperator) continue;
+                CqStation candidate = Cqs.Find(row.Call);
+                if (QueuedCqReady(candidate, now)) return candidate;
+            }
+            return null;
+        }
+
+        CqStation NextCq(DateTime now, bool switchPeriod)
+        {
+            if (finishing) return null;
+            if(manualCq!=null)
+            {
+                CqStation selected=Cqs.Find(manualCq);
+                if(Cqs.Fresh(selected,now) && CanCall(selected.Call))return selected;
+                Notice("Выбранное сообщение устарело: " + manualCq + ". Ожидаю свежий приём."); manualCq=null;
+            }
+            CqStation queued = NextQueuedCq(now);
+            if (queued != null) return queued;
+            if (HasPriorityCountries)
+            {
+                CqStation priority = NextPriorityCq(now);
+                if (priority != null) return priority;
+            }
+            return !switchPeriod && hunting && Options.SearchEnabled ? Cqs.Next(now, CanCall, eligible: Waiting.CanUseCq) : null;
+        }
+
+        CqStation NextPriorityCq(DateTime now)
+        { return Cqs.Next(now, CanCallWithPriority, Options.PriorityAfter73, Waiting.CanUseCq); }
+        void BeginWaiting(string peer, DateTime now, DateTime? radioTime)
+        {
+            if (waitingCall == peer) return; // Repeated RR73 must not restart an unlimited timer.
+            waitingCall = peer; received73 = false; missing73Recorded = false; terminalRadioTime = radioTime;
+            // Count reply opportunities of the OTHER station: every second slot.
+            waitUntil = now.AddSeconds((sessionMode == "FT4" ? 7.5 : 15.0) * 2 * sessionWaitPeriods);
+            Notice("Жду 73 от " + peer + ": ответных периодов — " + sessionWaitPeriods + ".");
+        }
+
+        void TerminalTransmitted(string peer, DateTime now, DateTime? radioTime, bool acknowledgement)
+        {
+            if (waitingCall != peer)
+            {
+                firstTerminalSlot = lastTerminalSlot = null;
+                receivedFinalAt = null;
+                terminalHaltRequested = reverse73 = reverseNeedsReply = repeatSentInSilentWindow = false;
+            }
+            BeginWaiting(peer, now, radioTime);
+            sentTerminalAcknowledgement = acknowledgement;
+            DateTime slot = SlotStart(SlotNumber(radioTime ?? now));
+            lastTerminalSlot = slot;
+            if (firstTerminalSlot.HasValue) return;
+            firstTerminalSlot = slot;
+            waitUntil = slot.AddTicks(2 * SlotDuration.Ticks * sessionWaitPeriods);
+        }
+        void Confirm73(string reason)
+        {
+            if (received73) return;
+            received73 = true; ConfirmedCount++;
+            Notice(reason);
+        }
+        void CompleteConfirmedContact()
+        {
+            if (completedCurrent || !receivedFinalAt.HasValue || waitingCall == null) return;
+            completedCurrent = true;
+            Waiting.Complete(waitingCall, receivedFinalAt.Value);
+            sentAcknowledgedReports.Remove(waitingCall);
+            Notice("QSO с " + waitingCall + " подтверждено, но в журнале JTDX нет записи. Продолжаю работу.");
+        }
+        void Transmitted(string text, DateTime? radioTime, DateTime now)
+        {
+            string[] w = Words(text); if (w.Length < 3) return;
+            if (w[0] == "CQ")
+            {
+                if ((Awaiting73 && now < waitUntil) || ReverseExchangePending)
+                    Stop("CQ начался до окончания обмена 73. Автомат выключен.", true);
+                if (Armed) TrackCq(radioTime ?? now, now);
+                return;
+            }
+            ResetCqRound();
+            string peer = CleanCall(w[0]), own = CleanCall(w[1]);
+            if (Status != null && !String.IsNullOrEmpty(Status.DeCall) && own != CleanCall(Status.DeCall)) return;
+            if (peer != waitingCall && ((Awaiting73 && now < waitUntil) || ReverseExchangePending))
+            { Stop("Передача другой станции началась до окончания ожидания 73. Автомат выключен.", true); return; }
+            lastContact = peer;
+            if (w[2] == "RR73" || w[2] == "RRR")
+            {
+                if (waitingCall != peer) lastRemoteFinalCall = null;
+                TerminalTransmitted(peer, now, radioTime, acknowledgement: true);
+            }
+            else if (w[2] == "73")
+            {
+                DateTime? previousTerminalSlot = lastTerminalSlot;
+                TerminalTransmitted(peer, now, radioTime, acknowledgement: false);
+                // If the peer sent RR73, our 73 is the final acknowledgement.
+                if (lastRemoteFinalCall == peer && (now-lastRemoteFinalAt).TotalSeconds < 120)
+                {
+                    reverse73 = true;
+                    if (previousTerminalSlot != lastTerminalSlot && (!received73 || reverseNeedsReply))
+                    {
+                        waitUntil = lastTerminalSlot.Value.AddTicks(2 * SlotDuration.Ticks);
+                        reverseNeedsReply = repeatSentInSilentWindow = false;
+                    }
+                    else if (previousTerminalSlot != lastTerminalSlot && !reverseNeedsReply)
+                        repeatSentInSilentWindow = true;
+                    Confirm73(peer + " передал RR73; наше 73 завершает обмен.");
+                }
+            }
+            else if (Report.IsMatch(w[2]) || Grid.IsMatch(w[2]))
+            {
+                if (attemptCall != peer)
+                {
+                    attemptCall = peer; initialTransmissions = 0; attemptAnswered = false; lastInitialSlot = -1; callLimitExceeded = false;
+                }
+                if (w[2].StartsWith("R", StringComparison.Ordinal))
+                {
+                    sentAcknowledgedReports[peer] = radioTime ?? now;
+                    attemptAnswered = true;
+                }
+                if (!attemptAnswered)
+                {
+                    long slot = SlotNumber(radioTime ?? now);
+                    if (slot != lastInitialSlot) { initialTransmissions++; lastInitialSlot = slot; }
+                    callLimitExceeded = initialTransmissions > sessionCallAttempts;
+                }
+            }
+        }
+        void Decoded(string text, DateTime? radioTime, DateTime now)
+        {
+            string[] w=Words(text); if(w.Length<3 || Status==null || CleanCall(w[0])!=CleanCall(Status.DeCall))return;
+            string peer=CleanCall(w[1]), payload=w[2];
+            bool acknowledgement = CallerQueue.IsAcknowledgement(payload);
+            bool response = CanCall(peer) && (CallerQueue.IsCaller(payload) || waitingCall == peer && (payload == "73" || acknowledgement));
+            if (response && (!radioTime.HasValue || now - radioTime.Value <= SlotDuration + SlotDuration))
+                lastResponseAt = now;
+            if (peer == attemptCall && (Report.IsMatch(payload) || acknowledgement)) attemptAnswered = true;
+            if((payload=="73" || acknowledgement) && waitingCall==peer && terminalRadioTime.HasValue && radioTime.HasValue && radioTime.Value<terminalRadioTime.Value)return;
+            // Round FT4 decodes logged at a whole second back to their 7.5-second slot.
+            bool freshFinal = peer == waitingCall && lastTerminalSlot.HasValue && radioTime.HasValue
+                && SlotNumber(radioTime.Value) > SlotNumber(lastTerminalSlot.Value)
+                && radioTime.Value <= now.AddSeconds(2) && now - radioTime.Value <= SlotDuration + SlotDuration;
+            if(acknowledgement)
+            {
+                lastRemoteFinalCall=peer;lastRemoteFinalAt=now;
+                if (freshFinal)
+                {
+                    if (reverse73) reverseNeedsReply = true;
+                    else if (sentTerminalAcknowledgement)
+                    {
+                        receivedFinalAt = radioTime;
+                        Confirm73("Получено заключительное " + payload + " от " + peer + ".");
+                    }
+                }
+            }
+            if(payload!="73" || waitingCall!=peer) return;
+            if (freshFinal)
+            {
+                receivedFinalAt = radioTime;
+                if (reverse73) reverseNeedsReply = false;
+            }
+            Confirm73("Получено заключительное 73 от " + peer + ".");
+        }
+
+        // JTDX still decodes the entire last RX slot with subsequent repeats disabled.
+        bool FinishTerminal(DateTime now)
+        {
+            if (waitingCall == null || pending || commandOutstanding || Status == null || cqHaltExpected
+                || unexplainedStop.HasValue) return false;
+            string call = CleanCall(Status.DxCall);
+            if (call.Length > 0 && call != waitingCall) return false;
+            bool lastReceiveSlot = firstTerminalSlot.HasValue && now >= waitUntil.Subtract(SlotDuration);
+            bool exchangeDone = received73 && (!firstTerminalSlot.HasValue || now >= firstTerminalSlot.Value.Add(SlotDuration))
+                && (!reverse73 || (!reverseNeedsReply && ReplyWindowComplete(waitUntil, now)));
+            bool timedOut = Awaiting73 && ReplyWindowComplete(waitUntil, now);
+            bool overrun = timedOut && lastTerminalSlot.HasValue && lastTerminalSlot.Value >= waitUntil;
+            bool completed = (exchangeDone || timedOut) && !Status.Decoding
+                && (!Status.Transmitting || overrun || repeatSentInSilentWindow);
+            bool preventRepeat = Awaiting73 && lastReceiveSlot && !Status.Transmitting;
+            if (!completed && !preventRepeat) return false;
+
+            pendingOwner = waitingCall;
+            allowClearDx = true;
+            Schedule(now, Awaiting73 ? "Дослушиваю заключительное 73 от " + waitingCall + "."
+                : "Связь завершена. Выбираю следующую станцию или CQ.");
+            due = now;
+            if (!Status.TxEnabled) return false;
+            terminalHaltRequested = cqHaltExpected = true;
+            RequestHalt();
+            return true;
+        }
+
+        public void OnDecode(DecodedMessage decode, DateTime now)
+        {
+            Waiting.Observe(decode, Status, waitingCall ?? selectedQueuedCall, now,!finishing);
+            Cqs.Observe(decode, Status, now, !UseNativeSelection || !decode.IsNew);
+            if (!Armed || Status == null || decode.OffAir || !decode.IsNew || String.IsNullOrEmpty(decode.Message)) return;
+            if ((sessionMode == "FT8" && decode.Mode != "~")
+                || (sessionMode == "FT4" && decode.Mode != ":" && decode.Mode != "+")) return;
+            DateTime heard = decode.UtcTime(now);
+            Decoded(decode.Message, heard, now);
+            if (Status.Frequency != sessionFrequency || Status.Mode != sessionMode) return;
+            string[] words = Words(decode.Message);
+            if (words.Length != 3 || !CallerQueue.IsAcknowledgement(words[2])) return;
+            string peer = CleanCall(words[1]);
+            DateTime sent;
+            if (!sentAcknowledgedReports.TryGetValue(peer, out sent) || heard <= sent || heard - sent > TimeSpan.FromMinutes(5)) return;
+            if (Waiting.QueueAcknowledgement(decode, Status, waitingCall ?? selectedQueuedCall, now, !finishing))
+                Notice("Получено позднее " + words[2] + " от " + peer + ". Позывной в очереди на завершение связи.");
+        }
+
+
+        void ExpireWaiting(DateTime now)
+        {
+            string currentCall = Status != null && (Status.TxEnabled || Status.Transmitting) ? Status.DxCall : null;
+            Waiting.Expire(now, TimeSpan.FromMinutes(Options.QueueMinutes), currentCall, waitingCall ?? selectedQueuedCall);
+        }
+
+        bool ReplyWindowComplete(DateTime boundary, DateTime now)
+        {
+            DateTime receiveStart = boundary.Subtract(SlotDuration);
+            return now >= boundary || lastDecodeFinished >= receiveStart.AddMilliseconds(500);
+        }
+
+        public void Tick(DateTime now, bool connectionFresh)
+        {
+            ExpireWaiting(now);
+            if (!Armed) return;
+            if (now >= SessionDeadline && !finishing)
+            {
+                finishing=true;hunting=false;manualCq=null;
+                Notice("Время вышло. Завершаю текущую связь и очередь; станции «Нет ответа» пропускаю.");
+                if(commandOutstanding && replyTarget==null && Status!=null && !Status.Transmitting && String.IsNullOrEmpty(Status.DxCall) && lastCqTime==DateTime.MinValue)
+                {commandOutstanding=false;expectedPeriod=null;pending=false;}
+            }
+            if (!connectionFresh) { Stop("Потеряна связь с JTDX: автомат выключен.", true); return; }
+            if (stoppingRetry != null)
+            {
+                if (now >= expires) Stop("JTDX не подтвердил остановку после лимита вызовов. Автомат выключен.", true);
+                return;
+            }
+            if (unexplainedStop.HasValue && now >= unexplainedStop.Value)
+            { Stop("JTDX остановлен без подтверждённого автоматического завершения. Автомат выключен.", false); return; }
+            if (commandOutstanding && now >= commandDeadline)
+            {
+                if (replyTarget != null) Waiting.Pause(replyTarget, CallerQueue.ReplyRejected, now);
+                Stop("JTDX не подтвердил " + (replyTarget == null ? "включение TX" : "ответ станции " + replyTarget) + ". Автомат выключен.", true); return;
+            }
+            if (reverseNeedsReply && now >= waitUntil.Add(SlotDuration) && Status != null && !Status.Decoding)
+            { Stop("JTDX не подтвердил повтор 73 для " + waitingCall + ". Автомат выключен.", true); return; }
+            if (callLimitExceeded && (attemptAnswered || attemptCall != CleanCall(Status == null ? null : Status.DxCall)
+                || waitingCall != null || pending && allowClearDx))
+                callLimitExceeded = false;
+            if (FinishTerminal(now)) return;
+            bool finalAttemptDecoded = initialTransmissions >= sessionCallAttempts && !attemptAnswered && lastInitialSlot >= 0
+                && lastDecodeFinished >= SlotStart(lastInitialSlot + 1) && !pending && waitingCall == null;
+            if ((callLimitExceeded || finalAttemptDecoded) && Status != null && Status.TxEnabled && !Status.Decoding && !commandOutstanding
+                && attemptCall == CleanCall(Status.DxCall))
+            {
+                stoppingRetry = attemptCall;
+                callLimitExceeded = false;
+                expires = now.AddSeconds(6);
+                RequestHalt();
+                return;
+            }
+            if(finishing && !pending && !commandOutstanding && unexplainedStop==null && Status!=null && waitingCall==null && selectedQueuedCall==null && (String.IsNullOrEmpty(Status.DxCall) || !Status.TxEnabled))
+            {
+                if(lastCqTime!=DateTime.MinValue)cqThreshold=true;
+                else if(!Status.Transmitting && !Status.Decoding)
+                {
+                    if(Status.TxEnabled)
+                    {
+                        pending=true;cqHaltExpected=true;replyDuringCq=false;due=now.AddMilliseconds(900);expires=now.AddSeconds(45);unexplainedStop=null;RequestHalt();
+                    }
+                    else if(NextCaller()!=null)
+                    {allowClearDx=true;pendingOwner=Status.DxCall;Schedule(now,"Дорабатываю очередь после окончания времени.");}
+                    else {Stop("Время вышло. Текущая связь и доступная очередь завершены; автомат выключен.",false);return;}
+                }
+            }
+            bool switchPeriod = !finishing && now >= lastResponseAt.AddMinutes(sessionSwitchMinutes) && manualCq == null;
+            bool checkPriorityCq = !finishing && HasPriorityCountries;
+            bool checkManualCq = !finishing && Waiting.HasManualEntries;
+            if ((cqThreshold || switchPeriod || checkPriorityCq || checkManualCq) && cqTxEnded && !cqListening && !pending && !commandOutstanding
+                && Status != null && Status.TxEnabled && !unexplainedStop.HasValue && String.IsNullOrEmpty(Status.DxCall))
+            {
+                cqListening = pending = true;
+                replyDuringCq = false;
+                due = lastCqTime.AddTicks(2 * SlotDuration.Ticks);
+                expires = due.AddSeconds(45);
+                // Pause the repeat for priority calls. Otherwise, leave the
+                // receive window open for native AutoSelect and the queue.
+                cqHaltExpected = !UseNativeSelection || finishing || switchPeriod || checkPriorityCq;
+                if (cqHaltExpected)
+                {
+                    periodSwitchHalt = switchPeriod;
+                    if (!checkPriorityCq || cqThreshold || switchPeriod)
+                        Notice("CQ без ответа: " + cqCount + ". Дослушиваю последний ответный период.");
+                    RequestHalt();
+                }
+            }
+            if (!pending && !commandOutstanding && Status != null && Status.TxEnabled && waitingCall == null && String.IsNullOrEmpty(Status.DxCall))
+            {
+                WaitingStation waiting = NextCaller();
+                bool cqBeforeFirstTransmission = lastCqTime == DateTime.MinValue
+                    && (manualCq != null || checkManualCq && NextQueuedCq(now) != null
+                        || checkPriorityCq && NextPriorityCq(now) != null);
+                if (cqBeforeFirstTransmission || waiting != null && !LetNativeChoose(now, waiting))
+                { pending = true; replyDuringCq = true; due = now; expires = now.AddSeconds(45); }
+            }
+            if (!pending || commandOutstanding || Status == null) return;
+            if (now >= expires)
+            {
+                Stop(cqListening ? "Не завершён переход после CQ: автомат выключен."
+                    : "Не получено подтверждение завершения QSO: автомат выключен.", false);
+                return;
+            }
+            if ((finishing || switchPeriod) && cqListening && cqTxEnded && Status.TxEnabled && !Status.Transmitting
+                && !cqHaltExpected && !cqHaltAcknowledged && !unexplainedStop.HasValue && String.IsNullOrEmpty(Status.DxCall))
+            {
+                // Stop between frames and still accept replies to the last
+                // CQ that actually aired, including a delayed native CQ.
+                DateTime endOfResponse = lastCqTime.AddTicks(2 * SlotDuration.Ticks);
+                if (endOfResponse > due) due = endOfResponse;
+                expires = due.AddSeconds(45);
+                cqHaltExpected = true;
+                periodSwitchHalt = switchPeriod;
+                RequestHalt();
+                return;
+            }
+            if ((now < due && (!cqListening || !ReplyWindowComplete(due, now)))
+                || Status.Transmitting || Status.Decoding || unexplainedStop.HasValue) return;
+            if (UseNativeSelection && allowClearDx && Status.TxEnabled && String.IsNullOrEmpty(Status.DxCall)
+                && (Awaiting73 || finishing) && !cqHaltExpected && !terminalHaltRequested)
+            {
+                cqHaltExpected = true;
+                RequestHalt();
+                return;
+            }
+            if (cqHaltExpected || ((terminalHaltRequested || cqHaltAcknowledged) && Status.TxEnabled)
+                || (Awaiting73 && !ReplyWindowComplete(waitUntil, now)) || reverseNeedsReply) return;
+            if (!String.IsNullOrEmpty(Status.DxCall) && (!allowClearDx || CleanCall(Status.DxCall) != CleanCall(pendingOwner))) return;
+            if (cqListening)
+            {
+                bool nativeCqWindow = UseNativeSelection && Status.TxEnabled && !cqHaltExpected;
+                if (nativeCqWindow && finishing)
+                {
+                    cqHaltExpected = true;
+                    RequestHalt();
+                    return;
+                }
+                if (nativeCqWindow) replyDuringCq = true;
+                hunting = Options.SearchEnabled && !finishing
+                    && (cqThreshold || !checkPriorityCq && !checkManualCq && !periodSwitchHalt);
+            }
+            CompleteConfirmedContact();
+            if (completedCurrent) { hunting = false; ResetCqRound(); }
+            WaitingStation next = NextCaller();
+            if (next == null && (checkPriorityCq || checkManualCq || !switchPeriod && (hunting || manualCq != null))
+                && now < WaitForVisibleCqsUntil) return;
+            bool keepCqCount = cqListening && (checkPriorityCq || checkManualCq) && !cqThreshold && !switchPeriod && !finishing;
+            cqListening = false;
+            CqStation cq = next == null ? NextCq(now, switchPeriod) : null;
+            bool nativeCleared = UseNativeSelection && allowClearDx && String.IsNullOrEmpty(Status.DxCall);
+            if (Status.TxEnabled && !nativeCleared && (!replyDuringCq || (next == null && cq == null)))
+            {
+                if (replyDuringCq)
+                {
+                    pending = false;
+                    if (UseNativeSelection && !keepCqCount) ResetCqRound();
+                }
+                return;
+            }
+            if (Awaiting73 && !missing73Recorded)
+            { missing73Recorded=true;Missing73Count++;Notice("73 от "+waitingCall+" не получено за " + sessionWaitPeriods + " ответных периодов. Продолжаю работу."); }
+            if(finishing && next==null)
+            {
+                Stop("Время вышло. Текущая связь и доступная очередь завершены; автомат выключен.", false);
+                return;
+            }
+            commandOutstanding = true; commandDeadline = now.AddSeconds(6);
+            loggedCall = null; lastContact = null; ResetContact();
+            if (next != null)
+            {
+                hunting=false;ResetCqRound();expectedPeriod=CallerQueue.ReplyFirst(next.Decode,sessionMode);
+                replyTarget = selectedQueuedCall = lastContact = next.Call;
+                if (CallerQueue.IsAcknowledgement(next.Decode))
+                    resumedAcknowledgementCall = next.Call;
+                ReplyCommands++; Notice((checkPriorityCq && IsPriorityCall(next.Call) ? "Отвечаю из очереди, приоритет DXCC: "
+                    : "Отвечаю из очереди: ") + next.Call + ".");
+                (RequestCallerReply ?? RequestReply)(next.Decode.Copy());
+            }
+            else if(cq!=null)
+            {
+                ResetCqRound();expectedPeriod=CallerQueue.ReplyFirst(cq.Decode,sessionMode);
+                activeSearchCall=replyTarget=selectedQueuedCall=lastContact=cq.Call;manualCq=null;hunting=true;Cqs.Attempt(cq.Call,now);
+                ReplyCommands++;
+                WaitingStation queued = Waiting.Find(cq.Call);
+                if (cq.Signoff != null)
+                    Notice("Вызываю " + cq.Call + " по " + cq.Signoff + " из левого окна.");
+                else if (queued != null && queued.AddedByOperator)
+                    Notice("Вызываю добавленную в очередь станцию " + cq.Call + " по её CQ.");
+                else
+                    Notice((checkPriorityCq && IsPriorityCall(cq.Call) ? "Вызываю приоритетную станцию из CQ: "
+                        : "Вызываю станцию из CQ: ") + cq.Call + ".");
+                RequestReply(cq.Decode.Copy());
+            }
+            else
+            {
+                hunting = false;
+                ResetCqRound(keepCqCount);
+                expectedPeriod = switchPeriod ? !sessionPeriod : sessionPeriod;
+                Resumes++;
+                if (!keepCqCount)
+                    Notice(switchPeriod ? "Нет ответа " + sessionSwitchMinutes + " мин. CQ в другом периоде TX."
+                        : "Нет готовых станций в очереди. Возобновляю CQ…");
+                RequestCq();
+            }
+        }
+    }
+
+    public sealed class LogTail
+    {
+        readonly string directory;
+        string file, remainder = "";
+        long offset;
+        public LogTail(string directory) { this.directory = directory; Reset(); }
+        public void Reset()
+        {
+            file = Path.Combine(directory, DateTime.UtcNow.ToString("yyyyMM") + "_ALL.TXT");
+            offset = File.Exists(file) ? new FileInfo(file).Length : 0; remainder = "";
+        }
+        public void Read(Action<string> onLine)
+        {
+            string current = Path.Combine(directory, DateTime.UtcNow.ToString("yyyyMM") + "_ALL.TXT");
+            if (current != file) { file = current; offset = 0; remainder = ""; }
+            if (!File.Exists(file)) return;
+            using (FileStream s = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            {
+                if (s.Length < offset) { offset = 0; remainder = ""; }
+                if (s.Length == offset) return;
+                s.Position = offset;
+                // Bound work per UI tick, even if debug logging is unusually busy.
+                byte[] bytes = new byte[(int)Math.Min(262144, s.Length - offset)];
+                int n = s.Read(bytes, 0, bytes.Length); offset += n;
+                string text = remainder + Encoding.UTF8.GetString(bytes, 0, n);
+                int end = text.LastIndexOf('\n');
+                if (end < 0) { remainder = text.Length < 65536 ? text : ""; return; }
+                foreach (string line in text.Substring(0, end).Split('\n')) onLine(line.TrimEnd('\r'));
+                remainder = text.Substring(end + 1);
+            }
+        }
+    }
+
+    public sealed class UdpBridge : IDisposable
+    {
+        readonly UdpClient socket;
+        readonly string expectedId;
+        public IPEndPoint Upstream;
+        public IPEndPoint Client { get; private set; }
+        public int Port { get { return ((IPEndPoint)socket.Client.LocalEndPoint).Port; } }
+        public Action<QtPacket> Received = delegate { };
+        public Action<string> Error = delegate { };
+        public UdpBridge(int port, string expectedId)
+        {
+            this.expectedId = expectedId;
+            socket = new UdpClient(AddressFamily.InterNetwork);
+            socket.Client.ExclusiveAddressUse = true;
+            socket.Client.Bind(new IPEndPoint(IPAddress.Loopback, port));
+            // An absent logbook must not turn a local UDP ICMP reply into a radio stop.
+            try { socket.Client.IOControl(unchecked((IOControlCode)(-1744830452)), new byte[4], null); }
+            catch (SocketException) { }
+        }
+        public void ResetClient() { Client = null; }
+        public void SendToClient(byte[] data)
+        { if (Client != null) socket.Send(data, data.Length, Client); }
+        public void Poll()
+        {
+            for (int n = 0; n < 300 && socket.Available > 0; n++)
+            {
+                IPEndPoint remote = new IPEndPoint(IPAddress.Any, 0);
+                byte[] data = socket.Receive(ref remote);
+                if (Upstream != null && remote.Equals(Upstream))
+                {
+                    try
+                    {
+                        uint type = QtPacket.Parse(data).Type;
+                        if (type == 52 || type == 53) continue;
+                    }
+                    catch (InvalidDataException) { continue; }
+                    catch (EndOfStreamException) { continue; }
+                    catch (DecoderFallbackException) { continue; }
+                    SendToClient(data);
+                    continue;
+                }
+                QtPacket packet;
+                try { packet = QtPacket.Parse(data); } catch (Exception) { continue; }
+                if (packet.Id != expectedId || (Client != null && !Client.Equals(remote))) continue;
+                Client = remote; Received(packet);
+                if (Upstream != null)
+                {
+                    try { socket.Send(data, data.Length, Upstream); }
+                    catch (SocketException e) { Error(e.Message); }
+                }
+                if (packet.Type == 6) Client = null;
+            }
+        }
+        public void Dispose() { socket.Close(); }
+    }
+}

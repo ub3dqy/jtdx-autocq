@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="С AutoCQ программа JTDX продолжает работу после каждой связи в FT8 и FT4. Таймер, очередь вызовов, приоритеты и исключения по странам.">
+  <title>AutoCQ для JTDX — загрузка</title>
+  <link rel="icon" href="icon.png" type="image/png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap masthead">
+      <a class="brand" href="index.html"><img src="icon.png" alt="" width="36" height="36">AutoCQ</a>
+      <nav aria-label="Разделы страницы">
+        <a href="#setup">Установка</a>
+        <a href="#compatibility">Совместимость</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="intro">
+          <p class="version">0.8.9 <span aria-hidden="true">/</span> FT8 и FT4 <span aria-hidden="true">/</span> Windows x64</p>
+          <h1>AutoCQ для<br> JTDX</h1>
+          <p class="summary">С AutoCQ программа JTDX продолжает работать после завершения радиосвязи. Она сама возобновляет общий вызов (CQ) или отвечает станции, которая уже зовёт вас. Продолжительность работы вы задаёте в настройках.</p>
+          <a class="button" href="https://github.com/ub3dqy/jtdx-autocq/releases/download/v0.8.9/JTDX-AutoCQ-0.8.9-win64.zip">Скачать AutoCQ</a>
+          <p class="requirements">Требуется JTDX 2.2.160-32A-rc10 Win64</p>
+        </div>
+        <figure class="product">
+          <a href="autocq-demo.png" aria-label="Открыть снимок окна AutoCQ в полном размере">
+            <img src="autocq-demo.png" alt="Демонстрационное окно AutoCQ с таймером, настройками ожидания 73 и очередью вызовов" width="976" height="778">
+          </a>
+          <figcaption>Интерфейс AutoCQ в деморежиме</figcaption>
+        </figure>
+      </div>
+    </section>
+    <div class="surface">
+      <div class="wrap">
+        <dl class="features">
+          <div>
+            <dt>Кого звать</dt>
+            <dd>Можно менять порядок вызовов в очереди. Когда на ваш CQ никто не отвечает, модуль может позвать станцию, чей общий вызов принял JTDX.</dd>
+          </div>
+          <div>
+            <dt>Кому отвечать первым</dt>
+            <dd>Отметьте страны и территории, со станциями которых хотите связаться в первую очередь. AutoCQ может позвать приоритетную станцию по её CQ, 73 или RRR из левого окна JTDX. Станции из списка исключений модуль пропускает.</dd>
+          </div>
+          <div>
+            <dt>Когда остановиться</dt>
+            <dd>Поставьте таймер, например, на час. Когда время выйдет, AutoCQ закончит начатую связь, ответит на доступные вызовы из очереди и остановится.</dd>
+          </div>
+        </dl>
+        <div class="details">
+          <section id="setup" aria-labelledby="setup-title">
+            <h2 id="setup-title">Установка</h2>
+            <ol class="steps">
+              <li>Установите JTDX <strong>2.2.160-32A-rc10 Win64</strong>, настройте трансивер и закройте JTDX. <a href="https://ecoalfa.org/recursos/jtdx.4/">Установщик на EcoAlfa</a> доступен после входа.</li>
+              <li>Распакуйте AutoCQ и выполните <code>Patch-JTDX.ps1</code> по инструкции в архиве. Для этого шага нужен <a href="https://nodejs.org/en/download">Node.js LTS</a>. Патч проверит контрольную сумму и сохранит исходный <code>jtdx.exe</code>.</li>
+              <li>Откройте AutoCQ и нажмите <strong>1. Подготовить</strong>. Запустите JTDX, затем нажмите <strong>2. Включить автомат</strong>.</li>
+            </ol>
+            <div class="setup-links">
+              <a href="https://github.com/ub3dqy/jtdx-autocq#установить-autocq">Подробная инструкция</a>
+              <a href="https://github.com/ub3dqy/jtdx-autocq/releases/download/v0.8.9/SHA256SUMS.txt">Контрольная сумма SHA-256</a>
+            </div>
+          </section>
+          <section class="compat" id="compatibility" aria-labelledby="compat-title">
+            <h2 id="compat-title">Совместимость</h2>
+            <p>AutoCQ подходит для трансиверов, с которыми ваш JTDX уже принимает и передаёт. Звук и управление трансивером настраиваются в JTDX.</p>
+            <p>Для записи можно использовать журнал JTDX. Передача QSO во внешний журнал по UDP проверена с LogHX. В этой связке запускайте JTDX значком в LogHX.</p>
+            <p>Деморежим <code>--demo</code> работает без JTDX и трансивера.</p>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+  <footer>
+    <div class="wrap footer-row">
+      <p>AutoCQ 0.8.9 · Модуль для JTDX</p>
+      <p>JTDX распространяется по <a href="https://www.gnu.org/licenses/gpl-3.0.html">GNU GPLv3</a></p>
+    </div>
+  </footer>
+</body>
+</html>

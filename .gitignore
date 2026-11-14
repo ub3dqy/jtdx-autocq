@@ -1,0 +1,15 @@
+/build/
+*.autocq-original
+*.autocq.tmp
+JTDX.ini
+connection.xml
+operator.xml
+status.xml
+runtime.log
+*_ALL.TXT
+*.adif
+*.adi
+*.lhx2
+*.mdb
+jtdx.exe
+jtdx-queue.exe

@@ -1,0 +1,108 @@
+:root {
+  color-scheme: dark;
+  --night: #101b29;
+  --ink: #142639;
+  --mint: #65e1cb;
+  --ice: #f3f7f8;
+  --muted: #bccad6;
+  font-family: "Geist", "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; color: #f3f8fb; background: var(--night); }
+a { color: inherit; text-underline-offset: 0.22em; }
+a:focus-visible { outline: 2px solid #2985ed; outline-offset: 5px; border-radius: 3px; }
+img { max-width: 100%; height: auto; display: block; }
+p, dd, li { line-height: 1.58; }
+.wrap { width: min(1160px, calc(100% - 3rem)); margin-inline: auto; }
+.site-header { border-bottom: 1px solid #b6e3ed26; }
+.masthead, .footer-row { display: flex; align-items: center; gap: 1rem; justify-content: space-between; }
+.masthead { min-height: 70px; }
+.brand { display: inline-flex; gap: 0.65rem; align-items: center; font-size: 1.15rem; font-weight: 710; text-decoration: none; }
+.masthead nav { display: flex; flex-wrap: wrap; gap: clamp(0.55rem, 3vw, 1.65rem); font-size: 0.9rem; color: #dce7ef; }
+.masthead nav a { text-decoration: none; }
+.masthead nav a:hover { text-decoration: underline; }
+.hero {
+  background: radial-gradient(ellipse at 74% 30%, #193a56, transparent 53%), var(--night);
+}
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(17rem, 0.83fr) minmax(0, 1.17fr);
+  align-items: center;
+  gap: clamp(1.5rem, 5vw, 4.5rem);
+  padding-block: clamp(3.25rem, 7vw, 6.1rem) clamp(3rem, 6vw, 5.25rem);
+}
+.version {
+  margin: 0 0 1.15rem;
+  color: var(--mint);
+  font-family: "IBM Plex Mono", Consolas, monospace;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+}
+.version span { color: #91aeb9; margin-inline: 0.25em; }
+h1, h2 { letter-spacing: -0.035em; }
+h1 { margin: 0; font-size: clamp(2.6rem, 5.15vw, 4.8rem); line-height: 1.02; }
+.summary { margin: 1.4rem 0 1.6rem; max-width: 34ch; color: #d0deea; font-size: clamp(1rem, 1.65vw, 1.16rem); }
+.button {
+  display: inline-block;
+  padding: 0.88rem 1.21rem;
+  border: 1px solid var(--mint);
+  border-radius: 0.5rem;
+  background: var(--mint);
+  color: #0e282b;
+  font-weight: 730;
+  text-decoration: none;
+}
+.button:hover { background: #a0ffea; }
+.requirements { font-size: 0.83rem; margin: 0.65rem 0 0; color: var(--muted); }
+.product { margin: 0; }
+.product a { display: block; border: 1px solid #9fc3dd61; border-radius: 0.7rem; overflow: hidden; box-shadow: 0 20px 55px #060b1280; }
+.product figcaption { text-align: right; margin-top: 0.7rem; font-size: 0.79rem; color: var(--muted); }
+.surface { color-scheme: light; background: var(--ice); color: var(--ink); }
+.features {
+  margin: 0;
+  padding-block: 2.5rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid #c5d5df;
+}
+.features div + div { padding-left: 1.5rem; border-left: 1px solid #c5d5df; }
+.features div { padding-right: 1.5rem; }
+.features dt { font-size: 1.12rem; font-weight: 740; }
+.features dd { margin: 0.5rem 0 0; color: #365264; }
+.details {
+  padding-block: clamp(2.5rem, 5vw, 4.5rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.85fr);
+  gap: clamp(1.35rem, 5vw, 4.25rem);
+  align-items: start;
+}
+.details h2 { font-size: clamp(1.7rem, 3vw, 2.2rem); margin: 0 0 1.1rem; }
+.steps { padding-left: 1.3rem; }
+.steps li { margin: 0 0 1rem; padding-left: 0.35rem; }
+.steps li::marker { font-weight: 750; color: #146963; }
+.details a { color: #145f74; font-weight: 640; }
+.setup-links { display: flex; flex-wrap: wrap; gap: 0.8rem 1.45rem; }
+.compat { padding: clamp(1.2rem, 3vw, 2rem); border: 1px solid #c8dbdf; border-radius: 0.7rem; background: #e8f2f2; }
+.compat p { margin: 0 0 0.8rem; }
+.compat p:last-child { margin: 0; }
+code { font-family: "IBM Plex Mono", Consolas, monospace; font-size: 0.9em; overflow-wrap: anywhere; }
+.footer-row { padding-block: 0.7rem; color: var(--muted); font-size: 0.84rem; }
+
+@media (max-width: 780px) {
+  .hero-grid, .details { grid-template-columns: minmax(0, 1fr); }
+  .hero-grid { gap: 2.1rem; }
+  .product { max-width: 620px; }
+  .product figcaption { text-align: left; }
+  h1 br { display: none; }
+}
+
+@media (max-width: 525px) {
+  .wrap { width: calc(100% - 2rem); }
+  .masthead { min-height: 63px; }
+  .masthead nav { font-size: 0.8rem; }
+  .features { grid-template-columns: minmax(0, 1fr); gap: 1rem; padding-block: 1.6rem; }
+  .features div { padding: 0; }
+  .features div + div { padding: 1rem 0 0; border: 0; border-top: 1px solid #c5d5df; }
+  .footer-row { display: block; }
+}
