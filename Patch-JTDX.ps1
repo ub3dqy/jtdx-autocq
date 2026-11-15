@@ -6,8 +6,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $originalHash = '6B6718432EDB55B3E3C8A5B884522BDC5EF5E466BF074E9DAC09CC0B64CE399C'
-$patchedHash = '0ABBA5EA8429CE4158DF0D2822D9A3108DD629A7C17E8332A8D40736ED6A413A'
-$previousHash = 'EB846375E60FB972467246B8A3C1061A8B2B32984BBF838EAA47571F9814C5A9'
+$patchedHash = 'B615BFBDC23291A7CA297FE1EAE4EB7D2AF0E8966C962D4FB0EA620C6FF6B12F'
+$previousHashes = @(
+    '0ABBA5EA8429CE4158DF0D2822D9A3108DD629A7C17E8332A8D40736ED6A413A',
+    'EB846375E60FB972467246B8A3C1061A8B2B32984BBF838EAA47571F9814C5A9'
+)
 
 function Get-Sha256([string] $Path) {
     $sha = [Security.Cryptography.SHA256]::Create()
@@ -32,14 +35,14 @@ $path = $target.FullName
 $backup = $path + '.autocq-original'
 $currentHash = Get-Sha256 $path
 
-if ($currentHash -notin $originalHash, $patchedHash, $previousHash) {
+if ($currentHash -notin (@($originalHash, $patchedHash) + $previousHashes)) {
     throw "Unsupported jtdx.exe. Expected JTDX 2.2.160-32A-rc10 Windows x64. SHA-256: $currentHash"
 }
 if ((Test-Path -LiteralPath $backup) -and (Get-Sha256 $backup) -ne $originalHash) {
     throw "The existing backup has a different SHA-256: $backup"
 }
 $source = $path
-if ($currentHash -eq $previousHash) {
+if ($currentHash -in $previousHashes) {
     if (!(Test-Path -LiteralPath $backup -PathType Leaf)) {
         throw "The previous patch needs the verified original rc10 to upgrade. Restore that executable first or place it here: $backup"
     }

@@ -41,6 +41,9 @@ org 0x142d17000
 %define button_click    0x142c1fc70
 %define generate_tx     0x1400f9290
 %define choose_tx1      0x1400d08d0
+%define qso_log_data    0x14012be80
+%define qstring_null    0x142c1c8c0
+%define date_time_ms    0x142c1e378
 %define saved_caller    0xa8
 %define visible_cq      0xa9
 %define direct_call     0xaa
@@ -92,6 +95,10 @@ entry repeat_final_73
 entry hold_s73
 entry after_accept
 entry valid_direct_call
+entry first_recent_log_gate
+entry second_recent_log_gate
+entry new_exchange_in_history
+entry new_exchange_end
 
 ; Mutable state is placed in a separate non-executable section.
 select_until equ 0x142d18000
@@ -744,6 +751,96 @@ terminal_hook repeat_final_73, check_reverse_ack, original_fin
     jmp 0x1400a9f50
 %endmacro
 terminal_hook hold_s73, check_reverse_ack, original_s73
+
+; guiUpdate has already recognized a sign-off. These two original QString
+; comparisons identify a call still in the recent log. A new exchange can
+; use the same call, so for FT8/FT4 consult JTDX's own history for that call.
+first_recent_log_gate:
+    test al, al
+    jz 0x140110dd0              ; check the second most recently logged call
+    jmp check_recent_exchange
+
+second_recent_log_gate:
+    test al, al
+    jz 0x140110de9              ; continue with the previous-message check
+check_recent_exchange:
+    cmp byte [rbx+0x68b], 0     ; Hound/DXpedition
+    jne .duplicate
+    mov rax, [rbx+0x2ae8]       ; mode QString
+    cmp dword [rax+4], 3
+    jne .duplicate
+    add rax, [rax+16]
+    cmp dword [rax], 0x00540046 ; "FT", in UTF-16
+    jne .duplicate
+    cmp word [rax+4], '8'
+    je .lookup
+    cmp word [rax+4], '4'
+    jne .duplicate
+.lookup:
+    mov rcx, rbx
+    call new_exchange_in_history
+    test eax, eax
+    jnz 0x140110de9
+.duplicate:
+    jmp 0x14010f4cc             ; original duplicate sign-off path
+
+; QsoHistory::log_data supplies the active callsign's start in UTC seconds
+; of day. Use the full QDateTime that process_Auto saved for this exchange
+; only when its time matches the history entry. Retransmissions keep the
+; exchange's original start. A fresh start lies after the last actual log.
+new_exchange_in_history:
+    sub rsp, 0x58
+    mov [rsp+0x30], rcx         ; MainWindow
+    mov rax, [rcx+0x2a60]       ; DX QString, as in the native log QSO slot
+    cmp dword [rax+4], 0
+    je .no
+    iat_load qstring_null
+    mov [rsp+0x38], rax         ; received report QString
+    mov [rsp+0x40], rax         ; sent report QString
+    lea r9, [rsp+0x38]
+    lea rax, [rsp+0x40]
+    mov [rsp+0x20], rax
+    lea r8, [rsp+0x48]
+    mov dword [r8], -1          ; no start time supplied yet
+    lea rdx, [rcx+0x2a60]
+    lea rcx, [rcx+0x2b70]       ; QsoHistory
+    call qso_log_data
+    mov [rsp+0x4c], eax
+    lea rcx, [rsp+0x38]
+    call qstring_destroy
+    lea rcx, [rsp+0x40]
+    call qstring_destroy
+    cmp dword [rsp+0x4c], 7     ; need report exchange, as in native QSO logging
+    jle .no
+    cmp dword [rsp+0x48], 86400
+    jae .no
+    mov rcx, [rsp+0x30]
+    add rcx, 0x2b58             ; m_dateTimeQSOOn
+    iat_call date_time_ms
+    test rax, rax
+    jle .no
+    mov [rsp+0x50], rax
+    xor edx, edx
+    mov ecx, 86400000
+    div rcx                     ; EDX is the start's millisecond of day
+    imul eax, dword [rsp+0x48], 1000
+    cmp edx, eax
+    jne .no
+    mov rcx, [rsp+0x30]
+    add rcx, 0x760              ; most recent log QDateTime
+    iat_call date_time_ms
+    test rax, rax
+    jle .no
+    cmp rax, [rsp+0x50]
+    setl al
+    movzx eax, al
+    jmp .done
+.no:
+    xor eax, eax
+.done:
+    add rsp, 0x58
+    ret
+new_exchange_end:
 
 network_dll: db 'Qt5Network.dll', 0
 ipv4_export: db '_ZNK12QHostAddress13toIPv4AddressEPb', 0

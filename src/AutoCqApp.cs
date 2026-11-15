@@ -16,8 +16,8 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.2.0")]
-[assembly: AssemblyFileVersion("0.9.2.0")]
+[assembly: AssemblyVersion("0.9.3.0")]
+[assembly: AssemblyFileVersion("0.9.3.0")]
 
 namespace JtdxAutoCq
 {
@@ -197,9 +197,9 @@ namespace JtdxAutoCq
 
     public sealed class MainForm : Form
     {
-        const string ModuleVersion = "0.9.2";
+        const string ModuleVersion = "0.9.3";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
-        const string NativeQueueHash = "0ABBA5EA8429CE4158DF0D2822D9A3108DD629A7C17E8332A8D40736ED6A413A";
+        const string NativeQueueHash = "B615BFBDC23291A7CA297FE1EAE4EB7D2AF0E8966C962D4FB0EA620C6FF6B12F";
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
         static readonly Color Ink = Color.FromArgb(21, 38, 58);
         static readonly Color Slate = Color.FromArgb(79, 96, 112);

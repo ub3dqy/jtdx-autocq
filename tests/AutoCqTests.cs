@@ -297,29 +297,34 @@ class AutoCqTests
                     {
                         bridge.Upstream=(IPEndPoint)logbook.Client.LocalEndPoint; byte[] data=StatusPacket(S(true,"W1AW"),"JTDX");
                         Send(jtdx,data,bridge.Port); Pump(bridge,()=>logbook.Available>0); Assert(Receive(logbook).SequenceEqual(data),"Logbook bytes changed");
-                        byte[] adif;
-                        using (var packet = new QtWriter(12, "JTDX", 2))
+                        foreach (string timeOn in new[] { "160200", "160700" })
                         {
-                            packet.Text("<call:6>DL1ZZA <mode:3>FT8 <band:3>80m <rst_sent:3>-04 <rst_rcvd:3>-01 <eor>");
-                            adif = packet.Bytes();
+                            using (var packet = new QtWriter(12, "JTDX", 2))
+                            {
+                                packet.Text("<call:6>DL1ZZA <mode:3>FT8 <band:3>80m <qso_date:8>20251114 <time_on:6>"
+                                    + timeOn + " <rst_sent:3>-04 <rst_rcvd:3>-01 <eor>");
+                                byte[] adif = packet.Bytes();
+                                Send(jtdx, adif, bridge.Port); Pump(bridge, () => logbook.Available > 0);
+                                Assert(Receive(logbook).SequenceEqual(adif), "An ADIF entry for a repeated callsign was not forwarded");
+                            }
                         }
-                        Send(jtdx, adif, bridge.Port); Pump(bridge, () => logbook.Available > 0);
-                        Assert(Receive(logbook).SequenceEqual(adif), "Recorded QSO was not forwarded to the logbook");
-                        byte[] qsoLogged;
-                        using (var packet = new QtWriter(5, "JTDX", 2))
+                        foreach (uint timeOn in new[] { 57720000u, 58020000u })
                         {
-                            const ulong julianDay = 2460994; // QDataStream date for 14 November 2025
-                            packet.U64(julianDay);
-                            packet.U32(57744000); packet.Byte(1);
-                            packet.Text("DL1ZZA"); packet.Text("JO50"); packet.U64(3573999); packet.Text("FT8");
-                            foreach (string field in new[] { "-04", "-01", "", "", "" }) packet.Text(field);
-                            packet.U64(julianDay);
-                            packet.U32(57720000); packet.Byte(1);
-                            foreach (string field in new[] { "K1ABC", "K1ABC", "KO85", "", "" }) packet.Text(field);
-                            qsoLogged = packet.Bytes();
+                            using (var packet = new QtWriter(5, "JTDX", 2))
+                            {
+                                const ulong julianDay = 2460994; // QDataStream date for 14 November 2025
+                                packet.U64(julianDay);
+                                packet.U32(timeOn + 24000); packet.Byte(1);
+                                packet.Text("DL1ZZA"); packet.Text("JO50"); packet.U64(3573999); packet.Text("FT8");
+                                foreach (string field in new[] { "-04", "-01", "", "", "" }) packet.Text(field);
+                                packet.U64(julianDay);
+                                packet.U32(timeOn); packet.Byte(1);
+                                foreach (string field in new[] { "K1ABC", "K1ABC", "KO85", "", "" }) packet.Text(field);
+                                byte[] qsoLogged = packet.Bytes();
+                                Send(jtdx, qsoLogged, bridge.Port); Pump(bridge, () => logbook.Available > 0);
+                                Assert(Receive(logbook).SequenceEqual(qsoLogged), "A QSO Logged datagram for a repeated callsign was not forwarded");
+                            }
                         }
-                        Send(jtdx, qsoLogged, bridge.Port); Pump(bridge, () => logbook.Available > 0);
-                        Assert(Receive(logbook).SequenceEqual(qsoLogged), "JTDX QSO Logged datagram was not forwarded to LogHX");
                         byte[] halt=QtPacket.Halt("JTDX",2); Send(logbook,halt,bridge.Port); Pump(bridge,()=>jtdx.Available>0);
                         Assert(Receive(jtdx).SequenceEqual(halt),"Logbook reply lost");
                         Send(other,data,bridge.Port); for(int i=0;i<10;i++){Thread.Sleep(5);bridge.Poll();}

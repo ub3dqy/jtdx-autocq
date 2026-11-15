@@ -41,7 +41,7 @@ Downloads from EcoAlfa require signing in. The upstream release notes include th
 
 ## Install AutoCQ
 
-If you already use the patch from AutoCQ 0.9.0, close AutoCQ and replace `JTDX-AutoCQ.exe` with the file in the latest archive. If you are updating from an earlier version, run the commands in step 3. The script updates the previous patch using the `jtdx.exe.autocq-original` backup.
+To upgrade to 0.9.3, close JTDX and AutoCQ. Follow step 3 with the 0.9.3 archive, then open `JTDX-AutoCQ.exe` from that archive. The script updates the JTDX patch using the `jtdx.exe.autocq-original` backup.
 
 1. Download the **32A, 64-bit** JTDX build above. Extract the ZIP and check the SHA-256 of `jtdx-2.2.160-32A-rc10-win64.exe` against the table below.
 2. Install JTDX and open it once to check your callsign, audio, and rig control. If you use LogHX, point it to this `jtdx.exe` and check that JTDX starts from LogHX. Then close JTDX.
@@ -100,7 +100,7 @@ Get-FileHash -Algorithm SHA256 -LiteralPath .\jtdx-2.2.160-32A-rc10-win64.exe
 | --- | --- |
 | `jtdx-2.2.160-32A-rc10-win64.exe` installer | `67276B42561E3D1722BACABBA39B8B467C21BDFB73E4EEBFD832AB6152122574` |
 | Original installed `bin/jtdx.exe` | `6B6718432EDB55B3E3C8A5B884522BDC5EF5E466BF074E9DAC09CC0B64CE399C` |
-| `bin/jtdx.exe` with the AutoCQ 0.9.0 patch | `0ABBA5EA8429CE4158DF0D2822D9A3108DD629A7C17E8332A8D40736ED6A413A` |
+| `bin/jtdx.exe` with the AutoCQ 0.9.3 patch | `B615BFBDC23291A7CA297FE1EAE4EB7D2AF0E8966C962D4FB0EA620C6FF6B12F` |
 
 ## Build and test
 

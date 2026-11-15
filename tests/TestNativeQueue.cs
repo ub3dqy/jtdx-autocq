@@ -38,6 +38,7 @@ static class TestNativeQueue
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate IntPtr Mid(IntPtr output, IntPtr input, int start, int length);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int IndexOf(IntPtr value, IntPtr query, int start, int caseSensitivity);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int SignoffLogGate(int callIndex);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int RecentCallLogGate(IntPtr mainWindow, IntPtr stringEquals);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void DirectCall(IntPtr window, IntPtr call, int marker);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void UiAction(IntPtr receiver);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void UiText(IntPtr receiver, IntPtr value);
@@ -157,6 +158,115 @@ static class TestNativeQueue
         finally { Marshal.FreeHGlobal(source); }
     }
 
+    static void CopyImageCode(IntPtr source, IntPtr target, int rva, int length)
+    {
+        byte[] bytes = new byte[length];
+        Marshal.Copy(IntPtr.Add(source, rva), bytes, 0, length);
+        WriteCode(target, rva, bytes);
+    }
+
+    static void TestRepeatLogging(IntPtr image, string dllDirectory)
+    {
+        const int codeRva = 0x2d17000, codeSize = 0x1000;
+        const int firstGate = 0x10f4a0, reject = 0x10f4cc, secondGate = 0x110dd0, signoff = 0x110de9;
+        const int exchangeStart = 0x2b58, lastLogged = 0x760, history = 0x2b70;
+        const long day = 86400000L;
+        const long utcMidnight = 20000L * day;
+        IntPtr qt = LoadLibraryEx(Path.Combine(dllDirectory, "Qt5Core.dll"), IntPtr.Zero, 8);
+        IntPtr fixture = VirtualAlloc(IntPtr.Zero, (UIntPtr)(codeRva + codeSize), 0x3000, 0x04);
+        IntPtr window = VirtualAlloc(IntPtr.Zero, (UIntPtr)0x4000, 0x3000, 0x04);
+        try
+        {
+            if (qt == IntPtr.Zero || fixture == IntPtr.Zero || window == IntPtr.Zero)
+                throw new Exception("Cannot allocate the repeat logging fixture");
+            CopyImageCode(image, fixture, codeRva, Marshal.ReadInt32(image, codeRva + 14 * 4));
+            CopyImageCode(image, fixture, firstGate, reject - firstGate);
+            CopyImageCode(image, fixture, secondGate, signoff - secondGate);
+
+            // Set up only the guiUpdate registers and stack slots used by the two
+            // recent-call comparisons. The two exits return to the harness.
+            const int entry = 0x1000;
+            byte[] setup = {
+                0x53, 0x41, 0x55,                        // save rbx and r13
+                0x48, 0x81, 0xec, 0xa8, 1, 0, 0,         // sub rsp, 0x1a8
+                0x48, 0x89, 0xcb,                        // mov rbx, rcx
+                0x48, 0x89, 0x94, 0x24, 0xe8, 0, 0, 0,   // save QString::operator== at rsp+0xe8
+                0x48, 0x8b, 0x83, 0x60, 0x2a, 0, 0,      // load active callsign
+                0x48, 0x89, 0x84, 0x24, 0x58, 1, 0, 0    // save QString at rsp+0x158
+            };
+            WriteCode(fixture, entry, setup);
+            WriteJump(fixture, entry + setup.Length, firstGate);
+            byte[] finish = { 0xb8, 0, 0, 0, 0, 0x48, 0x81, 0xc4, 0xa8, 1, 0, 0, 0x41, 0x5d, 0x5b, 0xc3 };
+            WriteCode(fixture, reject, finish);
+            finish[1] = 1;
+            WriteCode(fixture, signoff, finish);
+
+            // Return the fixture's history time and status. Model each QDateTime
+            // by its epoch value, which is what the native Qt conversion returns.
+            WriteCode(fixture, 0x12be80, new byte[] { 0x8b, 0x01, 0x41, 0x89, 0x00, 0x8b, 0x41, 0x04, 0xc3 });
+            WriteCode(fixture, 0x2d91f0, new byte[] { 0xc3 });
+            WriteCode(fixture, 0x1100, new byte[] { 0x48, 0x8b, 0x01, 0xc3 });
+            Marshal.WriteIntPtr(fixture, 0x2c1e378, IntPtr.Add(fixture, 0x1100));
+            Marshal.WriteIntPtr(fixture, 0x2c1c8c0, Find(qt, "_ZN10QArrayData11shared_nullE"));
+            uint prior;
+            if (!VirtualProtect(fixture, (UIntPtr)(codeRva + codeSize), 0x20, out prior))
+                throw new Exception("Cannot protect the repeat logging fixture");
+
+            IntPtr dx = IntPtr.Add(window, 0x3000), other = IntPtr.Add(window, 0x3080), mode = IntPtr.Add(window, 0x3100);
+            WriteQtFixtureString(dx, "W1AW");
+            WriteQtFixtureString(other, "W2ABC");
+            WriteQtFixtureString(mode, "FT8");
+            IntPtr call = Marshal.ReadIntPtr(dx), different = Marshal.ReadIntPtr(other);
+            Marshal.WriteIntPtr(window, 0x2a60, call);
+            Marshal.WriteIntPtr(window, 0x2ae8, Marshal.ReadIntPtr(mode));
+            Marshal.WriteIntPtr(window, 0x6c0, call);
+            Marshal.WriteIntPtr(window, 0x6c8, different);
+            Marshal.WriteInt32(window, history + 4, 10);
+            Marshal.WriteInt64(window, lastLogged, utcMidnight + 29800000);
+            Marshal.WriteInt64(window, exchangeStart, utcMidnight + 29765000);
+            Marshal.WriteInt32(window, history, 29765);
+            RecentCallLogGate gate = Function<RecentCallLogGate>(IntPtr.Add(fixture, entry));
+            IntPtr equals = Find(qt, "_ZeqRK7QStringS1_");
+            Check(gate(window, equals) == 0, "A repeated sign-off in the same exchange is excluded from logging");
+
+            Marshal.WriteIntPtr(window, 0x6c0, different);
+            Marshal.WriteIntPtr(window, 0x6c8, call);
+            Marshal.WriteInt64(window, lastLogged, utcMidnight + 29915000);
+            Marshal.WriteInt64(window, exchangeStart, utcMidnight + 30155000);
+            Marshal.WriteInt32(window, history, 30155);
+            Check(gate(window, equals) == 1, "A new exchange reaches logging when its call is the second most recent");
+
+            Marshal.WriteIntPtr(window, 0x6c0, call);
+            Marshal.WriteIntPtr(window, 0x6c8, different);
+            Check(gate(window, equals) == 1, "A new exchange reaches logging with the immediately previous call");
+            Marshal.WriteInt64(window, lastLogged, utcMidnight + 30185000);
+            Check(gate(window, equals) == 0, "After logging the new exchange, retransmission cannot log it again");
+
+            Marshal.WriteInt64(window, lastLogged, utcMidnight - 5000);
+            Marshal.WriteInt64(window, exchangeStart, utcMidnight + 7500);
+            Marshal.WriteInt32(window, history, 7);
+            Check(gate(window, equals) == 0, "A timestamp from a different exchange cannot reopen a recently logged call");
+            Marshal.WriteInt64(window, exchangeStart, utcMidnight + 7000);
+            WriteQtFixtureString(mode, "FT4");
+            Check(gate(window, equals) == 1, "FT4 repeats can log across UTC midnight");
+            Marshal.WriteByte(window, 0x68b, 1);
+            Check(gate(window, equals) == 0, "DXpedition mode keeps the original recent-call logging guard");
+            Marshal.WriteByte(window, 0x68b, 0);
+            Marshal.WriteInt32(window, history + 4, 0);
+            Check(gate(window, equals) == 0, "A recent call without an exchange in JTDX history is still excluded");
+
+            Check(Marshal.ReadByte(image, 0x10f5b6) == 0xe9 &&
+                0x10f5bb + Marshal.ReadInt32(image, 0x10f5b7) == 0x10f5f2,
+                "The ordinary log timer accepts a new exchange that passes the recent-call guard");
+        }
+        finally
+        {
+            if (window != IntPtr.Zero) VirtualFree(window, UIntPtr.Zero, 0x8000);
+            if (fixture != IntPtr.Zero) VirtualFree(fixture, UIntPtr.Zero, 0x8000);
+            if (qt != IntPtr.Zero) FreeLibrary(qt);
+        }
+    }
+
     static void TestPeMapping(string path, string dllDirectory)
     {
         const uint noImportsOrEntryPoint = 1;
@@ -176,6 +286,7 @@ static class TestNativeQueue
                 && 0x0aa314 + Marshal.ReadInt32(image, 0x0aa310) == 0x31b220,
                 "Both TriggerCQ paths bypass the prompt check while normal QSO completion still reads the setting");
             TestSignoffLogging(image, dllDirectory);
+            TestRepeatLogging(image, dllDirectory);
         }
         finally { FreeLibrary(image); }
     }

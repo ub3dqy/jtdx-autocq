@@ -5,8 +5,8 @@ const { createHash } = require('node:crypto');
 const path = require('node:path');
 
 const expectedSha = '6b6718432edb55b3e3c8a5b884522bdc5ef5e466bf074e9dac09cc0b64ce399c';
-const expectedStubSha = '3577ef74a24d03813d52ef8996aacef21ecb22c74d4f843da5bd38b5e082f289';
-const expectedOutputSha = '0abba5ea8429ce4158df0d2822d9a3108dd629a7c17e8332a8d40736ed6a413a';
+const expectedStubSha = '62e1449910d718b449fde97189c4731ca900e6ab04d77aa7396cd41186abaad1';
+const expectedOutputSha = 'b615bfbdc23291a7ca297fe1eae4eb7d2af0e8966c962d4fb0ea620c6ff6b12f';
 const [originalPath, stubPath, outputPath] = process.argv.slice(2);
 const sha = data => createHash('sha256').update(data).digest('hex');
 const align = (n, a) => Math.ceil(n / a) * a;
@@ -64,11 +64,13 @@ const hooks = [
     [0x0a8dd6, '80bbf9050000000f852b240000', 29, 0x0a8770],
     [0x0a9e51, '80bb86060000000f84f5080000', 30, 0x0a8770],
     [0x0a9f49, '488d15bbd52a01', 31, 0x0a8770],
+    [0x10f4c4, '84c00f8404190000', 34, 0x10d440],
+    [0x110de1, '84c00f85e3e6ffff', 35, 0x10d440],
 ];
 const lastPacketType = raw(0x21e86a);
 assert(original[lastPacketType] === 51 && original.subarray(lastPacketType - 2, lastPacketType).toString('hex') === '83f8',
     'Unexpected network reader type limit.');
-const offsets = Array.from({ length: 34 }, (_, i) => stub.readUInt32LE(i * 4));
+const offsets = Array.from({ length: 38 }, (_, i) => stub.readUInt32LE(i * 4));
 assert(offsets[14] === stub.length && stub.length < sectionAlignment, 'Invalid stub map or code size.');
 for (const [rva, hex, index] of hooks) {
     assert(original.subarray(raw(rva), raw(rva) + hex.length / 2).toString('hex') === hex,
@@ -99,6 +101,14 @@ const logGateBytes = Buffer.from('83f8ff410f95c6e9b7e6ffff', 'hex');
 assert(original.subarray(signoffLogGate, signoffLogGate + logGateBytes.length).equals(logGateBytes),
     'Unexpected first-terminal-message logging condition.');
 
+// The path for a recent callsign is now reachable only after checking the
+// start of a fresh exchange, in addition to the original logging settings.
+// The elapsed time since the last log could still reject that exchange.
+const repeatLogTimer = 0x10f5b6;
+const repeatLogTimerBytes = Buffer.from('4c8b35bbedb002', 'hex');
+assert(original.subarray(raw(repeatLogTimer), raw(repeatLogTimer) + repeatLogTimerBytes.length).equals(repeatLogTimerBytes),
+    'Unexpected recent-call timer check.');
+
 const codeRva = imageSize;
 const stateRva = codeRva + sectionAlignment;
 const unwindRva = stateRva + sectionAlignment;
@@ -128,10 +138,11 @@ for (const [index, parent] of chainRanges) {
     const next = [...offsets].filter(x => x > offsets[index]).sort((a, b) => a - b)[0];
     extra.push({ begin: entryRva, end: codeRva + next, index: info.length - 1 });
 }
-// renew_lease and resolve_tick are ordinary Win64 callees and allocate 0x28.
-// The fast return in resolve_tick precedes the stack allocation.
-for (const [begin, end, prolog] of [[15, 16, 4], [13, 18, offsets[17] - offsets[13]]]) {
-    info.push(Buffer.from([1, prolog, 1, 0, prolog, 0x42, 0, 0]));
+// Ordinary Win64 callees describe their stack allocations directly. The
+// fast return in resolve_tick precedes the stack allocation.
+for (const [begin, end, prolog, stack] of [[15, 16, 4, 0x28], [13, 18, offsets[17] - offsets[13], 0x28], [36, 37, 4, 0x58]]) {
+    const allocSmall = (((stack - 8) / 8) << 4) | 2;
+    info.push(Buffer.from([1, prolog, 1, 0, prolog, allocSmall, 0, 0]));
     extra.push({ begin: codeRva + offsets[begin], end: codeRva + offsets[end], index: info.length - 1 });
 }
 extra.sort((a, b) => a.begin - b.begin);
@@ -161,12 +172,14 @@ for (const [rva] of triggerCqPromptChecks)
 output[signoffLogGate + 5] = 0x94; // sete r14b: previous message was to another station
 stub.copy(output, codeRaw);
 unwind.copy(output, unwindRaw);
-for (const [rva, hex, index] of hooks) {
+function putJump(rva, length, targetRva) {
     const p = raw(rva);
-    output.fill(0x90, p, p + hex.length / 2);
+    output.fill(0x90, p, p + length);
     output[p] = 0xe9;
-    output.writeInt32LE(codeRva + offsets[index] - (rva + 5), p + 1);
+    output.writeInt32LE(targetRva - (rva + 5), p + 1);
 }
+for (const [rva, hex, index] of hooks) putJump(rva, hex.length / 2, codeRva + offsets[index]);
+putJump(repeatLogTimer, repeatLogTimerBytes.length, 0x10f5f2);
 function addSection(i, name, va, size, ptr, flags) {
     const p = sectionsAt + (sectionCount + i) * 40;
     output.fill(0, p, p + 40);
@@ -187,9 +200,11 @@ output.writeUInt32LE(align(unwindRva + unwind.length, sectionAlignment), opt + 5
 output.writeUInt32LE(0, opt + 64); // original image checksum no longer applies
 output.writeUInt32LE(unwindRva, exceptionDirectory);
 output.writeUInt32LE(tableSize, exceptionDirectory + 4);
-assert(sha(output) === expectedOutputSha, 'Patched JTDX does not match the verified release.');
+const outputSha = sha(output);
+assert(outputSha === expectedOutputSha, `Patched JTDX does not match the verified release: ${outputSha}`);
 fs.writeFileSync(outputPath, output, { flag: 'wx' });
 process.stdout.write(`Verified ${hooks.length} original instruction ranges.\n`);
 process.stdout.write(`Adjusted ${triggerCqPromptChecks.length} TriggerCQ logging gates.\n`);
 process.stdout.write('Corrected the callsign check for logging consecutive terminal messages.\n');
-process.stdout.write(`Original ${expectedSha}\nPatched  ${sha(output)}\n`);
+process.stdout.write('Verified the recent-call checks for logging a new exchange.\n');
+process.stdout.write(`Original ${expectedSha}\nPatched  ${outputSha}\n`);
