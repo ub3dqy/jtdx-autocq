@@ -133,6 +133,38 @@ class AutoCqTests
                     e.OnLine("Halt Tx triggered at RX: counter triggered 14.074 MHz", At); e.OnStatus(S(false, ""), At); e.Tick(At.AddSeconds(1), true);
                     Assert(c.SequenceEqual(new[] {"CQ"}) && e.LoggedCount == 0, "Retry recovery failed");
                 });
+                Run("Called station not decoded resumes the queue or CQ after JTDX finishes decoding", () => {
+                    const string reason = "Halt Tx triggered at RX:  Called station not decoded + QString::number(m_no_decode) + periods in row";
+                    foreach (bool hasNextCaller in new[] { false, true })
+                    foreach (bool statusBeforeHalt in new[] { false, true })
+                    {
+                        List<string> commands;
+                        AutoCqEngine engine = Active(out commands);
+                        engine.UseNativeSelection = true;
+                        engine.RequestCallerReply = decode => commands.Add(decode.Message);
+                        engine.AddQueuedCall("W1AW", At);
+                        engine.OnLine(Tx(At, "W1AW", "R-17"), At);
+                        DateTime halt = At.AddSeconds(29.3);
+                        if (hasNextCaller)
+                            engine.OnDecode(D(At.AddSeconds(15), "W2ABC", "FN20"), At.AddSeconds(29));
+                        RadioStatus decoding = S(false, "");
+                        decoding.Decoding = true;
+                        if (statusBeforeHalt) engine.OnStatus(decoding, halt.AddMilliseconds(-100));
+                        engine.OnLine(reason, halt);
+                        engine.Tick(halt, true);
+                        Assert(engine.Armed && commands.Count == 0, "Automatic no-decode stop disarmed AutoCQ or started TX too soon");
+                        if (!statusBeforeHalt) engine.OnStatus(decoding, halt.AddMilliseconds(100));
+                        engine.Tick(halt.AddMilliseconds(200), true);
+                        Assert(commands.Count == 0, "AutoCQ started TX before decoding finished");
+
+                        engine.OnStatus(S(false, ""), halt.AddMilliseconds(300));
+                        engine.Tick(halt.AddMilliseconds(300), true);
+                        Assert(engine.Armed && engine.LoggedCount == 0
+                            && commands.SequenceEqual(new[] { hasNextCaller ? "K1ABC W2ABC FN20" : "CQ" })
+                            && engine.Waiting.Find("W1AW").PauseReason == CallerQueue.NoAnswer,
+                            "No-decode recovery did not skip the unanswered station");
+                    }
+                });
                 Run("Hound and unknown stops never restart", () => {
                     foreach (string reason in new[] {"m_houndMode, counter triggered", "Rig control error", "Halt Tx button clicked"})
                     {
@@ -1098,6 +1130,45 @@ class AutoCqTests
                     e.OnStatus(S(false,"W1AW"),At.AddSeconds(74.7)); e.Tick(At.AddSeconds(74.7),true);
                     Assert(c.SequenceEqual(new[]{"HALT","CQ"}) && e.Armed && !e.ListenAfterFinal73 && e.Missing73Count == 0,
                         "Completed reverse exchange missed its next TX opportunity");
+                });
+                Run("Sending the final 73 retires the old queued report even without a QSO log entry", () => {
+                    foreach (string acknowledgement in new[] { "RRR", "RR73" })
+                    {
+                        var engine = new AutoCqEngine { UseNativeSelection = true };
+                        var commands = new List<string>();
+                        engine.RequestCallerReply = decode => commands.Add(decode.Message);
+                        engine.RequestHalt = () => commands.Add("HALT");
+                        engine.RequestCq = () => commands.Add("CQ");
+                        engine.Waiting.AnswerWorkedB4 = true;
+                        engine.OnStatus(S(false, ""), At);
+                        engine.Start(At);
+                        DecodedMessage oldReport = D(At.AddSeconds(15), "W1AW", "-09");
+                        engine.OnDecode(oldReport, At.AddSeconds(29));
+                        engine.Tick(At.AddSeconds(29), true);
+                        engine.OnStatus(S(true, "W1AW"), At.AddSeconds(29.1));
+                        engine.OnLine(Tx(At.AddSeconds(30), "W1AW", "R-17"), At.AddSeconds(30));
+                        engine.OnDecode(D(At.AddSeconds(45), "W1AW", acknowledgement), At.AddSeconds(59));
+                        engine.OnLine(Tx(At.AddSeconds(60), "W1AW", "73"), At.AddSeconds(60));
+                        engine.Tick(At.AddSeconds(75), true);
+                        Assert(engine.Waiting.Find("W1AW") != null && commands.SequenceEqual(new[] { oldReport.Message }),
+                            "The exchange finished before the final RX period");
+
+                        DateTime finished = At.AddSeconds(89.6);
+                        engine.OnLine(DecodeFinished(finished), finished);
+                        engine.Tick(finished, true);
+                        engine.OnLine("Halt Tx triggered at RX: UDP request ", finished.AddMilliseconds(50));
+                        engine.OnStatus(S(false, ""), finished.AddMilliseconds(100));
+                        engine.Tick(finished.AddMilliseconds(100), true);
+                        Assert(engine.Armed && engine.LoggedCount == 0 && engine.ConfirmedCount == 1
+                            && engine.Waiting.Find("W1AW") == null && commands.SequenceEqual(new[] { oldReport.Message, "HALT", "CQ" }),
+                            "A confirmed exchange with no log entry left the original report in the queue");
+
+                        engine.OnStatus(S(true, ""), At.AddSeconds(90));
+                        engine.OnDecode(oldReport, At.AddSeconds(91));
+                        Assert(engine.Waiting.Find("W1AW") == null, "A repeated decode requeued the finished exchange");
+                        engine.OnDecode(D(At.AddSeconds(105), "W1AW", "FN20"), At.AddSeconds(119));
+                        Assert(engine.Waiting.Find("W1AW") != null, "A fresh call was rejected despite Answer B4");
+                    }
                 });
                 Run("Two initial calls stop at the decoded RX boundary without a third frame", () => {
                     List<string> c; AutoCqEngine e = Active(out c);

@@ -227,6 +227,7 @@ namespace JtdxAutoCq
         static readonly Regex TxMessage = new Regex(@"\b(?:Transmitting|Retransmitting)\s+.*?\b(?:FT8|FT4):\s*(.+)$", RegexOptions.CultureInvariant);
         static readonly Regex RxMessage = new Regex(@"^\d{8}_\d{6}\s+[+-]?\d+\s+[+-]?[\d.,]+\s+\d+\s+\S+\s+(.+)$", RegexOptions.CultureInvariant);
         static readonly Regex ReplySelected = new Regex(@"double click on call processed: (\S+); EnableTx On\b", RegexOptions.CultureInvariant);
+        static readonly Regex NoDecodeHalt = new Regex(@"^Halt Tx triggered at (?:RX|TX):\s*Called station not decoded\b", RegexOptions.CultureInvariant);
         static readonly Regex Report = new Regex(@"^R?[+-]\d{2}$", RegexOptions.CultureInvariant);
         static readonly Regex Grid = new Regex(@"^[A-R]{2}\d{2}(?:[A-X]{2})?$", RegexOptions.CultureInvariant);
         public bool Pending { get { return pending; } }
@@ -490,9 +491,9 @@ namespace JtdxAutoCq
             bool loggedRecently = loggedCall != null && loggedCall == lastContact && (now - loggedAt).TotalSeconds < logWindow;
             bool confirmedRecently = receivedFinalAt.HasValue && waitingCall == lastContact
                 && now >= receivedFinalAt.Value && now - receivedFinalAt.Value <= SlotDuration + SlotDuration;
-            // This exact reason is emitted for the ordinary sequencing retry limits.
-            bool retryLimit = reason.IndexOf("counter triggered", StringComparison.Ordinal) >= 0
-                && reason.IndexOf("m_houndMode", StringComparison.Ordinal) < 0;
+            bool retryLimit = reason.IndexOf("m_houndMode", StringComparison.Ordinal) < 0
+                && (reason.IndexOf("counter triggered", StringComparison.Ordinal) >= 0
+                    || !String.IsNullOrEmpty(lastContact) && NoDecodeHalt.IsMatch(reason));
             if (everEnabled && ((normalEnd && loggedRecently) || (finalStop && confirmedRecently) || retryLimit))
             {
                 if (retryLimit && !loggedRecently && waitingCall == null)
@@ -732,9 +733,14 @@ namespace JtdxAutoCq
         }
         void CompleteConfirmedContact()
         {
-            if (completedCurrent || !receivedFinalAt.HasValue || waitingCall == null) return;
+            if (completedCurrent || waitingCall == null) return;
+            DateTime? confirmedAt = receivedFinalAt;
+            // When our 73 ends the exchange, use its TX slot to reject old decodes.
+            if (reverse73 && received73 && !reverseNeedsReply)
+                confirmedAt = confirmedAt ?? lastTerminalSlot;
+            if (!confirmedAt.HasValue) return;
             completedCurrent = true;
-            Waiting.Complete(waitingCall, receivedFinalAt.Value);
+            Waiting.Complete(waitingCall, confirmedAt.Value);
             sentAcknowledgedReports.Remove(waitingCall);
             Notice("QSO с " + waitingCall + " подтверждено, но в журнале JTDX нет записи. Продолжаю работу.");
         }
