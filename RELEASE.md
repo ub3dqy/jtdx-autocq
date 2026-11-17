@@ -1,16 +1,16 @@
-# AutoCQ 0.9.4
+# AutoCQ 0.9.5
 
 ## Русский
 
 Модуль для Windows x64 и JTDX 2.2.160-32A-rc10 Win64.
 
-Свежие вызовы на ваш позывной теперь имеют преимущество перед старыми записями очереди и поиском по левому окну. Если выбранная станция не ответила, а в этом приёмном периоде вас позвала другая, AutoCQ отвечает ей, не дожидаясь исчерпания всех попыток. Место позывного в очереди этому не мешает.
+Если в одном приёмном периоде вас позвали несколько станций, AutoCQ сначала отвечает той, с которой ещё не было QSO на текущем диапазоне в текущем режиме. Повторный вызывающий может получить ответ после новых, даже если его позывной стоит выше в очереди или его DXCC выбран приоритетным.
 
-Если выбранная станция ответила, обмен рапортами уже продолжается или ожидается заключительное 73, модуль завершает текущую связь. Решение принимается после декодирования всего приёмного периода, перед следующей передачей. Среди свежих вызывающих сохраняются приоритеты DXCC и исключения. Режим мониторинга продолжает работать только с выбранными целями.
+История связей загружается из журнала JTDX при включении автомата. В неё добавляются связи, завершённые в этом сеансе, в том числе подтверждённые финальным сообщением, когда запись в журнале не появилась. Для FT4 также распознаются записи ADIF с MODE=MFSK и SUBMODE=FT4.
 
-Повторная выгрузка строк JTDX больше не затирает исходный принятый рапорт, если её сообщение с той же отметкой времени короче оригинального.
+Среди новых вызывающих сохраняются приоритеты DXCC и порядок очереди. Исключения DXCC продолжают действовать. Обмен с ответившим корреспондентом и ожидание заключительного сообщения завершаются до выбора следующей станции. Режим мониторинга сохраняет свои условия «Одна связь на цель на диапазоне».
 
-Для обновления закройте JTDX и AutoCQ и замените модуль файлами из архива 0.9.4. Патч JTDX из 0.9.3 подходит и для этого выпуска. Для более ранних версий примените Patch-JTDX.ps1 из архива.
+Для обновления закройте JTDX и AutoCQ и замените модуль файлами из архива 0.9.5. Патч JTDX из 0.9.3 или 0.9.4 подходит и для этого выпуска. Для более ранних версий примените Patch-JTDX.ps1 из архива.
 
 [Инструкция и все сборки JTDX](https://github.com/ub3dqy/jtdx-autocq#скачать-jtdx-22160-rc10-для-windows) · [Статья об AutoCQ](https://ub3dqy.com/ru/read/5/)
 
@@ -18,13 +18,13 @@
 
 AutoCQ runs on 64-bit Windows with JTDX 2.2.160-32A-rc10 Win64.
 
-Fresh calls addressed to you now take precedence over older queue entries and searches in the left pane. If the selected station does not answer but another station calls you in that receive period, AutoCQ answers that caller without waiting for every attempt to be used. Its position in the queue does not block the reply.
+When several stations call you in the same receive period, AutoCQ first answers a station you have not yet worked on the current band in the current mode. Repeat callers can be answered after new callers, even if they appear higher in the queue or their DXCC entity has priority.
 
-A reply from the selected station, an ongoing report exchange, or the final-73 wait keeps the current contact active. AutoCQ makes the choice after the full receive period has been decoded, before the next transmission. DXCC priorities and exclusions still apply among fresh callers. Monitoring mode continues to call only the selected targets.
+AutoCQ loads contact history from the JTDX log when automation starts. Contacts completed during the session are added as well, including exchanges confirmed by a final message when no log entry appeared. FT4 history also recognizes ADIF records with MODE=MFSK and SUBMODE=FT4.
 
-Replaying JTDX's decoded messages no longer erases the original received report when the replay contains a shorter message with the same timestamp.
+DXCC priorities and queue order still apply among new callers. DXCC exclusions continue to apply. A contact with a station that has answered, including the final-message wait, finishes before another station is selected. Monitoring retains its existing “One contact per target per band” rules.
 
-To upgrade, close JTDX and AutoCQ and replace the module with the files from the 0.9.4 archive. The JTDX patch shipped with 0.9.3 is also suitable for this release. When upgrading from an older version, apply Patch-JTDX.ps1 from the archive.
+To upgrade, close JTDX and AutoCQ and replace the module with the files from the 0.9.5 archive. The JTDX patch shipped with 0.9.3 or 0.9.4 is also suitable for this release. When upgrading from an older version, apply Patch-JTDX.ps1 from the archive.
 
 [Instructions and JTDX downloads](https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md#download-jtdx-22160-rc10-for-windows) · [About AutoCQ](https://ub3dqy.com/en/read/5/)
 

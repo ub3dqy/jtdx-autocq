@@ -16,8 +16,8 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.4.0")]
-[assembly: AssemblyFileVersion("0.9.4.0")]
+[assembly: AssemblyVersion("0.9.5.0")]
+[assembly: AssemblyFileVersion("0.9.5.0")]
 
 namespace JtdxAutoCq
 {
@@ -197,7 +197,7 @@ namespace JtdxAutoCq
 
     public sealed class MainForm : Form
     {
-        const string ModuleVersion = "0.9.4";
+        const string ModuleVersion = "0.9.5";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = "B615BFBDC23291A7CA297FE1EAE4EB7D2AF0E8966C962D4FB0EA620C6FF6B12F";
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -384,6 +384,8 @@ namespace JtdxAutoCq
             engine.DxccForCall = call => { var country = dxcc == null ? null : dxcc.Find(call); return country == null ? null : country.Prefix; };
             engine.WorkedCallsOnBand = (band, call) => demo ? new HashSet<string>()
                 : JtdxAdif.WorkedCalls(Path.Combine(settings.Profile, "wsjtx_log.adi"), band, call);
+            engine.WorkedCallsOnBandMode = (band, mode, call) => demo ? new HashSet<string>()
+                : JtdxAdif.WorkedCalls(Path.Combine(settings.Profile, "wsjtx_log.adi"), band, call, mode);
             open.Click += delegate { Guard(PrepareConnection); };
             start.Click += delegate { Guard(StartAutomation); };
             stop.Click += delegate { engine.Stop("Остановлено оператором.", true); UpdateUi(); };

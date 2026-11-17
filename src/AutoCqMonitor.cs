@@ -91,15 +91,15 @@ namespace JtdxAutoCq
             return null;
         }
 
-        public static HashSet<string> WorkedCalls(string file, string band, string ownCall)
+        public static HashSet<string> WorkedCalls(string file, string band, string ownCall, string mode = null)
         {
             if (!File.Exists(file)) return new HashSet<string>();
             using (var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
             using (var reader = new StreamReader(stream))
-                return WorkedCallsFromText(reader.ReadToEnd(), band, ownCall);
+                return WorkedCallsFromText(reader.ReadToEnd(), band, ownCall, mode);
         }
 
-        internal static HashSet<string> WorkedCallsFromText(string text, string band, string ownCall)
+        internal static HashSet<string> WorkedCallsFromText(string text, string band, string ownCall, string mode = null)
         {
             var worked = new HashSet<string>();
             if (String.IsNullOrEmpty(band)) return worked;
@@ -113,10 +113,13 @@ namespace JtdxAutoCq
                     string call = Callsign.Parse(Read(fields, "CALL"));
                     string station = Callsign.Clean(Read(fields, "STATION_CALLSIGN"));
                     string recordBand = Read(fields, "BAND");
+                    string recordMode = Read(fields, "SUBMODE");
+                    if (recordMode.Length == 0) recordMode = Read(fields, "MODE");
                     double mhz;
                     if (recordBand.Length == 0 && Double.TryParse(Read(fields, "FREQ"), NumberStyles.Float,
                         CultureInfo.InvariantCulture, out mhz)) recordBand = Band(mhz * 1000000);
                     if (name == "EOR" && call != null && String.Equals(band, recordBand, StringComparison.OrdinalIgnoreCase)
+                        && (mode == null || String.Equals(mode, recordMode, StringComparison.OrdinalIgnoreCase))
                         && (station.Length == 0 || station == ownCall)
                         && !String.Equals(Read(fields, "SWL"), "Y", StringComparison.OrdinalIgnoreCase))
                         worked.Add(call);
@@ -126,7 +129,8 @@ namespace JtdxAutoCq
                 {
                     int count;
                     if (!Int32.TryParse(tag.Groups[2].Value, out count) || count > text.Length - next) break;
-                    if (name == "CALL" || name == "BAND" || name == "FREQ" || name == "STATION_CALLSIGN" || name == "SWL")
+                    if (name == "CALL" || name == "BAND" || name == "FREQ" || name == "STATION_CALLSIGN" || name == "SWL"
+                        || name == "MODE" || name == "SUBMODE")
                         fields[name] = text.Substring(next, count).Trim();
                     next += count;
                 }

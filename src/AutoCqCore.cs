@@ -177,16 +177,17 @@ namespace JtdxAutoCq
         public Predicate<string> IsPriorityCall = delegate { return false; };
         public Func<string, string> DxccForCall = delegate { return null; };
         public Func<string, string, IEnumerable<string>> WorkedCallsOnBand = delegate { return new string[0]; };
+        public Func<string, string, string, IEnumerable<string>> WorkedCallsOnBandMode = delegate { return new string[0]; };
         public DateTime WaitForVisibleCqsUntil { private get; set; }
         bool CountryExclusionsActive { get { return Options.ExcludedDxcc != null && Options.ExcludedDxcc.Length > 0; } }
-        bool CountryRulesActive { get { return CountryExclusionsActive || HasPriorityCountries; } }
+        bool CallerRulesActive { get { return CountryExclusionsActive || HasPriorityCountries || workedCallers.Count > 0; } }
         public bool RepeatFinal73 { get { return Armed && reverseNeedsReply; } }
         public bool ListenAfterFinal73 { get { return Armed && reverse73; } }
         public bool HoldNativeSelection
         {
             get
             {
-                return Armed && (Monitoring || CountryRulesActive || NextManual() != null || finishing || Awaiting73 || stoppingRetry != null
+                return Armed && (Monitoring || CallerRulesActive || NextManual() != null || finishing || Awaiting73 || stoppingRetry != null
                     || terminalHaltRequested || periodSwitchHalt || activeSearchCall != null || ReverseExchangePending
                     || selectedQueuedCall != null || attemptCall != null && !attemptAnswered
                     || commandOutstanding && replyTarget != null);
@@ -217,6 +218,7 @@ namespace JtdxAutoCq
         long lastAttemptReplySlot = -1;
         bool callLimitExceeded, yieldingToCaller;
         readonly Dictionary<string, DateTime> sentAcknowledgedReports = new Dictionary<string, DateTime>();
+        readonly HashSet<string> workedCallers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         bool hunting, cqThreshold, cqTxSeen, cqTxEnded, cqHaltExpected, cqListening, completedCurrent;
         bool cqHaltAcknowledged, periodSwitchHalt;
         bool? expectedPeriod;
@@ -259,6 +261,11 @@ namespace JtdxAutoCq
             else if (!Status.TxEnabled && !String.IsNullOrEmpty(Status.DxCall) && NextManual() == null)
                 throw new InvalidOperationException("Очистите DX в JTDX для начала CQ или сначала запустите выбранную связь.");
             sessionFrequency = Status.Frequency; sessionMode = Status.Mode; sessionPeriod = Status.TxFirst;
+            workedCallers.Clear();
+            string callerBand = JtdxAdif.Band(sessionFrequency);
+            if (!Options.MonitorEnabled && callerBand != null)
+                foreach (string call in WorkedCallsOnBandMode(callerBand, sessionMode, CleanCall(Status.DeCall)))
+                    workedCallers.Add(CleanCall(call));
             hunting = finishing = false; manualCq = null; ResetCqRound();
             lastResponseAt = now; lastDecodeFinished = DateTime.MinValue;
             Armed = true; pending = false; commandOutstanding = false; loggedCall = null; lastContact = Status.DxCall;
@@ -302,7 +309,7 @@ namespace JtdxAutoCq
                 && waitingCall == null && (!pending || UseNativeSelection && (replyDuringCq || cqListening || allowClearDx))
                 && !commandOutstanding && selectedQueuedCall == null && (!UseNativeSelection || status.TxEnabled);
             bool confirmedCurrent = received73 && (completedCurrent || receivedFinalAt.HasValue);
-            bool nativeHandoff = UseNativeSelection && !Monitoring && !CountryRulesActive && activeSearchCall == null && !ReverseExchangePending
+            bool nativeHandoff = UseNativeSelection && !Monitoring && !CallerRulesActive && activeSearchCall == null && !ReverseExchangePending
                 && status.TxEnabled && !terminalHaltRequested && stoppingRetry == null
                 && previousCall != nextCall && nextCall.Length > 0
                 && !commandOutstanding && (selectedQueuedCall == null || confirmedCurrent) && !finishing
@@ -325,7 +332,7 @@ namespace JtdxAutoCq
             }
             if (status.Watchdog) { Stop("Сторожевой таймер JTDX: автомат выключен.", true); return; }
             bool permittedPeriod = status.TxFirst == sessionPeriod || (commandOutstanding && expectedPeriod.HasValue && status.TxFirst == expectedPeriod.Value);
-            if ((nativeHandoff || nativeIdleSelection && !Monitoring && !CountryRulesActive) && status.Frequency == sessionFrequency && status.Mode == sessionMode)
+            if ((nativeHandoff || nativeIdleSelection && !Monitoring && !CallerRulesActive) && status.Frequency == sessionFrequency && status.Mode == sessionMode)
             {
                 if (nativeHandoff)
                 {
@@ -399,7 +406,7 @@ namespace JtdxAutoCq
         // callback. Give it that RX period, then use the saved FIFO as fallback.
         bool LetNativeChoose(DateTime now, WaitingStation next)
         {
-            if (!UseNativeSelection || CountryRulesActive || finishing || !Status.TxEnabled || manualCq != null || NextManual() != null) return false;
+            if (!UseNativeSelection || CallerRulesActive || finishing || !Status.TxEnabled || manualCq != null || NextManual() != null) return false;
             if (next == null || !SameRxPeriod(next.LastHeardUtc, now)) return false;
             if (!Status.Decoding && lastDecodeFinished >= next.LastHeardUtc.AddMilliseconds(500)) return false;
             if (lastCqTime != DateTime.MinValue)
@@ -429,6 +436,8 @@ namespace JtdxAutoCq
                 string worked = line.Substring(record + 12).Trim().Split(' ')[0];
                 Waiting.Complete(worked, RadioTime(line) ?? now);
                 Cqs.Complete(worked);
+                if (Status != null && Status.Frequency == sessionFrequency && Status.Mode == sessionMode)
+                    workedCallers.Add(CleanCall(worked));
                 if (Monitoring && Status.Frequency == sessionFrequency) monitorTargets.Complete(worked);
             }
             if (!Armed) return;
@@ -674,23 +683,28 @@ namespace JtdxAutoCq
         {
             Predicate<WaitingStation> fresh = row => row.Call != exceptCall && row.Decode.IsNew
                 && row.LastHeardUtc <= now && now - row.LastHeardUtc < SlotDuration + SlotDuration;
+            return RankedCaller(false, fresh);
+        }
+        WaitingStation RankedCaller(bool allowPeriodChange, Predicate<WaitingStation> eligible = null)
+        {
+            WaitingStation unworked = PriorityCaller(allowPeriodChange,
+                row => !workedCallers.Contains(row.Call) && (eligible == null || eligible(row)));
+            return unworked ?? PriorityCaller(allowPeriodChange, eligible);
+        }
+        WaitingStation PriorityCaller(bool allowPeriodChange, Predicate<WaitingStation> eligible)
+        {
             if (HasPriorityCountries)
             {
-                WaitingStation priority = Waiting.Next(Status, false, CanCallWithPriority, fresh);
+                WaitingStation priority = Waiting.Next(Status, allowPeriodChange, CanCallWithPriority, eligible);
                 if (priority != null) return priority;
             }
-            return Waiting.Next(Status, false, CanCall, fresh);
+            return Waiting.Next(Status, allowPeriodChange, CanCall, eligible);
         }
         WaitingStation NextCaller(DateTime now)
         {
             WaitingStation fresh = Monitoring ? null : FreshCaller(now);
             if (fresh != null) return fresh;
-            if (HasPriorityCountries)
-            {
-                WaitingStation priority = Waiting.Next(Status, true, CanCallWithPriority);
-                if (priority != null) return priority;
-            }
-            return Waiting.Next(Status, true, CanCall);
+            return RankedCaller(true);
         }
 
         bool CanCallWithPriority(string call)
@@ -758,6 +772,7 @@ namespace JtdxAutoCq
                 confirmedAt = confirmedAt ?? lastTerminalSlot;
             if (!confirmedAt.HasValue) return;
             completedCurrent = true;
+            workedCallers.Add(waitingCall);
             Waiting.Complete(waitingCall, confirmedAt.Value);
             sentAcknowledgedReports.Remove(waitingCall);
             Notice("QSO с " + waitingCall + " подтверждено, но в журнале JTDX нет записи. Продолжаю работу.");

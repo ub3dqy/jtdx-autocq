@@ -606,6 +606,115 @@ class AutoCqTests
                     Assert(q.Rows.Single().Decode.Message == original.Message && q.Rows.Single().Decode.IsNew,
                         "A shorter display replay discarded the received report");
                 });
+                Run("An unworked caller precedes two historical repeats in the same RX frame", () => {
+                    foreach (bool prioritizeRepeat in new[] { false, true })
+                    {
+                        var commands = new List<string>();
+                        var e = new AutoCqEngine { UseNativeSelection = true };
+                        e.Waiting.AnswerWorkedB4 = true;
+                        int reads = 0;
+                        e.WorkedCallsOnBandMode = (band, mode, own) => {
+                            reads++;
+                            Assert(band == "20m" && mode == "FT8" && own == "K1ABC", "History used the wrong QSO context");
+                            return new[] { "W2ABC", "W3ABC" };
+                        };
+                        if (prioritizeRepeat) { e.Options.PriorityDxcc = new[] { "K" }; e.IsPriorityCall = call => call == "W2ABC"; }
+                        e.RequestCallerReply = d => commands.Add(d.Message);
+                        e.OnStatus(S(true, ""), At); e.Start(At);
+                        Assert(e.HoldNativeSelection, "Native AutoSelect could choose a repeat before all callers were decoded");
+                        e.OnLine(Tx(At, "CQ", "FN20"), At);
+                        RadioStatus decoding = S(true, ""); decoding.Decoding = true;
+                        e.OnStatus(decoding, At.AddSeconds(28));
+                        e.OnDecode(D(At.AddSeconds(15), "W2ABC", "FN20"), At.AddSeconds(28));
+                        e.OnDecode(D(At.AddSeconds(15), "W3ABC", "FN31"), At.AddSeconds(28.2));
+                        e.Tick(At.AddSeconds(28.3), true);
+                        Assert(commands.Count == 0, "A repeat was selected before the RX decode completed");
+                        e.OnDecode(D(At.AddSeconds(15), "DL1ABC", "JO62"), At.AddSeconds(29));
+                        e.OnLine(DecodeFinished(At.AddSeconds(29.2)), At.AddSeconds(29.2));
+                        e.OnStatus(S(true, ""), At.AddSeconds(29.3)); e.Tick(At.AddSeconds(29.3), true);
+                        Assert(commands.SequenceEqual(new[] { "K1ABC DL1ABC JO62" }) && e.Waiting.Rows.Count == 3 && reads == 1,
+                            "An older QSO, queue position or DXCC priority displaced the new caller");
+                    }
+                });
+                Run("Repeat callers remain available when every fresh caller is already worked", () => {
+                    var commands = new List<string>(); var e = new AutoCqEngine { UseNativeSelection = true };
+                    e.WorkedCallsOnBandMode = (band, mode, own) => new[] { "W2ABC", "W3ABC" };
+                    e.Waiting.AnswerWorkedB4 = true;
+                    e.Options.PriorityDxcc = new[] { "K" }; e.IsPriorityCall = call => call == "W3ABC";
+                    e.RequestCallerReply = d => commands.Add(d.Message);
+                    e.OnStatus(S(true, ""), At); e.Start(At); e.OnLine(Tx(At, "CQ", "FN20"), At);
+                    e.OnDecode(D(At.AddSeconds(15), "W2ABC", "FN20"), At.AddSeconds(29));
+                    e.OnDecode(D(At.AddSeconds(15), "W3ABC", "FN31"), At.AddSeconds(29.1));
+                    e.OnLine(DecodeFinished(At.AddSeconds(29.2)), At.AddSeconds(29.2)); e.Tick(At.AddSeconds(29.3), true);
+                    Assert(commands.SequenceEqual(new[] { "K1ABC W3ABC FN31" }) && e.Waiting.Rows.Count == 2,
+                        "Repeat callers were dropped or lost their DXCC priority");
+                });
+                Run("A newly logged QSO immediately lowers a repeat caller's priority", () => {
+                    List<string> commands; AutoCqEngine e = Active(out commands);
+                    e.Waiting.AnswerWorkedB4 = true;
+                    e.Options.PriorityDxcc = new[] { "K" }; e.IsPriorityCall = call => call == "W1AW";
+                    e.RequestCallerReply = d => commands.Add(d.Message);
+                    Finish(e, At); e.Tick(At.AddSeconds(2), true);
+                    e.OnStatus(S(true, ""), At.AddSeconds(2.1)); e.OnLine(Tx(At.AddSeconds(30), "CQ", "FN20"), At.AddSeconds(30));
+                    e.OnDecode(D(At.AddSeconds(45), "W1AW", "FN20"), At.AddSeconds(59));
+                    e.OnDecode(D(At.AddSeconds(45), "W2ABC", "FN31"), At.AddSeconds(59.1));
+                    e.OnLine(DecodeFinished(At.AddSeconds(59.2)), At.AddSeconds(59.2)); e.Tick(At.AddSeconds(59.3), true);
+                    Assert(e.LoggedCount == 1 && commands.Last() == "K1ABC W2ABC FN31", "A QSO logged in this session remained a new station");
+                });
+                Run("A confirmed QSO without a log entry still lowers a repeat caller's priority", () => {
+                    List<string> commands; AutoCqEngine e = Active(out commands);
+                    e.Waiting.AnswerWorkedB4 = true;
+                    e.Options.PriorityDxcc = new[] { "K" }; e.IsPriorityCall = call => call == "W1AW";
+                    e.RequestCallerReply = d => commands.Add(d.Message);
+                    e.OnLine(Tx(At, "W1AW", "RR73"), At);
+                    e.OnLine(Rx(At.AddSeconds(15), "W1AW", "73"), At.AddSeconds(29));
+                    e.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(29.1));
+                    e.OnStatus(S(false, ""), At.AddSeconds(29.2)); e.Tick(At.AddSeconds(29.3), true);
+                    e.OnStatus(S(true, ""), At.AddSeconds(29.4)); e.OnLine(Tx(At.AddSeconds(30), "CQ", "FN20"), At.AddSeconds(30));
+                    e.OnDecode(D(At.AddSeconds(45), "W1AW", "FN20"), At.AddSeconds(59));
+                    e.OnDecode(D(At.AddSeconds(45), "W2ABC", "FN31"), At.AddSeconds(59.1));
+                    e.OnLine(DecodeFinished(At.AddSeconds(59.2)), At.AddSeconds(59.2)); e.Tick(At.AddSeconds(59.3), true);
+                    Assert(e.LoggedCount == 0 && e.ConfirmedCount == 1 && commands.Last() == "K1ABC W2ABC FN31",
+                        "An unlogged completed QSO was forgotten when ranking callers");
+                });
+                Run("Caller history is reset when starting on another band or mode", () => {
+                    var commands = new List<string>(); var e = new AutoCqEngine();
+                    e.WorkedCallsOnBandMode = (band, mode, own) => band == "20m" && mode == "FT8" ? new[] { "W2ABC" } : new string[0];
+                    e.RequestCallerReply = d => commands.Add(d.Message);
+                    e.OnStatus(S(true, ""), At); e.Start(At); e.Stop("Change band and mode", false);
+                    RadioStatus other = S(true, ""); other.Mode = "FT4"; other.Frequency = 7074000;
+                    e.OnStatus(other, At.AddSeconds(30)); e.Start(At.AddSeconds(30));
+                    e.OnLine(Tx(At.AddSeconds(30), "CQ", "FN20").Replace("FT8:", "FT4:"), At.AddSeconds(30));
+                    foreach (string call in new[] { "W2ABC", "W3ABC" })
+                    {
+                        DecodedMessage d = D(At.AddSeconds(37.5), call, "FN20"); d.Mode = ":";
+                        e.OnDecode(d, At.AddSeconds(44));
+                    }
+                    e.OnLine(DecodeFinished(At.AddSeconds(44.2)), At.AddSeconds(44.2)); e.Tick(At.AddSeconds(44.3), true);
+                    Assert(commands.SequenceEqual(new[] { "K1ABC W2ABC FN20" }), "A QSO in another band or mode still lowered caller priority");
+                });
+                Run("A new caller from an excluded DXCC cannot displace an allowed repeat", () => {
+                    var commands = new List<string>(); var e = new AutoCqEngine();
+                    e.WorkedCallsOnBandMode = (band, mode, own) => new[] { "W2ABC" };
+                    e.CanCall = call => call != "DL1ABC";
+                    e.RequestCallerReply = d => commands.Add(d.Message);
+                    e.OnStatus(S(true, ""), At); e.Start(At); e.OnLine(Tx(At, "CQ", "FN20"), At);
+                    e.OnDecode(D(At.AddSeconds(15), "W2ABC", "FN20"), At.AddSeconds(29));
+                    e.OnDecode(D(At.AddSeconds(15), "DL1ABC", "JO62"), At.AddSeconds(29.1));
+                    e.OnLine(DecodeFinished(At.AddSeconds(29.2)), At.AddSeconds(29.2)); e.Tick(At.AddSeconds(29.3), true);
+                    Assert(commands.SequenceEqual(new[] { "K1ABC W2ABC FN20" }), "New-caller priority bypassed the DXCC exclusion");
+                });
+                Run("ADIF caller history distinguishes band and mode and recognizes MFSK FT4 submode", () => {
+                    string text = "<CALL:5>W2ABC<BAND:3>20m<MODE:3>FT8<EOR>"
+                        + "<CALL:5>W3ABC<FREQ:6>14.080<MODE:4>MFSK<SUBMODE:3>FT4<EOR>"
+                        + "<CALL:5>W4ABC<BAND:3>40m<MODE:3>FT8<EOR>"
+                        + "<CALL:5>W5ABC<BAND:3>20m<MODE:3>FT8<STATION_CALLSIGN:5>K8ABC<EOR>"
+                        + "<CALL:5>W6ABC<BAND:3>20m<MODE:3>FT8<SWL:1>Y<EOR>"
+                        + "<CALL:5>W7ABC<BAND:3>20m<EOR>";
+                    Assert(JtdxAdif.WorkedCallsFromText(text, "20m", "K1ABC", "FT8").SetEquals(new[] { "W2ABC" }), "FT8 history included another context");
+                    Assert(JtdxAdif.WorkedCallsFromText(text, "20m", "K1ABC", "FT4").SetEquals(new[] { "W3ABC" }), "ADIF FT4 submode was lost");
+                    Assert(JtdxAdif.WorkedCallsFromText(text, "20m", "K1ABC").SetEquals(new[] { "W2ABC", "W3ABC", "W7ABC" }), "Band-only monitoring history became mode-specific");
+                });
                 Run("Fresh callers preserve DXCC priority within the same RX frame", () => {
                     List<string> commands; AutoCqEngine e = Active(out commands);
                     e.Options.PriorityDxcc = new[] { "K" }; e.IsPriorityCall = call => call == "W3ABC";
@@ -1927,23 +2036,30 @@ class AutoCqTests
                         && saved.MonitorCalls.SequenceEqual(new[] { "W1AW" }) && saved.MonitorMasks.SequenceEqual(options.MonitorMasks),
                         "Monitoring targets did not survive a restart.");
                 });
-                Run("Native AutoSelect is adopted after final 73 without a competing Reply", () => {
-                    var engine = new AutoCqEngine { UseNativeSelection = true };
-                    var commands = new List<string>();
-                    engine.RequestCq = () => commands.Add("CQ");
-                    engine.RequestReply = d => commands.Add("REPLY");
-                    engine.RequestHalt = () => commands.Add("HALT");
-                    engine.OnStatus(S(true, "W1AW"), At);
-                    engine.Start(At);
-                    engine.OnLine(Tx(At, "W1AW", "RR73"), At);
-                    engine.OnLine("QSO logged: W1AW", At);
-                    Assert(engine.HoldNativeSelection, "Premature native selection was allowed");
-                    engine.OnLine(Rx(At.AddSeconds(15), "W1AW", "73"), At.AddSeconds(29));
-                    Assert(!engine.HoldNativeSelection, "Native selection was not released at final 73");
-                    engine.OnStatus(S(true, "W3ABC"), At.AddSeconds(29.1));
-                    engine.Tick(At.AddSeconds(30), true);
-                    Assert(engine.Armed && engine.Status.DxCall == "W3ABC" && commands.Count == 0,
-                        "AutoCQ competed with the confirmed native handoff");
+                Run("The first QSO hands off normally while worked-call ranking takes ownership after logging", () => {
+                    foreach (bool logged in new[] { false, true })
+                    {
+                        var engine = new AutoCqEngine { UseNativeSelection = true };
+                        var commands = new List<string>();
+                        engine.RequestCq = () => commands.Add("CQ");
+                        engine.RequestReply = d => commands.Add("REPLY");
+                        engine.RequestHalt = () => commands.Add("HALT");
+                        engine.OnStatus(S(true, "W1AW"), At); engine.Start(At);
+                        engine.OnLine(Tx(At, "W1AW", "RR73"), At);
+                        if (logged) engine.OnLine("QSO logged: W1AW", At);
+                        Assert(engine.HoldNativeSelection, "Premature native selection was allowed");
+                        engine.OnLine(Rx(At.AddSeconds(15), "W1AW", "73"), At.AddSeconds(29));
+                        Assert(engine.HoldNativeSelection == logged, "Native selection ignored whether caller history was available");
+                        if (logged)
+                        {
+                            engine.OnDecode(D(At.AddSeconds(15), "W3ABC", "FN20"), At.AddSeconds(29.1));
+                            engine.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(29.2));
+                            engine.OnStatus(S(false, ""), At.AddSeconds(29.3)); engine.Tick(At.AddSeconds(29.4), true);
+                        }
+                        engine.OnStatus(S(true, "W3ABC"), At.AddSeconds(29.5)); engine.Tick(At.AddSeconds(30), true);
+                        Assert(engine.Armed && engine.Status.DxCall == "W3ABC" && commands.SequenceEqual(logged ? new[] { "REPLY" } : new string[0]),
+                            "The next contact was lost or selected twice");
+                    }
                 });
                 Run("An early native handoff cannot transmit during final-73 wait", () => {
                     var engine = new AutoCqEngine { UseNativeSelection = true };
