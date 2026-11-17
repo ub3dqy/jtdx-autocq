@@ -213,6 +213,7 @@ namespace JtdxAutoCq
             if (!acknowledgement && row != null && row.Available && IsAcknowledgement(row.Decode)) return false;
             WaitingStation cached;
             if (heard.TryGetValue(call, out cached) && (cached.LastHeardUtc > time
+                || cached.LastHeardUtc == time && cached.Decode.IsNew && !decode.IsNew
                 || acknowledgement && cached.LastHeardUtc == time && cached.Decode.Message == decode.Message)) return false;
             cached = new WaitingStation { Call = call, OwnCall = Callsign.Clean(status.DeCall), Mode = status.Mode,
                 Frequency = status.Frequency, QueuedUtc = now, LastHeardUtc = time, Decode = decode.Copy(), Available = true };
@@ -335,11 +336,13 @@ namespace JtdxAutoCq
         }
         public WaitingStation Next(RadioStatus status)
         { return Next(status,false); }
-        public WaitingStation Next(RadioStatus status, bool allowPeriodChange, Predicate<string> canCall = null)
+        public WaitingStation Next(RadioStatus status, bool allowPeriodChange, Predicate<string> canCall = null,
+            Predicate<WaitingStation> eligible = null)
         {
             return rows.FirstOrDefault(row =>
             {
-                if (!CanReply(row, status) || canCall != null && !canCall(row.Call)) return false;
+                if (!CanReply(row, status) || canCall != null && !canCall(row.Call)
+                    || eligible != null && !eligible(row)) return false;
                 string state = State(row, status);
                 return state == "Ожидает" || state == "Завершение QSO" || allowPeriodChange && state == "Другой период TX";
             });

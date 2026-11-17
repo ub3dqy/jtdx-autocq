@@ -18,6 +18,8 @@ Set the timer for an hour, for example, and when it expires AutoCQ will finish t
 - **How to find a station for an award.** In monitoring mode, AutoCQ listens and calls only your chosen DXCC entities, callsigns, or callsign patterns.
 - **How to manage callers.** AutoCQ queues stations that call you while you are working someone else, including messages containing just two callsigns. You can add, move, or remove callsigns and choose how long to keep them in the queue.
 
+Stations calling you now take precedence over older queue entries and searches in the left pane. If the selected station does not reply but another station calls you in that receive period, AutoCQ answers the new caller. A reply from the selected station, or a report exchange already in progress, keeps the current contact active. Your DXCC priorities still apply among callers received in the same period. Monitoring mode continues to call only your selected targets.
+
 ## What you need
 
 - **64-bit Windows** with .NET Framework 4.x.
@@ -41,7 +43,7 @@ Downloads from EcoAlfa require signing in. The upstream release notes include th
 
 ## Install AutoCQ
 
-To upgrade to 0.9.3, close JTDX and AutoCQ. Follow step 3 with the 0.9.3 archive, then open `JTDX-AutoCQ.exe` from that archive. The script updates the JTDX patch using the `jtdx.exe.autocq-original` backup.
+To upgrade to 0.9.4, close JTDX and AutoCQ. Follow step 3 with the 0.9.4 archive, then open `JTDX-AutoCQ.exe` from that archive. The script updates the JTDX patch using the `jtdx.exe.autocq-original` backup. The patch shipped with 0.9.3 also works with 0.9.4.
 
 1. Download the **32A, 64-bit** JTDX build above. Extract the ZIP and check the SHA-256 of `jtdx-2.2.160-32A-rc10-win64.exe` against the table below.
 2. Install JTDX and open it once to check your callsign, audio, and rig control. If you use LogHX, point it to this `jtdx.exe` and check that JTDX starts from LogHX. Then close JTDX.
@@ -100,7 +102,7 @@ Get-FileHash -Algorithm SHA256 -LiteralPath .\jtdx-2.2.160-32A-rc10-win64.exe
 | --- | --- |
 | `jtdx-2.2.160-32A-rc10-win64.exe` installer | `67276B42561E3D1722BACABBA39B8B467C21BDFB73E4EEBFD832AB6152122574` |
 | Original installed `bin/jtdx.exe` | `6B6718432EDB55B3E3C8A5B884522BDC5EF5E466BF074E9DAC09CC0B64CE399C` |
-| `bin/jtdx.exe` with the AutoCQ 0.9.3 patch | `B615BFBDC23291A7CA297FE1EAE4EB7D2AF0E8966C962D4FB0EA620C6FF6B12F` |
+| `bin/jtdx.exe` with the AutoCQ 0.9.3–0.9.4 patch | `B615BFBDC23291A7CA297FE1EAE4EB7D2AF0E8966C962D4FB0EA620C6FF6B12F` |
 
 ## Build and test
 

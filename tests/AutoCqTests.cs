@@ -503,6 +503,143 @@ class AutoCqTests
                     e.OnStatus(S(false,""),At.AddSeconds(119));e.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Singleshot ",At.AddSeconds(119));e.Tick(At.AddSeconds(150),true);
                     Assert(!e.Armed && !e.Pending && c.SequenceEqual(new[]{"HALT"}),"Manual completion restarted automation");
                 });
+                Run("A fresh caller takes precedence over an older priority queue entry after a native halt", () => {
+                    List<string> commands;
+                    AutoCqEngine e = Active(out commands);
+                    e.UseNativeSelection = true;
+                    e.Options.PriorityDxcc = new[] { "K" };
+                    e.IsPriorityCall = call => call == "W2ABC";
+                    e.RequestCallerReply = d => commands.Add(d.Message);
+                    e.OnDecode(D(At.AddSeconds(-15), "W2ABC", "FN20"), At.AddSeconds(-1));
+                    e.OnLine(Tx(At, "W1AW", "-10"), At);
+                    e.OnDecode(D(At.AddSeconds(15), "W3ABC", "FN31"), At.AddSeconds(29));
+                    e.OnLine(DecodeFinished(At.AddSeconds(29.2)), At.AddSeconds(29.2));
+                    e.OnLine("Halt Tx triggered at RX: AutoCQ, counter triggered", At.AddSeconds(29.3));
+                    e.OnStatus(S(false, ""), At.AddSeconds(29.4));
+                    e.Tick(At.AddSeconds(29.4), true);
+                    Assert(e.Armed && commands.SequenceEqual(new[] { "K1ABC W3ABC FN31" }),
+                        "An older priority entry displaced the station calling us now");
+                });
+                Run("An unanswered call yields to a fresh lower queue entry only after the full RX decode", () => {
+                    foreach (bool ft4 in new[] { false, true })
+                    {
+                        List<string> commands;
+                        AutoCqEngine e = Active(out commands);
+                        e.UseNativeSelection = true;
+                        double slot = ft4 ? 7.5 : 15;
+                        if (ft4)
+                        {
+                            e.Stop("Change fixture mode", false);
+                            RadioStatus start = S(true, "W1AW"); start.Mode = "FT4";
+                            e.OnStatus(start, At); e.Start(At);
+                        }
+                        e.RequestCallerReply = d => commands.Add(d.Message);
+                        DecodedMessage old = D(At.AddSeconds(-slot), "W2ABC", "FN20");
+                        DecodedMessage caller = D(At.AddSeconds(slot), "W3ABC", "-08");
+                        if (ft4) { old.Mode = caller.Mode = ":"; }
+                        e.OnDecode(old, At.AddSeconds(-1));
+                        e.OnLine(Tx(At, "W1AW", "-10").Replace("FT8:", ft4 ? "FT4:" : "FT8:"), At);
+                        RadioStatus receiving = S(true, "W1AW"); receiving.Mode = ft4 ? "FT4" : "FT8";
+                        receiving.Decoding = true;
+                        e.OnStatus(receiving, At.AddSeconds(slot * 2 - 1));
+                        e.OnDecode(caller, At.AddSeconds(slot * 2 - 0.9));
+                        Assert(e.HoldNativeSelection, "Native AutoSelect could race the incomplete RX decision");
+                        e.Tick(At.AddSeconds(slot * 2 - 0.8), true);
+                        Assert(commands.Count == 0, "A fresh caller interrupted an unfinished decode");
+                        receiving.Decoding = false;
+                        e.OnStatus(receiving, At.AddSeconds(slot * 2 - 0.7));
+                        e.OnLine(DecodeFinished(At.AddSeconds(slot * 2 - 0.6)), At.AddSeconds(slot * 2 - 0.6));
+                        e.Tick(At.AddSeconds(slot * 2 - 0.5), true);
+                        Assert(commands.SequenceEqual(new[] { "HALT" }), "An unanswered call ignored a fresh caller");
+                        e.OnLine("Halt Tx triggered at RX: UDP request", At.AddSeconds(slot * 2 - 0.4));
+                        RadioStatus stopped = S(false, "W1AW"); stopped.Mode = receiving.Mode;
+                        e.OnStatus(stopped, At.AddSeconds(slot * 2 - 0.3));
+                        e.Tick(At.AddSeconds(slot * 2 - 0.2), true);
+                        Assert(e.Armed && commands.SequenceEqual(new[] { "HALT", "K1ABC W3ABC -08" })
+                            && e.Waiting.Find("W2ABC") != null,
+                            "The fresh caller was lost or an older queued station was called first");
+                    }
+                });
+                Run("A reply from the selected station preserves its exchange despite another caller", () => {
+                    foreach (string answer in new[] { "FN20", "-09", "R-09", "" })
+                    {
+                        List<string> commands; AutoCqEngine e = Active(out commands);
+                        e.OnLine(Tx(At, "W1AW", "-10"), At);
+                        e.OnDecode(D(At.AddSeconds(15), "W2ABC", "FN31"), At.AddSeconds(28.9));
+                        e.OnDecode(D(At.AddSeconds(15), "W1AW", answer), At.AddSeconds(29));
+                        e.OnLine(DecodeFinished(At.AddSeconds(29.2)), At.AddSeconds(29.2));
+                        e.Tick(At.AddSeconds(29.3), true);
+                        Assert(e.Armed && commands.Count == 0, "A new caller displaced an answering station: " + answer);
+                    }
+                });
+                Run("Old replays and excluded callers cannot displace an unanswered call", () => {
+                    foreach (bool excluded in new[] { false, true })
+                    {
+                        List<string> commands; AutoCqEngine e = Active(out commands);
+                        if (excluded) e.CanCall = call => call != "W2ABC";
+                        e.OnLine(Tx(At, "W1AW", "-10"), At);
+                        DecodedMessage caller = D(At.AddSeconds(excluded ? 15 : -15), "W2ABC", "FN31");
+                        e.OnDecode(caller, At.AddSeconds(excluded ? 29 : -1));
+                        caller.IsNew = false; e.OnDecode(caller, At.AddSeconds(29));
+                        e.OnLine(DecodeFinished(At.AddSeconds(29.2)), At.AddSeconds(29.2));
+                        e.Tick(At.AddSeconds(29.3), true);
+                        Assert(e.Armed && commands.Count == 0, "An ineligible caller interrupted the selected station");
+                    }
+                });
+                Run("A fresh caller waits through an exchange that has already progressed", () => {
+                    foreach (string sent in new[] { "R-10", "RR73", "73" })
+                    {
+                        List<string> commands; AutoCqEngine e = Active(out commands);
+                        e.OnLine(Tx(At, "W1AW", sent), At);
+                        e.OnDecode(D(At.AddSeconds(15), "W2ABC", "FN31"), At.AddSeconds(29));
+                        e.OnLine(DecodeFinished(At.AddSeconds(29.2)), At.AddSeconds(29.2));
+                        e.Tick(At.AddSeconds(29.3), true);
+                        Assert(e.Armed && commands.Count == 0, "A fresh caller interrupted the QSO signoff or report acknowledgement");
+                    }
+                });
+                Run("A same-time replay cannot erase the original caller report", () => {
+                    CallerQueue q = new CallerQueue(); RadioStatus status = S(true, "W1AW");
+                    DecodedMessage original = D(At.AddSeconds(15), "W2ABC", "+02");
+                    q.Observe(original, status, "W1AW", At.AddSeconds(29));
+                    DecodedMessage replay = original.Copy(); replay.IsNew = false; replay.Message = "K1ABC W2ABC";
+                    q.Observe(replay, status, "W1AW", At.AddSeconds(29.1));
+                    Assert(q.Rows.Single().Decode.Message == original.Message && q.Rows.Single().Decode.IsNew,
+                        "A shorter display replay discarded the received report");
+                });
+                Run("Fresh callers preserve DXCC priority within the same RX frame", () => {
+                    List<string> commands; AutoCqEngine e = Active(out commands);
+                    e.Options.PriorityDxcc = new[] { "K" }; e.IsPriorityCall = call => call == "W3ABC";
+                    e.RequestCallerReply = d => commands.Add(d.Message);
+                    e.OnLine(Tx(At, "W1AW", "-10"), At);
+                    e.OnDecode(D(At.AddSeconds(15), "W2ABC", "FN20"), At.AddSeconds(28));
+                    e.OnDecode(D(At.AddSeconds(15), "W3ABC", "FN31"), At.AddSeconds(29));
+                    e.OnLine(DecodeFinished(At.AddSeconds(29.2)), At.AddSeconds(29.2));
+                    e.Tick(At.AddSeconds(29.3), true);
+                    e.OnLine("Halt Tx triggered at RX: UDP request", At.AddSeconds(29.4));
+                    e.OnStatus(S(false, "W1AW"), At.AddSeconds(29.5)); e.Tick(At.AddSeconds(29.5), true);
+                    Assert(commands.SequenceEqual(new[] { "HALT", "K1ABC W3ABC FN31" }), "DXCC priority was lost among fresh callers");
+                });
+                Run("A fresh caller cannot interrupt an already active transmission", () => {
+                    List<string> commands; AutoCqEngine e = Active(out commands);
+                    e.OnLine(Tx(At, "W1AW", "-10"), At);
+                    e.OnDecode(D(At.AddSeconds(15), "W2ABC", "FN31"), At.AddSeconds(29));
+                    e.OnLine(DecodeFinished(At.AddSeconds(29.2)), At.AddSeconds(29.2));
+                    RadioStatus transmitting = S(true, "W1AW"); transmitting.Transmitting = true;
+                    e.OnStatus(transmitting, At.AddSeconds(30)); e.Tick(At.AddSeconds(30), true);
+                    Assert(e.Armed && commands.Count == 0, "A caller cut off an active TX frame");
+                });
+                Run("Monitoring ignores unrelated callers while a selected target is unanswered", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                    DecodedMessage target = CqD(At.AddSeconds(15), "JA1AAA"); target.IsNew = false;
+                    e.OnDecode(target, At.AddSeconds(29)); e.Tick(At.AddSeconds(29), true);
+                    Assert(commands.Count == 1, "The monitoring fixture did not select its visible target");
+                    e.OnStatus(S(true, "JA1AAA"), At.AddSeconds(29.1));
+                    e.OnLine(Tx(At.AddSeconds(30), "JA1AAA", "-10"), At.AddSeconds(30));
+                    e.OnDecode(D(At.AddSeconds(45), "W2ABC", "FN31"), At.AddSeconds(59));
+                    e.OnLine(DecodeFinished(At.AddSeconds(59.2)), At.AddSeconds(59.2)); e.Tick(At.AddSeconds(59.3), true);
+                    Assert(e.Armed && commands.Count == 1 && e.Status.DxCall == "JA1AAA",
+                        "An unrelated caller overrode the monitoring targets");
+                });
                 Run("After two unanswered calls CQ may clear the completed DX field", () => {
                     List<string> c;AutoCqEngine e=Active(out c);e.OnLine(Tx(At,"W1AW","-10"),At);e.OnLine(Tx(At.AddSeconds(30),"W1AW","-10"),At.AddSeconds(30));
                     e.OnLine("Halt Tx triggered at RX: m_singleshot, counter triggered ",At.AddSeconds(59));e.OnStatus(S(false,"W1AW"),At.AddSeconds(59));e.Tick(At.AddSeconds(60.1),true);

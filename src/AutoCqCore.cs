@@ -188,6 +188,7 @@ namespace JtdxAutoCq
             {
                 return Armed && (Monitoring || CountryRulesActive || NextManual() != null || finishing || Awaiting73 || stoppingRetry != null
                     || terminalHaltRequested || periodSwitchHalt || activeSearchCall != null || ReverseExchangePending
+                    || selectedQueuedCall != null || attemptCall != null && !attemptAnswered
                     || commandOutstanding && replyTarget != null);
             }
         }
@@ -213,7 +214,8 @@ namespace JtdxAutoCq
         int sessionWaitPeriods, sessionCallAttempts, sessionSwitchMinutes;
         DateTime lastResponseAt, lastDecodeFinished;
         long lastInitialSlot = -1;
-        bool callLimitExceeded;
+        long lastAttemptReplySlot = -1;
+        bool callLimitExceeded, yieldingToCaller;
         readonly Dictionary<string, DateTime> sentAcknowledgedReports = new Dictionary<string, DateTime>();
         bool hunting, cqThreshold, cqTxSeen, cqTxEnded, cqHaltExpected, cqListening, completedCurrent;
         bool cqHaltAcknowledged, periodSwitchHalt;
@@ -518,6 +520,7 @@ namespace JtdxAutoCq
 
         void ContinueAfterRetry(string call, DateTime now)
         {
+            bool callerTakesOver = yieldingToCaller;
             Waiting.Pause(call, CallerQueue.NoAnswer, now);
             Cqs.Failed(call, now);
             ResetContact();
@@ -527,7 +530,8 @@ namespace JtdxAutoCq
             allowClearDx = true;
             pendingOwner = call;
             hunting = false;
-            Schedule(now, "Лимит попыток " + call + " исчерпан. " + (Monitoring ? "Возвращаюсь на приём." : "Выбираю следующую станцию или CQ."));
+            Schedule(now, callerTakesOver ? "Нет ответа от " + call + ". Отвечаю станции, которая зовёт нас сейчас."
+                : "Лимит попыток " + call + " исчерпан. " + (Monitoring ? "Возвращаюсь на приём." : "Выбираю следующую станцию или CQ."));
             due = now;
         }
 
@@ -558,7 +562,8 @@ namespace JtdxAutoCq
             reverse73 = reverseNeedsReply = repeatSentInSilentWindow = false;
             allowClearDx = false; pendingOwner = null; attemptCall = null; initialTransmissions = 0;
             attemptAnswered = false; lastRemoteFinalCall = null;
-            callLimitExceeded = false; stoppingRetry = null;
+            callLimitExceeded = yieldingToCaller = false; stoppingRetry = null;
+            lastAttemptReplySlot = -1;
             resumedAcknowledgementCall = null;
             replyTarget = null; selectedQueuedCall = null; replyDuringCq = false; lastInitialSlot = -1;
             expectedPeriod = null; activeSearchCall = null; completedCurrent = false;
@@ -665,8 +670,21 @@ namespace JtdxAutoCq
             if (Status != null && call == CleanCall(Status.DeCall))
                 throw new InvalidOperationException("Введите позывной другой станции.");
         }
-        WaitingStation NextCaller()
+        WaitingStation FreshCaller(DateTime now, string exceptCall = null)
         {
+            Predicate<WaitingStation> fresh = row => row.Call != exceptCall && row.Decode.IsNew
+                && row.LastHeardUtc <= now && now - row.LastHeardUtc < SlotDuration + SlotDuration;
+            if (HasPriorityCountries)
+            {
+                WaitingStation priority = Waiting.Next(Status, false, CanCallWithPriority, fresh);
+                if (priority != null) return priority;
+            }
+            return Waiting.Next(Status, false, CanCall, fresh);
+        }
+        WaitingStation NextCaller(DateTime now)
+        {
+            WaitingStation fresh = Monitoring ? null : FreshCaller(now);
+            if (fresh != null) return fresh;
             if (HasPriorityCountries)
             {
                 WaitingStation priority = Waiting.Next(Status, true, CanCallWithPriority);
@@ -795,6 +813,7 @@ namespace JtdxAutoCq
                 if (attemptCall != peer)
                 {
                     attemptCall = peer; initialTransmissions = 0; attemptAnswered = false; lastInitialSlot = -1; callLimitExceeded = false;
+                    lastAttemptReplySlot = -1;
                 }
                 if (payload.StartsWith("R", StringComparison.Ordinal))
                 {
@@ -822,6 +841,9 @@ namespace JtdxAutoCq
             if (response && (!radioTime.HasValue || now - radioTime.Value <= SlotDuration + SlotDuration))
                 lastResponseAt = now;
             if (peer == attemptCall && (Report.IsMatch(payload) || acknowledgement)) attemptAnswered = true;
+            if (peer == attemptCall && radioTime.HasValue && lastInitialSlot >= 0
+                && SlotNumber(radioTime.Value) > lastInitialSlot && response)
+                lastAttemptReplySlot = SlotNumber(radioTime.Value);
             if((payload=="73" || acknowledgement) && waitingCall==peer && terminalRadioTime.HasValue && radioTime.HasValue && radioTime.Value<terminalRadioTime.Value)return;
             // Round FT4 decodes logged at a whole second back to their 7.5-second slot.
             bool freshFinal = peer == waitingCall && lastTerminalSlot.HasValue && radioTime.HasValue
@@ -970,6 +992,18 @@ namespace JtdxAutoCq
                 || waitingCall != null || pending && allowClearDx))
                 callLimitExceeded = false;
             if (FinishTerminal(now)) return;
+            if (!Monitoring && !pending && !commandOutstanding && !attemptAnswered && waitingCall == null
+                && lastInitialSlot >= 0 && Status != null && Status.TxEnabled && !Status.Transmitting && !Status.Decoding
+                && attemptCall == CleanCall(Status.DxCall) && lastAttemptReplySlot != lastInitialSlot + 1
+                && lastDecodeFinished >= SlotStart(lastInitialSlot + 1).AddMilliseconds(500)
+                && FreshCaller(now, attemptCall) != null)
+            {
+                stoppingRetry = attemptCall;
+                yieldingToCaller = true;
+                expires = now.AddSeconds(6);
+                RequestHalt();
+                return;
+            }
             bool finalAttemptDecoded = initialTransmissions >= sessionCallAttempts && !attemptAnswered && lastInitialSlot >= 0
                 && lastDecodeFinished >= SlotStart(lastInitialSlot + 1) && !pending && waitingCall == null;
             if ((callLimitExceeded || finalAttemptDecoded) && Status != null && Status.TxEnabled && !Status.Decoding && !commandOutstanding
@@ -995,7 +1029,7 @@ namespace JtdxAutoCq
                     {
                         pending=true;cqHaltExpected=true;replyDuringCq=false;due=now.AddMilliseconds(900);expires=now.AddSeconds(45);unexplainedStop=null;RequestHalt();
                     }
-                    else if(NextCaller()!=null || NextManual()!=null)
+                    else if(NextCaller(now)!=null || NextManual()!=null)
                     {allowClearDx=true;pendingOwner=Status.DxCall;Schedule(now,"Дорабатываю очередь после окончания времени.");}
                     else {Stop("Время вышло. Текущая связь и доступная очередь завершены; автомат выключен.",false);return;}
                 }
@@ -1023,7 +1057,7 @@ namespace JtdxAutoCq
             }
             if (!pending && !commandOutstanding && Status != null && Status.TxEnabled && waitingCall == null && String.IsNullOrEmpty(Status.DxCall))
             {
-                WaitingStation waiting = NextCaller();
+                WaitingStation waiting = NextCaller(now);
                 bool cqBeforeFirstTransmission = lastCqTime == DateTime.MinValue
                     && (manualCq != null || checkManualCall || checkPriorityCq && NextPriorityCq(now) != null);
                 if (cqBeforeFirstTransmission || waiting != null && !LetNativeChoose(now, waiting))
@@ -1092,7 +1126,7 @@ namespace JtdxAutoCq
             }
             CompleteConfirmedContact();
             if (completedCurrent) { hunting = false; ResetCqRound(); }
-            WaitingStation next = NextCaller();
+            WaitingStation next = NextCaller(now);
             WaitingStation direct = next == null ? NextManual() : null;
             if (next == null && direct == null && (checkPriorityCq || !switchPeriod && (hunting || manualCq != null))
                 && now < WaitForVisibleCqsUntil) return;
