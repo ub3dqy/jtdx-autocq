@@ -43,7 +43,7 @@ static class RenderScreenshots
             ((CheckBox)Field(form,"monitor")).Checked=true;
             ((AutoCqEngine)engine).Start(DateTime.UtcNow);
             Invoke(form,"UpdateUi");
-            Invoke(form,"Log","ДЕМО: цели JA, CE, W1ABC, VK*. Ожидание CQ, 73, RRR или RR73.");
+            Invoke(form,"Log","ДЕМО: цели JA, CE, W1ABC, VK*. Входящие вызовы принимаются вне фильтра.");
             Save(form,Path.Combine(directory,"monitor-demo.png"));
             var monitor=(AutoCqEngine)engine;DateTime now=DateTime.UtcNow;
             foreach(string call in new[]{"JA1BBB","CE1AAA"})
@@ -62,10 +62,26 @@ static class RenderScreenshots
             foreach(ListViewItem item in view.Items)if((string)item.Tag=="DL1AAA")item.EnsureVisible();
             Save(form,Path.Combine(directory,"monitor-manual-demo.png"));
         }
+        using(var form=new MainForm(true))
+        {
+            ((Timer)Field(form,"timer")).Stop();
+            var engine=(AutoCqEngine)Field(form,"engine");
+            engine.Options.MonitorDxcc=new[]{"JA","CE"};
+            ((CheckBox)Field(form,"monitor")).Checked=true;
+            DateTime now=DateTime.UtcNow;engine.Start(now);
+            DateTime slot=now.Date.AddSeconds(Math.Floor(now.TimeOfDay.TotalSeconds/15)*15);
+            foreach(string call in new[]{"DL1AAA","W2ABC"})
+                engine.OnDecode(new DecodedMessage{IsNew=true,Milliseconds=(uint)slot.TimeOfDay.TotalMilliseconds,Snr=-11,DeltaTime=0.2,DeltaFrequency=1700,Mode="~",Message="K1ABC "+call+" JO62"},now);
+            Invoke(form,"Log","ДЕМО: фильтр JA и CE; DL1AAA и W2ABC сами вызывают K1ABC.");
+            engine.Tick(now,true);
+            if(!engine.Monitoring || engine.IncomingMonitorCall!="DL1AAA")throw new Exception("Incoming monitoring reply was skipped.");
+            ((TabControl)Field(form,"lists")).SelectedIndex=0;Invoke(form,"UpdateUi");
+            Save(form,Path.Combine(directory,"monitor-callers-demo.png"));
+        }
         using(var form=new SetupDialog(@"C:\Radio\JTDX\bin\jtdx.exe"))Save(form,Path.Combine(directory,"setup-demo.png"));
         using(var form=new UpdateDialog(new UpdateClient(version),new AppPreferences(),new AppPreferencesStore(null),Path.GetTempPath(),@"C:\Radio\JTDX\bin\jtdx.exe",true,()=>{},
-            new AvailableUpdate{Version=Version.Parse(version),Notes="AutoCQ "+version+"\r\n\r\n• Ручной вызов любой станции во время мониторинга.\r\n• Возврат к своим целям после связи или лимита вызовов.\r\n• Сохранение целей и оставшегося времени.\r\n\r\nДЕМО: пример описания установленного выпуска."}))
+            new AvailableUpdate{Version=Version.Parse(version),Notes="AutoCQ "+version+"\r\n\r\n• Ответ входящим станциям вне фильтра мониторинга.\r\n• Очередь вызовов после финального 73.\r\n• Возврат к своим целям после связи или лимита вызовов.\r\n\r\nДЕМО: пример описания установленного выпуска."}))
             Save(form,Path.Combine(directory,"updates-demo.png"));
-        Console.WriteLine("Rendered six offline demo screenshots.");
+        Console.WriteLine("Rendered seven offline demo screenshots.");
     }
 }

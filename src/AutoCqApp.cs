@@ -15,8 +15,8 @@ using System.Xml;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.7.0")]
-[assembly: AssemblyFileVersion("0.9.7.0")]
+[assembly: AssemblyVersion("0.9.8.0")]
+[assembly: AssemblyFileVersion("0.9.8.0")]
 
 namespace JtdxAutoCq
 {
@@ -196,7 +196,7 @@ namespace JtdxAutoCq
 
     public sealed class MainForm : Form
     {
-        const string ModuleVersion = "0.9.7";
+        const string ModuleVersion = "0.9.8";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = JtdxPatcher.PatchedHash;
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -677,6 +677,7 @@ namespace JtdxAutoCq
         void UpdateListHint()
         {
             listHint.Text = lists.SelectedIndex==2 ? "После пяти минут станцию снова можно вызвать по свежему сообщению. При остановке мониторинга список очищается."
+                : engine.Monitoring && lists.SelectedIndex==0 ? "Входящие вызовы принимаются вне фильтра мониторинга. После очереди программа вернётся к поиску целей."
                 : engine.Monitoring ? "Можно вручную позвать любую станцию: выберите её слева в JTDX или здесь и нажмите «Позвать выбранную»."
                 : lists.SelectedIndex == 1 ? "Свежие CQ, 73, RRR и RR73 из левого окна JTDX. Двойной щелчок выбирает станцию."
                 : "После ответов на ваш позывной AutoCQ вызывает добавленные вручную станции напрямую.";
@@ -804,6 +805,7 @@ namespace JtdxAutoCq
         {
             if (!CanCallCountry(row.Call)) return "Исключение DXCC";
             if (row.Call == engine.ManualMonitorCall) return "Ручное QSO · мониторинг";
+            if (row.Call == engine.IncomingMonitorCall) return "Отвечаю · мониторинг";
             RadioStatus current = engine.Status;
             if (current != null && current.TxEnabled && Callsign.Clean(current.DxCall) == row.Call) return "Идёт QSO";
             string state = engine.Waiting.State(row, engine.Status);
@@ -1131,7 +1133,7 @@ namespace JtdxAutoCq
                 + (engine.Monitoring ? "    ·    Целей мониторинга  " + targetCount
                     : "    ·    Очередь  " + engine.Waiting.Rows.Count + "    ·    CQ без ответа  " + engine.UnansweredCqs + "/" + engine.Options.CqAttemptsBeforeSearch);
             if(engine.Finishing)
-            {sessionInfo.Text=engine.Monitoring ? "Завершаю текущий вызов" : "Завершаю QSO и очередь";sessionInfo.ForeColor=Amber;}
+            {sessionInfo.Text="Завершаю QSO и очередь";sessionInfo.ForeColor=Amber;}
             else if(engine.Armed)
             {
                 TimeSpan remaining=engine.SessionDeadline-DateTime.UtcNow;if(remaining<TimeSpan.Zero)remaining=TimeSpan.Zero;
@@ -1179,6 +1181,7 @@ namespace JtdxAutoCq
                     x.WriteElementString("Armed", engine.Armed.ToString());
                     x.WriteElementString("Monitoring", engine.Monitoring.ToString());
                     x.WriteElementString("ManualMonitorCall", engine.ManualMonitorCall);
+                    x.WriteElementString("IncomingMonitorCall", engine.IncomingMonitorCall);
                     x.WriteElementString("Pending", engine.Pending.ToString());
                     x.WriteElementString("LoggedQsoCount", engine.LoggedCount.ToString());
                     x.WriteElementString("ConfirmedQsoCount", engine.ConfirmedCount.ToString());

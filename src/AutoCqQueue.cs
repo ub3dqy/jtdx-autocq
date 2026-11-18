@@ -207,8 +207,9 @@ namespace JtdxAutoCq
             WaitingStation row = rows.FirstOrDefault(r => r.Call == call);
             DateTime workedAt;
             bool worked = completed.TryGetValue(call, out workedAt);
+            bool currentDx = call == Callsign.Clean(status.DxCall) && (status.TxEnabled || status.Transmitting);
             if (acknowledgement && (worked || call == Callsign.Clean(activeCall)
-                || call == Callsign.Clean(status.DxCall) || !reactivateFailed && (row == null || row.PauseReason == NoAnswer)))
+                || currentDx || !reactivateFailed && (row == null || row.PauseReason == NoAnswer)))
                 return false;
             if (!acknowledgement && row != null && row.Available && IsAcknowledgement(row.Decode)) return false;
             WaitingStation cached;
@@ -220,7 +221,7 @@ namespace JtdxAutoCq
             heard[call] = cached;
             if (row == null)
             {
-                if (!decode.IsNew || call == Callsign.Clean(activeCall) || call == Callsign.Clean(status.DxCall)) return false;
+                if (!decode.IsNew || call == Callsign.Clean(activeCall) || currentDx) return false;
                 if (worked && (!AnswerWorkedB4 || time <= workedAt || payload.StartsWith("R+", StringComparison.Ordinal)
                     || payload.StartsWith("R-", StringComparison.Ordinal))) return false;
                 DateTime removed;if(removedThrough.TryGetValue(call,out removed) && time<=removed)return false;
@@ -320,7 +321,7 @@ namespace JtdxAutoCq
             if (!row.Available || row.Decode == null) return "Ждёт принятого вызова";
             if (status == null || row.Frequency != status.Frequency || row.Mode != status.Mode || row.OwnCall != Callsign.Clean(status.DeCall)) return "Другой диапазон/режим";
             if (!SamePeriod(row,status)) return "Другой период TX";
-            if (Callsign.Clean(status.DxCall) == row.Call) return "Идёт QSO";
+            if (Callsign.Clean(status.DxCall) == row.Call && (status.TxEnabled || status.Transmitting)) return "Идёт QSO";
             return IsAcknowledgement(row.Decode) ? "Завершение QSO" : "Ожидает";
         }
         static bool CanReply(WaitingStation row, RadioStatus status)

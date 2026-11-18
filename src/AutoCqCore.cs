@@ -148,6 +148,7 @@ namespace JtdxAutoCq
         public bool Armed { get; private set; }
         public bool Monitoring { get { return Armed && monitorTargets != null; } }
         public string ManualMonitorCall { get { return manualMonitorCall ?? ""; } }
+        public string IncomingMonitorCall { get { return incomingMonitorCall ?? ""; } }
         public RadioStatus Status { get; private set; }
         public int Resumes { get; private set; }
         public int LoggedCount { get; private set; }
@@ -229,7 +230,7 @@ namespace JtdxAutoCq
         string manualCq, activeSearchCall;
         bool finishing;
         MonitorTargets monitorTargets;
-        string manualMonitorCall, unconfirmedMonitorCall;
+        string manualMonitorCall, incomingMonitorCall, unconfirmedMonitorCall;
         DateTime sessionStartedAt, monitorSelectionDeadline;
         static readonly Regex TxMessage = new Regex(@"\b(?:Transmitting|Retransmitting)\s+.*?\b(?:FT8|FT4):\s*(.+)$", RegexOptions.CultureInvariant);
         static readonly Regex RxMessage = new Regex(@"^\d{8}_\d{6}\s+[+-]?\d+\s+[+-]?[\d.,]+\s+\d+\s+\S+\s+(.+)$", RegexOptions.CultureInvariant);
@@ -268,7 +269,7 @@ namespace JtdxAutoCq
             sessionFrequency = Status.Frequency; sessionMode = Status.Mode; sessionPeriod = Status.TxFirst;
             workedCallers.Clear();
             string callerBand = JtdxAdif.Band(sessionFrequency);
-            if (!Options.MonitorEnabled && callerBand != null)
+            if (callerBand != null)
                 foreach (string call in WorkedCallsOnBandMode(callerBand, sessionMode, CleanCall(Status.DeCall)))
                     workedCallers.Add(CleanCall(call));
             hunting = finishing = false; manualCq = null; ResetCqRound();
@@ -279,7 +280,7 @@ namespace JtdxAutoCq
             sentAcknowledgedReports.Clear();
             unexplainedStop = null;
             if (Monitoring)
-                Notice("Мониторинг включён на " + Options.RunMinutes + " мин. Жду сигнал от цели в левом окне.");
+                Notice("Мониторинг включён на " + Options.RunMinutes + " мин. Ищу цели и отвечаю на входящие вызовы.");
             else
             {
                 Notice("Автомат включён на " + Options.RunMinutes + " мин. CQ без ответа до поиска: " + Options.CqAttemptsBeforeSearch + ".");
@@ -606,6 +607,7 @@ namespace JtdxAutoCq
             replyTarget = null; selectedQueuedCall = null; replyDuringCq = false; lastInitialSlot = -1;
             expectedPeriod = null; activeSearchCall = null; completedCurrent = false;
             manualMonitorCall = null;
+            incomingMonitorCall = null;
         }
         void ResetCqRound(bool keepCount = false, bool keepPendingHalt = false)
         {
@@ -735,8 +737,9 @@ namespace JtdxAutoCq
         WaitingStation FreshCaller(DateTime now, string exceptCall = null)
         {
             Predicate<WaitingStation> fresh = row => row.Call != exceptCall && row.Decode.IsNew
-                && row.LastHeardUtc <= now && now - row.LastHeardUtc < SlotDuration + SlotDuration;
-            return RankedCaller(false, fresh);
+                && row.LastHeardUtc <= now && now - row.LastHeardUtc < SlotDuration + SlotDuration
+                && CallerWithinSession(row);
+            return RankedCaller(Monitoring, fresh);
         }
         WaitingStation RankedCaller(bool allowPeriodChange, Predicate<WaitingStation> eligible = null)
         {
@@ -755,9 +758,28 @@ namespace JtdxAutoCq
         }
         WaitingStation NextCaller(DateTime now)
         {
-            WaitingStation fresh = Monitoring ? null : FreshCaller(now);
+            WaitingStation fresh = FreshCaller(now);
             if (fresh != null) return fresh;
-            return RankedCaller(true);
+            return RankedCaller(true, row => !Monitoring || row.Decode.IsNew && row.LastHeardUtc <= now
+                && CallerWithinSession(row));
+        }
+
+        bool CallerWithinSession(WaitingStation row)
+        {
+            return !Monitoring || !finishing || row.QueuedUtc < SessionDeadline || row.LastHeardUtc < SessionDeadline;
+        }
+
+        void ReplyToQueuedCaller(WaitingStation next)
+        {
+            hunting = false; ResetCqRound(); expectedPeriod = CallerQueue.ReplyFirst(next.Decode, sessionMode);
+            replyTarget = selectedQueuedCall = lastContact = next.Call;
+            if (Monitoring) incomingMonitorCall = next.Call;
+            if (CallerQueue.IsAcknowledgement(next.Decode)) resumedAcknowledgementCall = next.Call;
+            ReplyCommands++;
+            Notice((Monitoring ? "Входящий вызов в мониторинге: "
+                : !finishing && HasPriorityCountries && IsPriorityCall(next.Call) ? "Отвечаю из очереди, приоритет DXCC: "
+                : "Отвечаю из очереди: ") + next.Call + ".");
+            (RequestCallerReply ?? RequestReply)(next.Decode.Copy());
         }
 
         bool CanCallWithPriority(string call)
@@ -1012,12 +1034,23 @@ namespace JtdxAutoCq
         void ListenForTarget(DateTime now)
         {
             if (selectedQueuedCall != null || Status == null || Status.TxEnabled || Status.Transmitting) return;
+            if (Status.Decoding) return;
+            // Addressed callers are independent of the targets we search for.
+            // Their original decode is retained even when the left pane clears.
+            WaitingStation caller = NextCaller(now);
+            if (caller != null)
+            {
+                loggedCall = null; ResetContact();
+                commandOutstanding = true; commandDeadline = now.AddSeconds(6);
+                ReplyToQueuedCaller(caller);
+                return;
+            }
             if (finishing)
             {
                 Stop("Время вышло. Мониторинг завершён, JTDX на приёме.", false);
                 return;
             }
-            if (Status.Decoding || now < WaitForVisibleCqsUntil) return;
+            if (now < WaitForVisibleCqsUntil) return;
             bool manual = manualCq != null;
             CqStation station = manual ? Cqs.Find(manualCq) : null;
             if (manual && (!Cqs.Fresh(station, now) || !CanCall(manualCq)))
@@ -1048,7 +1081,7 @@ namespace JtdxAutoCq
             if (now >= SessionDeadline && !finishing)
             {
                 finishing=true;hunting=false;manualCq=null;
-                Notice(Monitoring ? "Время вышло. Завершаю текущий вызов." :
+                Notice(Monitoring ? "Время вышло. Завершаю QSO и входящие вызовы, принятые до окончания времени." :
                     "Время вышло. Завершаю текущую связь и очередь; станции «Нет ответа» пропускаю.");
                 if(commandOutstanding && replyTarget==null && Status!=null && !Status.Transmitting && String.IsNullOrEmpty(Status.DxCall) && lastCqTime==DateTime.MinValue)
                 {commandOutstanding=false;expectedPeriod=null;pending=false;}
@@ -1078,7 +1111,7 @@ namespace JtdxAutoCq
                 || waitingCall != null || pending && allowClearDx))
                 callLimitExceeded = false;
             if (FinishTerminal(now)) return;
-            if (!Monitoring && !pending && !commandOutstanding && !attemptAnswered && waitingCall == null
+            if (!pending && !commandOutstanding && !attemptAnswered && waitingCall == null
                 && lastInitialSlot >= 0 && Status != null && Status.TxEnabled && !Status.Transmitting && !Status.Decoding
                 && attemptCall == CleanCall(Status.DxCall) && lastAttemptReplySlot != lastInitialSlot + 1
                 && lastDecodeFinished >= SlotStart(lastInitialSlot + 1).AddMilliseconds(500)
@@ -1193,8 +1226,8 @@ namespace JtdxAutoCq
                 RecordMissing73();
                 ResetContact();
                 pending = false;
-                if (finishing) Stop("Время вышло. Текущий вызов завершён, JTDX на приёме.", false);
-                else Notice("Мониторинг: JTDX на приёме, жду следующую цель.");
+                if (!finishing) Notice("Мониторинг: проверяю входящие вызовы, затем продолжаю поиск целей.");
+                ListenForTarget(now);
                 return;
             }
             if (cqListening)
@@ -1239,13 +1272,7 @@ namespace JtdxAutoCq
             loggedCall = null; lastContact = null; ResetContact();
             if (next != null)
             {
-                hunting=false;ResetCqRound();expectedPeriod=CallerQueue.ReplyFirst(next.Decode,sessionMode);
-                replyTarget = selectedQueuedCall = lastContact = next.Call;
-                if (CallerQueue.IsAcknowledgement(next.Decode))
-                    resumedAcknowledgementCall = next.Call;
-                ReplyCommands++; Notice((checkPriorityCq && IsPriorityCall(next.Call) ? "Отвечаю из очереди, приоритет DXCC: "
-                    : "Отвечаю из очереди: ") + next.Call + ".");
-                (RequestCallerReply ?? RequestReply)(next.Decode.Copy());
+                ReplyToQueuedCaller(next);
             }
             else if (direct != null)
             {

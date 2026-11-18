@@ -1,6 +1,6 @@
 # Using AutoCQ
 
-Guide for AutoCQ 0.9.7 · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
+Guide for AutoCQ 0.9.8 · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
 
 AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.
 
@@ -88,6 +88,20 @@ Open **«Цели мониторинга»** (Monitoring targets). Select DXCC e
 Separate callsigns with spaces, commas or new lines. In patterns, ***** matches any number of characters and **?** matches one: `9J*` matches calls beginning with 9J; `K?ABC` matches K1ABC or K2ABC.
 
 Save the targets, enable **«Режим мониторинга»**, then click **«2. Включить мониторинг»**. AutoCQ listens for recent CQ, 73, RRR and RR73 from matching stations. A sign-off selects its sender. After the QSO or attempt limit, the program returns to receive. It does not call CQ in this mode.
+
+### When a station calls you
+
+Monitoring targets determine whom AutoCQ searches for and calls itself. A station addressing your callsign is answered even if its country, callsign or pattern is outside those targets. Incoming callers take priority over searching for a new target and over a saved selection made with the Call selected button.
+
+![AutoCQ answers DL1AAA outside the target list while another caller waits](docs/monitor-callers-demo.png)
+
+Callers received while you are busy stay in the queue until the current QSO finishes. A final 73 and a new call can arrive in the same period: AutoCQ keeps both messages and answers the next station. If the station you selected has not answered and someone else calls you, AutoCQ switches after the receive period finishes. It does not interrupt an active transmission or a QSO with a responding station.
+
+A station not yet worked on this band and mode comes first. DXCC priorities and queue order apply within the remaining groups. DXCC exclusions remain in force. JTDX's «Отв. B4» (Answer B4) setting controls fresh repeat calls from stations already worked during the session.
+
+The one-contact-per-target limit and five-minute pause after an unsuccessful search apply to selecting targets yourself. They do not prevent answering an incoming caller. After the QSO or attempt limit, AutoCQ checks other callers and resumes monitoring with the same targets and time remaining. It does not call CQ in this mode.
+
+At the session deadline, AutoCQ finishes the current QSO and handles available incoming calls received before time ran out. New targets and new calls after expiry do not extend the session. Entries marked «Нет ответа» (No answer) are skipped.
 
 ### Calling another station manually
 

@@ -4,9 +4,9 @@
 
 **AutoCQ keeps JTDX working after a contact ends.** It can answer the next caller or call CQ again. You decide whom to call, how long to wait and how long the session lasts. AutoCQ supports FT8 and FT4.
 
-You could let it work for an hour, answering callers and looking for another station when nobody replies. Or enable monitoring: JTDX stays on receive until a wanted country or callsign appears.
+You could let it work for an hour, answering callers and looking for another station when nobody replies. Or enable monitoring: AutoCQ watches for wanted countries and callsigns, and also answers stations that call you.
 
-![AutoCQ 0.9.7 with sample settings and queue. The app interface is in Russian.](docs/autocq-demo.png)
+![AutoCQ 0.9.8 with sample settings and queue. The app interface is in Russian.](docs/autocq-demo.png)
 
 ## What AutoCQ can do
 
@@ -16,6 +16,7 @@ You could let it work for an hour, answering callers and looking for another sta
 - **Keep a queue.** Remember callers while you are busy. Manually added callsigns are called directly after the current contact and available incoming callers.
 - **Make a manual call while monitoring.** Choose an interesting station outside the target list. After that contact, AutoCQ resumes monitoring with the same settings and time remaining.
 - **Watch for wanted stations.** Match DXCC entities, callsigns and patterns against fresh CQ, 73, RRR or RR73. Return to receive after the contact or attempt limit.
+- **Answer callers while monitoring.** Stations calling you take priority over searching for another target, even when they are outside your target list.
 - **Update from the application.** Notify you about new releases, download them and install when you choose.
 - **Show monitoring retry pauses.** List unanswered stations with a countdown to their next eligible attempt. Stopping monitoring clears the list.
 
@@ -48,6 +49,10 @@ Open **«Цели мониторинга»** (Monitoring targets), select DXCC e
 
 **«Одна связь на цель на диапазоне»** means one contact per selected target per band. If Japan is a DXCC target and your log already contains a Japanese contact on 20 m, that country target is complete on 20 m. Clear the checkbox to call more Japanese stations on that band. Exact callsign and pattern targets are checked against their own matches. DXCC exclusions also apply.
 
+When another station calls you, AutoCQ answers regardless of the monitoring targets. Calls received during a QSO stay in the queue: the current contact finishes first, then AutoCQ answers callers and resumes monitoring. This also works when a new call arrives alongside the final 73. The one-contact-per-target limit and a failed-search pause do not block an incoming caller; DXCC exclusions still apply.
+
+![Answering a caller outside the monitoring targets](docs/monitor-callers-demo.png)
+
 Spotted an interesting station outside your targets? While monitoring is listening, double-click its message in JTDX. You can also select it in AutoCQ's **«Станции из левого окна JTDX»** tab and click **«Позвать выбранную»** (Call selected). After the contact or the unanswered-call limit, monitoring resumes with the original settings and time remaining. The manual choice applies once; DXCC exclusions still apply.
 
 ![Calling a station manually while monitoring remains active](docs/monitor-manual-demo.png)
@@ -58,7 +63,7 @@ Version 0.9.6 introduces **«Обновления»** (Updates). AutoCQ checks G
 
 Checking and downloading can happen during operation. To install, finish the contact and close JTDX, then click **«Обновить и перезапустить»** (Update and restart). Leave LogHX open. AutoCQ replaces its files and reopens; start JTDX from LogHX afterwards. The queue, AutoCQ settings and JTDX profile are preserved.
 
-**Upgrading from 0.9.5 or earlier:** those releases have no Updates section. Close JTDX and AutoCQ, download the new archive and extract it over the previous folder. Open the new `JTDX-AutoCQ.exe` and click Prepare. The JTDX patch from 0.9.3–0.9.6 also works with 0.9.7.
+**Upgrading from 0.9.5 or earlier:** those releases have no Updates section. Close JTDX and AutoCQ, download the new archive and extract it over the previous folder. Open the new `JTDX-AutoCQ.exe` and click Prepare. The JTDX patch from 0.9.3–0.9.7 also works with 0.9.8.
 
 ![AutoCQ Updates window](docs/updates-demo.png)
 

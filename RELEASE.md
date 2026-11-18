@@ -1,38 +1,38 @@
-# AutoCQ 0.9.7
+# AutoCQ 0.9.8
 
 ## Русский
 
-В мониторинге теперь можно вручную вызвать интересную станцию, даже если её нет среди выбранных целей. Дважды нажмите на её сообщение в JTDX или выберите строку в AutoCQ и нажмите **«Позвать выбранную»**.
+Мониторинг теперь отвечает станциям, которые сами вас зовут, даже если их нет среди выбранных стран, позывных или масок. Фильтр определяет, кого модуль ищет и вызывает сам. Входящие вызовы проверяются первыми.
 
-После QSO или лимита вызовов модуль возвращается на приём и продолжает мониторинг. Список целей, настройки и оставшееся время сохраняются. Ручной выбор действует на одну связь; исключения DXCC остаются в силе. Кнопка в AutoCQ позволяет дождаться окончания уже идущего QSO.
+Исправлен случай, когда финальное 73 от текущего корреспондента и вызов другой станции приходят в одном приёмном периоде. AutoCQ завершает QSO, отвечает следующему вызывающему и после обработки очереди возвращается к мониторингу. Это работает и без новой записи в журнале JTDX.
 
-Исправлена остановка при ручном выборе: JTDX успевал показать жёлтую строку передачи, а AutoCQ сразу посылал Halt TX. Теперь состояние JTDX и подтверждение ручного выбора из журнала обрабатываются согласованно, в том числе при смене периода передачи.
+Если выбранная станция ещё не ответила, а другая уже зовёт вас, модуль переключится на неё после приёмного периода. Идущая передача и связь с отвечающим корреспондентом не прерываются. При отсутствии ответа действует заданный лимит попыток.
 
-Также:
-- Подтверждённая связь выполняет цель мониторинга даже без новой записи в журнале JTDX.
-- Объединена проверка запущенного JTDX; объекты процессов освобождаются после проверки.
-- Стендовые проверки и проверка архива удаляют свои временные файлы после завершения.
-- Обновлены русское и английское описания, руководства, офлайн-помощь и демонстрационные снимки.
+Цели и оставшееся время сохраняются. «Одна связь на цель» и пятиминутная пауза поиска не блокируют входящий вызов. При нескольких вызывающих сначала выбирается новая станция на этом диапазоне и в этом виде работы, затем учитываются приоритеты DXCC и порядок очереди. Исключения DXCC и настройка JTDX «Отв. B4» остаются в силе.
 
-**Как обновиться с 0.9.6:** откройте **«Обновления»**, проверьте выпуск и скачайте его. Завершите текущую связь, закройте JTDX и нажмите **«Обновить и перезапустить»**. LogHX можно оставить открытым. Патч JTDX из 0.9.3–0.9.6 подходит для этой версии.
+Старый позывной, оставшийся в поле DX при выключенной передаче, больше не мешает принять новый входящий вызов этой станции.
+
+По окончании времени завершается текущая связь и доступная очередь входящих вызовов, принятых до истечения таймера. Новые вызовы после этого не продлевают сеанс. Обновлены оба README, руководства, офлайн-помощь и демонстрационные снимки; добавлен пример ответа вне фильтра мониторинга.
+
+**Как обновиться с 0.9.6 или 0.9.7:** откройте **«Обновления»**, проверьте выпуск и скачайте его. Завершите текущую связь, закройте JTDX и нажмите **«Обновить и перезапустить»**. LogHX можно оставить открытым. Патч JTDX из 0.9.3–0.9.7 подходит для этой версии.
 
 [Руководство](https://github.com/ub3dqy/jtdx-autocq/blob/main/USER-GUIDE.md) · [Статья на сайте](https://ub3dqy.com/ru/read/5/) · [Ошибки и предложения](https://github.com/ub3dqy/jtdx-autocq/issues/new/choose)
 
 ## English
 
-You can now call a station manually while monitoring, even when it is outside your configured targets. Double-click its message in JTDX, or select its row in AutoCQ and click **«Позвать выбранную»** (Call selected).
+Monitoring now answers stations calling you, even when they are outside the selected DXCC entities, callsigns or patterns. The target filter determines whom AutoCQ searches for and calls itself. Incoming callers are checked first.
 
-After the QSO or attempt limit, AutoCQ returns to receive and resumes monitoring. Targets, settings and the original time remaining are preserved. This is a one-contact exception; DXCC exclusions still apply. The AutoCQ button lets the current contact finish before calling your selection.
+Fixed the case where the current station's final 73 and another station's call arrive in the same receive period. AutoCQ finishes the QSO, answers the next caller and resumes monitoring after the queue is handled. This also works without a new JTDX log entry.
 
-Fixed the immediate stop after a manual choice: JTDX could show a yellow transmit line while AutoCQ immediately sent Halt TX. Status updates and the logged manual selection are now handled together, including a change of TX period.
+If the selected station has not answered and someone else calls you, AutoCQ switches after the receive period. It does not interrupt a transmission or a QSO with a responding station. The configured attempt limit still applies when a station does not answer.
 
-Also:
-- A confirmed contact completes its monitoring target even when no new JTDX log record appears.
-- JTDX process checks share one implementation and dispose their process objects.
-- Tests and package verification remove their temporary files when finished.
-- Updated Russian and English descriptions, user guides, offline help and genuine demo screenshots.
+Targets and time remaining are preserved. The one-contact-per-target limit and five-minute search pause do not block an incoming caller. New stations on the current band and mode come first; DXCC priorities and queue order then apply. DXCC exclusions and JTDX's Answer B4 setting remain in force.
 
-**Updating from 0.9.6:** open **«Обновления»** (Updates), check and download the release. Finish the contact, close JTDX and click **«Обновить и перезапустить»**. LogHX can remain open. The JTDX patch from 0.9.3–0.9.6 is compatible.
+A callsign left in the DX field with transmission disabled no longer blocks a fresh incoming call from that station.
+
+At the deadline, AutoCQ finishes the current QSO and handles available callers received before time expired. New calls after expiry do not extend the session. Updated both READMEs, user guides, offline help and genuine demo screenshots, with a new example of answering a caller outside the monitoring filter.
+
+**Updating from 0.9.6 or 0.9.7:** open **«Обновления»** (Updates), check and download the release. Finish the contact, close JTDX and click **«Обновить и перезапустить»**. LogHX can remain open. The JTDX patch from 0.9.3–0.9.7 is compatible.
 
 [User guide](https://github.com/ub3dqy/jtdx-autocq/blob/main/USER-GUIDE.en.md) · [Project article](https://ub3dqy.com/ru/read/5/) · [Bugs and ideas](https://github.com/ub3dqy/jtdx-autocq/issues/new/choose)
 

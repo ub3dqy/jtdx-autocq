@@ -752,8 +752,9 @@ class AutoCqTests
                     e.OnStatus(transmitting, At.AddSeconds(30)); e.Tick(At.AddSeconds(30), true);
                     Assert(e.Armed && commands.Count == 0, "A caller cut off an active TX frame");
                 });
-                Run("Monitoring ignores unrelated callers while a selected target is unanswered", () => {
+                Run("Monitoring yields an unanswered target to a station calling us outside the filter", () => {
                     List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                    e.RequestCallerReply = d => commands.Add("CALLER " + d.Message);
                     DecodedMessage target = CqD(At.AddSeconds(15), "JA1AAA"); target.IsNew = false;
                     e.OnDecode(target, At.AddSeconds(29)); e.Tick(At.AddSeconds(29), true);
                     Assert(commands.Count == 1, "The monitoring fixture did not select its visible target");
@@ -761,8 +762,12 @@ class AutoCqTests
                     e.OnLine(Tx(At.AddSeconds(30), "JA1AAA", "-10"), At.AddSeconds(30));
                     e.OnDecode(D(At.AddSeconds(45), "W2ABC", "FN31"), At.AddSeconds(59));
                     e.OnLine(DecodeFinished(At.AddSeconds(59.2)), At.AddSeconds(59.2)); e.Tick(At.AddSeconds(59.3), true);
-                    Assert(e.Armed && commands.Count == 1 && e.Status.DxCall == "JA1AAA",
-                        "An unrelated caller overrode the monitoring targets");
+                    Assert(e.Monitoring && commands.SequenceEqual(new[] { "REPLY CQ JA1AAA FN20", "HALT" }),
+                        "The unanswered target kept repeating instead of yielding to our caller");
+                    e.OnLine("Halt Tx triggered at RX: UDP request", At.AddSeconds(59.4));
+                    e.OnStatus(S(false, "JA1AAA"), At.AddSeconds(59.5)); e.Tick(At.AddSeconds(59.6), true);
+                    Assert(commands.Last() == "CALLER K1ABC W2ABC FN31" && e.IncomingMonitorCall == "W2ABC",
+                        "The incoming station was still filtered after the unanswered call stopped");
                 });
                 Run("After two unanswered calls CQ may clear the completed DX field", () => {
                     List<string> c;AutoCqEngine e=Active(out c);e.OnLine(Tx(At,"W1AW","-10"),At);e.OnLine(Tx(At.AddSeconds(30),"W1AW","-10"),At.AddSeconds(30));
@@ -1959,6 +1964,226 @@ class AutoCqTests
                             "Direct call was encoded as a received line or a regular Reply.");
                     }
                 });
+                Run("Incoming monitor calls outrank target and manual searches in both modes and TX periods", () => {
+                    foreach (string mode in new[] { "FT8", "FT4" })
+                    foreach (bool period in new[] { false, true })
+                    {
+                        List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                        e.Stop("fixture", false); RadioStatus idle = S(false, ""); idle.Mode = mode; idle.TxFirst = !period;
+                        e.OnStatus(idle, At); e.Start(At); DateTime deadline = e.SessionDeadline;
+                        e.RequestCallerReply = d => commands.Add("CALLER " + d.Message);
+                        double slot = mode == "FT4" ? 7.5 : 15;
+                        DateTime rx = At.AddSeconds(period ? slot : 0), now = rx.AddSeconds(slot - 1);
+                        var target = CqD(rx, "JA2ZZB"); target.IsNew = false; target.Mode = mode == "FT4" ? ":" : "~";
+                        e.OnDecode(target, now); e.SelectCq("JA2ZZB", now);
+                        var caller = D(rx, "DL3ZZB", "JO62"); caller.Mode = target.Mode;
+                        e.OnDecode(caller, now); e.WaitForVisibleCqsUntil = now.AddSeconds(1);
+                        e.Tick(now, true);
+                        Assert(e.Monitoring && e.IncomingMonitorCall == "DL3ZZB" && e.ManualMonitorCall == ""
+                            && commands.SequenceEqual(new[] { "CALLER K1ABC DL3ZZB JO62" }),
+                            "An incoming call was filtered, waited for left-pane replay or lost its reply period");
+                        RadioStatus replying = S(true, "DL3ZZB"); replying.Mode = mode; replying.TxFirst = period;
+                        e.OnStatus(replying, now.AddSeconds(0.1)); e.Tick(now.AddSeconds(0.2), true);
+                        Assert(e.Monitoring && e.SessionDeadline == deadline && commands.Count == 1 && e.CqTxFirst == period
+                            && e.SelectedCqCall == "JA2ZZB" && e.Options.MonitorDxcc.SequenceEqual(new[] { "JA" }),
+                            "Answering a caller changed the timer, targets or saved manual selection");
+                    }
+                });
+                Run("A caller in the final receive period is answered before monitoring resumes with or without logging", () => {
+                    foreach (string mode in new[] { "FT8", "FT4" })
+                    foreach (string final in new[] { "73", "RR73", "RRR" })
+                    foreach (bool logged in new[] { true, false })
+                    foreach (bool callerFirst in new[] { true, false })
+                    {
+                        List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                        e.Stop("fixture", false); RadioStatus idle = S(false, ""); idle.Mode = mode;
+                        e.OnStatus(idle, At); e.Start(At); DateTime deadline = e.SessionDeadline;
+                        e.RequestCallerReply = d => commands.Add("CALLER " + d.Message);
+                        double slot = mode == "FT4" ? 7.5 : 15;
+                        var target = CqD(At.AddSeconds(slot), "JA2ZZB"); target.IsNew = false; target.Mode = mode == "FT4" ? ":" : "~";
+                        e.OnDecode(target, At.AddSeconds(2 * slot - 1)); e.Tick(At.AddSeconds(2 * slot - 1), true);
+                        RadioStatus selected = S(true, "JA2ZZB"); selected.Mode = mode;
+                        e.OnStatus(selected, At.AddSeconds(2 * slot - 0.9));
+                        e.OnLine(Tx(At.AddSeconds(2 * slot), "JA2ZZB", "RR73").Replace("FT8:", mode + ":"), At.AddSeconds(2 * slot));
+                        if (logged) e.OnLine("QSO logged: JA2ZZB", At.AddSeconds(2 * slot + 0.1));
+                        var incoming = D(At.AddSeconds(3 * slot), "DL3ZZB", "JO62"); incoming.Mode = target.Mode;
+                        var farewell = D(At.AddSeconds(3 * slot), "JA2ZZB", final); farewell.Mode = target.Mode;
+                        if (callerFirst) e.OnDecode(incoming, At.AddSeconds(4 * slot - 1));
+                        e.OnDecode(farewell, At.AddSeconds(4 * slot - 0.9));
+                        if (!callerFirst) e.OnDecode(incoming, At.AddSeconds(4 * slot - 0.8));
+                        e.OnLine(DecodeFinished(At.AddSeconds(4 * slot - 0.5)), At.AddSeconds(4 * slot - 0.5));
+                        e.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(4 * slot - 0.4));
+                        selected.TxEnabled = false; e.OnStatus(selected, At.AddSeconds(4 * slot - 0.3)); e.Tick(At.AddSeconds(4 * slot - 0.2), true);
+                        Assert(e.Monitoring && e.ConfirmedCount == 1 && e.IncomingMonitorCall == "DL3ZZB"
+                            && e.Waiting.Find("JA2ZZB") == null && commands.Last() == "CALLER K1ABC DL3ZZB JO62"
+                            && e.SessionDeadline == deadline, "The final RX-period caller was skipped: " + mode + "/" + final + "/" + logged + "/" + callerFirst);
+                        RadioStatus replying = S(true, "DL3ZZB"); replying.Mode = mode; e.OnStatus(replying, At.AddSeconds(4 * slot - 0.1));
+                        e.OnLine(Tx(At.AddSeconds(6 * slot), "DL3ZZB", "RR73").Replace("FT8:", mode + ":"), At.AddSeconds(6 * slot));
+                        var done = D(At.AddSeconds(7 * slot), "DL3ZZB", "73"); done.Mode = target.Mode;
+                        e.OnDecode(done, At.AddSeconds(8 * slot - 1));
+                        e.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(8 * slot - 0.8));
+                        replying.TxEnabled = false; e.OnStatus(replying, At.AddSeconds(8 * slot - 0.7)); e.Tick(At.AddSeconds(8 * slot - 0.6), true);
+                        Assert(e.Monitoring && e.IncomingMonitorCall == "" && e.SessionDeadline == deadline
+                            && e.Waiting.Find("DL3ZZB") == null && commands.Count == 2 && !e.Status.TxEnabled,
+                            "The incoming QSO stopped monitoring, left a queue entry or started CQ");
+                    }
+                });
+                Run("Monitoring drains several addressed callers using their saved decode after the left pane clears", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands); DateTime deadline = e.SessionDeadline;
+                    var replies = new List<DecodedMessage>();
+                    e.RequestCallerReply = d => { replies.Add(d); commands.Add("CALLER " + d.Message); };
+                    foreach (string call in new[] { "DL3ZZB", "W2ABC", "F1ABC" }) e.OnDecode(D(At.AddSeconds(15), call, "-11"), At.AddSeconds(29));
+                    e.Cqs.Invalidate(); e.Tick(At.AddSeconds(29.1), true);
+                    e.OnStatus(S(true, "DL3ZZB"), At.AddSeconds(29.2));
+                    e.OnLine(Tx(At.AddSeconds(30), "DL3ZZB", "RR73"), At.AddSeconds(30));
+                    e.OnLine(Rx(At.AddSeconds(45), "DL3ZZB", "73"), At.AddSeconds(59));
+                    e.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(59.1));
+                    e.OnStatus(S(false, "DL3ZZB"), At.AddSeconds(59.2)); e.Tick(At.AddSeconds(59.3), true);
+                    Assert(e.Monitoring && e.IncomingMonitorCall == "W2ABC" && e.Waiting.Find("F1ABC") != null
+                        && replies.Count == 2 && replies[1].Message == "K1ABC W2ABC -11" && replies[1].DeltaFrequency == 1736
+                        && replies[1].Snr == -11 && replies[1].Milliseconds == (uint)At.AddSeconds(15).TimeOfDay.TotalMilliseconds
+                        && e.SessionDeadline == deadline, "The queued caller needed a new CQ, visible row or fabricated decode");
+                });
+                Run("Incoming calls bypass completed monitoring targets and unanswered-target cooldowns", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                    e.Stop("fixture", false); e.WorkedCallsOnBand = (band, own) => new[] { "JA1AAA" }; e.Start(At);
+                    e.RequestCallerReply = d => commands.Add("CALLER " + d.Message);
+                    e.Cqs.Observe(CqD(At.AddSeconds(15), "JA2ZZB"), e.Status, At.AddSeconds(29));
+                    e.Cqs.Failed("JA2ZZB", At.AddSeconds(28), true);
+                    e.OnDecode(D(At.AddSeconds(15), "JA2ZZB", "PM95"), At.AddSeconds(29)); e.Tick(At.AddSeconds(29.1), true);
+                    Assert(e.IncomingMonitorCall == "JA2ZZB" && commands.SequenceEqual(new[] { "CALLER K1ABC JA2ZZB PM95" }),
+                        "The one-per-target limit or search cooldown suppressed a station calling us");
+                });
+                Run("Monitoring prefers new callers over previously worked callers including a priority DXCC", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                    e.Stop("fixture", false); e.WorkedCallsOnBandMode = (band, mode, own) => new[] { "JA1AAA", "W2ABC" };
+                    e.Options.PriorityDxcc = new[] { "JA" }; e.IsPriorityCall = call => call.StartsWith("JA"); e.Start(At);
+                    e.RequestCallerReply = d => commands.Add("CALLER " + d.Message);
+                    foreach (string call in new[] { "JA1AAA", "W2ABC", "DL3ZZB" }) e.OnDecode(D(At.AddSeconds(15), call, "-12"), At.AddSeconds(29));
+                    e.Tick(At.AddSeconds(29.1), true);
+                    Assert(e.IncomingMonitorCall == "DL3ZZB" && commands.Single() == "CALLER K1ABC DL3ZZB -12",
+                        "Monitoring did not apply the existing new-contact priority to incoming callers");
+                });
+                Run("Monitoring preserves an answered QSO, an active TX frame and the final confirmation wait", () => {
+                    foreach (string state in new[] { "answered", "transmitting", "waiting73" })
+                    {
+                        List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                        var target = CqD(At.AddSeconds(15), "JA2ZZB"); target.IsNew = false;
+                        e.OnDecode(target, At.AddSeconds(29)); e.Tick(At.AddSeconds(29), true);
+                        e.OnStatus(S(true, "JA2ZZB"), At.AddSeconds(29.1));
+                        e.OnLine(Tx(At.AddSeconds(30), "JA2ZZB", state == "waiting73" ? "RR73" : "-11"), At.AddSeconds(30));
+                        if (state == "answered") e.OnDecode(D(At.AddSeconds(45), "JA2ZZB", "-10"), At.AddSeconds(59));
+                        e.OnDecode(D(At.AddSeconds(45), "DL3ZZB", "JO62"), At.AddSeconds(59));
+                        e.OnLine(DecodeFinished(At.AddSeconds(59.1)), At.AddSeconds(59.1));
+                        if (state == "transmitting") { var tx = S(true, "JA2ZZB"); tx.Transmitting = true; e.OnStatus(tx, At.AddSeconds(59.2)); }
+                        e.Tick(At.AddSeconds(59.3), true);
+                        Assert(e.Monitoring && commands.Count == 1 && e.Waiting.Find("DL3ZZB") != null,
+                            "An incoming caller interrupted " + state);
+                    }
+                });
+                Run("Monitoring ignores history, off-air, stale, future and third-party messages as incoming calls", () => {
+                    foreach (string kind in new[] { "history", "offair", "stale", "future", "thirdparty", "mode", "own", "73" })
+                    {
+                        List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                        var d = D(At.AddSeconds(15), "DL3ZZB", "JO62"); DateTime now = At.AddSeconds(29);
+                        if (kind == "history") d.IsNew = false;
+                        if (kind == "offair") d.OffAir = true;
+                        if (kind == "stale") now = At.AddSeconds(136);
+                        if (kind == "future") d.Milliseconds = (uint)At.AddSeconds(45).TimeOfDay.TotalMilliseconds;
+                        if (kind == "thirdparty") d.Message = "W7ZZD DL3ZZB JO62";
+                        if (kind == "mode") d.Mode = ":";
+                        if (kind == "own") d.Message = "K1ABC K1ABC FN20";
+                        if (kind == "73") d.Message = "K1ABC DL3ZZB 73";
+                        e.OnDecode(d, now); e.Tick(now.AddSeconds(0.1), true);
+                        Assert(e.Monitoring && e.IncomingMonitorCall == "" && commands.Count == 0, "Invalid incoming call was answered: " + kind);
+                    }
+                });
+                Run("Incoming monitoring replies keep DXCC exclusions and continue past a rejected native reply", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                    e.CanCall = call => call != "DL3ZZB";
+                    e.RequestCallerReply = d => commands.Add("CALLER " + d.Message);
+                    foreach (string call in new[] { "DL3ZZB", "W2ABC", "F1ABC" }) e.OnDecode(D(At.AddSeconds(15), call, "-12"), At.AddSeconds(29));
+                    e.Tick(At.AddSeconds(29.1), true);
+                    Assert(e.IncomingMonitorCall == "W2ABC", "An excluded DXCC was answered");
+                    e.OnLine("UDP Reply request ignored, decode not found: K1ABC W2ABC -12", At.AddSeconds(29.2)); e.Tick(At.AddSeconds(29.3), true);
+                    Assert(e.Monitoring && e.IncomingMonitorCall == "F1ABC" && commands.Count == 2,
+                        "One rejected caller disabled monitoring or blocked the next caller");
+                });
+                Run("An unanswered incoming call returns monitoring to receive at its configured limit", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands); DateTime deadline = e.SessionDeadline;
+                    e.RequestCallerReply = d => commands.Add("CALLER " + d.Message);
+                    e.OnDecode(D(At.AddSeconds(15), "DL3ZZB", "JO62"), At.AddSeconds(29)); e.Tick(At.AddSeconds(29.1), true);
+                    e.OnStatus(S(true, "DL3ZZB"), At.AddSeconds(29.2));
+                    e.OnLine(Tx(At.AddSeconds(30), "DL3ZZB", "-11"), At.AddSeconds(30));
+                    e.OnLine(Tx(At.AddSeconds(60), "DL3ZZB", "-11"), At.AddSeconds(60));
+                    e.OnLine(DecodeFinished(At.AddSeconds(89)), At.AddSeconds(89)); e.Tick(At.AddSeconds(89.1), true);
+                    e.OnLine("Halt Tx triggered at RX: UDP request", At.AddSeconds(89.2));
+                    e.OnStatus(S(false, "DL3ZZB"), At.AddSeconds(89.3)); e.Tick(At.AddSeconds(89.4), true);
+                    Assert(e.Monitoring && !e.Status.TxEnabled && e.IncomingMonitorCall == "" && e.SessionDeadline == deadline
+                        && commands.SequenceEqual(new[] { "CALLER K1ABC DL3ZZB JO62", "HALT" })
+                        && e.Waiting.Find("DL3ZZB").PauseReason == CallerQueue.NoAnswer, "The caller retried forever, started CQ or stopped monitoring");
+                    var target = CqD(At.AddSeconds(90), "JA2ZZB"); target.IsNew = false;
+                    e.OnDecode(target, At.AddSeconds(104)); e.Tick(At.AddSeconds(104.1), true);
+                    Assert(commands.Last() == "REPLY CQ JA2ZZB FN20", "Monitoring did not resume its configured targets");
+                });
+                Run("At the monitor deadline only incoming calls received before expiry are completed", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands, 1); DateTime deadline = e.SessionDeadline;
+                    e.RequestCallerReply = d => commands.Add("CALLER " + d.Message);
+                    e.OnDecode(D(At.AddSeconds(45), "DL3ZZB", "JO62"), At.AddSeconds(59)); e.Tick(At.AddSeconds(60), true);
+                    Assert(e.Monitoring && e.Finishing && e.IncomingMonitorCall == "DL3ZZB", "The timer dropped an accepted incoming caller");
+                    e.OnStatus(S(true, "DL3ZZB"), At.AddSeconds(60.1));
+                    e.OnLine(Tx(At.AddSeconds(90), "DL3ZZB", "RR73"), At.AddSeconds(90));
+                    e.OnDecode(D(At.AddSeconds(105), "W2ABC", "FN20"), At.AddSeconds(119));
+                    e.OnDecode(D(At.AddSeconds(105), "DL3ZZB", "73"), At.AddSeconds(119.1));
+                    e.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(119.2));
+                    e.OnStatus(S(false, "DL3ZZB"), At.AddSeconds(119.3)); e.Tick(At.AddSeconds(119.4), true);
+                    Assert(!e.Armed && e.SessionDeadline == deadline && commands.Count == 1 && e.ConfirmedCount == 1,
+                        "A post-deadline caller restarted TX or the timer cut off the accepted QSO");
+                });
+                Run("A caller is answered after a manually chosen monitor QSO ends", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands); DateTime deadline = e.SessionDeadline;
+                    e.RequestCallerReply = d => commands.Add("CALLER " + d.Message);
+                    e.OnLine(ManualSelection(At.AddSeconds(2), "DL3ZZB"), At.AddSeconds(2));
+                    e.OnStatus(S(true, "DL3ZZB"), At.AddSeconds(2.1));
+                    e.OnLine(Tx(At.AddSeconds(30), "DL3ZZB", "RR73"), At.AddSeconds(30));
+                    e.OnLine("QSO logged: DL3ZZB", At.AddSeconds(30.1));
+                    e.OnDecode(D(At.AddSeconds(45), "F1ABC", "JN07"), At.AddSeconds(59));
+                    e.OnDecode(D(At.AddSeconds(45), "DL3ZZB", "73"), At.AddSeconds(59.1));
+                    e.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(59.2));
+                    e.OnStatus(S(false, "DL3ZZB"), At.AddSeconds(59.3)); e.Tick(At.AddSeconds(59.4), true);
+                    Assert(e.Monitoring && e.ManualMonitorCall == "" && e.IncomingMonitorCall == "F1ABC"
+                        && e.SessionDeadline == deadline && commands.Single() == "CALLER K1ABC F1ABC JN07",
+                        "Completing a manual QSO hid the next incoming caller");
+                });
+                Run("Monitoring applies Answer B4 to a new incoming call after a completed QSO", () => {
+                    foreach (bool answerB4 in new[] { false, true })
+                    {
+                        List<string> commands; AutoCqEngine e = MonitorActive(out commands); e.Waiting.AnswerWorkedB4 = answerB4;
+                        e.RequestCallerReply = d => commands.Add("CALLER " + d.Message);
+                        e.OnDecode(D(At.AddSeconds(15), "DL3ZZB", "JO62"), At.AddSeconds(29)); e.Tick(At.AddSeconds(29.1), true);
+                        e.OnStatus(S(true, "DL3ZZB"), At.AddSeconds(29.2));
+                        e.OnLine(Tx(At.AddSeconds(30), "DL3ZZB", "RR73"), At.AddSeconds(30));
+                        e.OnDecode(D(At.AddSeconds(45), "DL3ZZB", "73"), At.AddSeconds(59));
+                        e.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(59.1));
+                        e.OnStatus(S(false, "DL3ZZB"), At.AddSeconds(59.2)); e.Tick(At.AddSeconds(59.3), true);
+                        e.OnDecode(D(At.AddSeconds(75), "DL3ZZB", "JO62"), At.AddSeconds(89)); e.Tick(At.AddSeconds(89.1), true);
+                        Assert(e.Monitoring && commands.Count == (answerB4 ? 2 : 1), "Incoming monitoring ignored the Answer B4 setting");
+                    }
+                });
+                Run("A queued caller remains eligible when it repeats after the monitor timer expires", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands, 1);
+                    e.RequestCallerReply = d => commands.Add("CALLER " + d.Message);
+                    e.OnDecode(D(At.AddSeconds(45), "DL3ZZB", "JO62"), At.AddSeconds(59));
+                    e.OnDecode(D(At.AddSeconds(45), "W2ABC", "FN20"), At.AddSeconds(59.1)); e.Tick(At.AddSeconds(60), true);
+                    e.OnStatus(S(true, "DL3ZZB"), At.AddSeconds(60.1));
+                    e.OnLine(Tx(At.AddSeconds(90), "DL3ZZB", "RR73"), At.AddSeconds(90));
+                    e.OnDecode(D(At.AddSeconds(105), "W2ABC", "FN20"), At.AddSeconds(119));
+                    e.OnDecode(D(At.AddSeconds(105), "DL3ZZB", "73"), At.AddSeconds(119.1));
+                    e.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(119.2));
+                    e.OnStatus(S(false, "DL3ZZB"), At.AddSeconds(119.3)); e.Tick(At.AddSeconds(119.4), true);
+                    Assert(e.Monitoring && e.Finishing && e.IncomingMonitorCall == "W2ABC" && commands.Count == 2,
+                        "Refreshing an accepted queue entry made the timer discard it");
+                });
                 Run("Manual JTDX selection outside monitoring targets survives status and log arrival in either order", () => {
                     foreach (string mode in new[] { "FT8", "FT4" })
                     foreach (bool newPeriod in new[] { true, false })
@@ -2128,13 +2353,14 @@ class AutoCqTests
                     d = CqD(At.AddSeconds(30), "DL4ZZC"); d.IsNew = false; e.OnDecode(d, At.AddSeconds(44)); e.Tick(At.AddSeconds(44.1), true);
                     Assert(commands.Count == 1, "The unavailable selection widened monitoring targets");
                 });
-                Run("Monitoring accepts only fresh visible target CQ, 73, RRR or RR73", () => {
+                Run("Proactive monitoring accepts only fresh visible target CQ, 73, RRR or RR73", () => {
                     foreach (string allowed in new[] { "CQ", "73", "RRR", "RR73" })
                     {
                         List<string> commands;
                         AutoCqEngine engine = MonitorActive(out commands);
                         engine.AddQueuedCall("DL3ZZB", At);
-                        engine.OnDecode(D(At, "W3ABC", "FN20"), At.AddSeconds(14));
+                        var unrelated = D(At, "W3ABC", "FN20"); unrelated.Message = "W7ZZD W3ABC FN20";
+                        engine.OnDecode(unrelated, At.AddSeconds(14));
                         foreach (string ignored in new[] { "CQ DL1ZZC JO62", "CQ JA1ZZA PM95", "W7ZZD JA2ZZB -10", "QRZ JA2ZZB" })
                         {
                             DecodedMessage decode = D(ignored.StartsWith("CQ JA1") ? At.AddMinutes(-1) : At, "JA2ZZB", "73");
