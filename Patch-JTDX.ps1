@@ -5,6 +5,16 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$builtIn = Join-Path $PSScriptRoot 'JTDX-AutoCQ-Patch.exe'
+if (Test-Path -LiteralPath $builtIn -PathType Leaf) {
+    if ($PSCmdlet.ShouldProcess($JtdxExe, $(if ($Restore) { 'Restore original JTDX' } else { 'Prepare JTDX for AutoCQ' }))) {
+        $arguments = @('--jtdx', $JtdxExe)
+        if ($Restore) { $arguments += '--restore' }
+        & $builtIn @arguments
+        if ($LASTEXITCODE -ne 0) { throw 'JTDX preparation failed. See the message above.' }
+    }
+    return
+}
 $originalHash = '6B6718432EDB55B3E3C8A5B884522BDC5EF5E466BF074E9DAC09CC0B64CE399C'
 $patchedHash = 'B615BFBDC23291A7CA297FE1EAE4EB7D2AF0E8966C962D4FB0EA620C6FF6B12F'
 $previousHashes = @(

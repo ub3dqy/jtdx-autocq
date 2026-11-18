@@ -101,11 +101,25 @@ $manifestPath = Join-Path $package 'SHA256SUMS.txt'
 $tempPath = Join-Path $package ([Guid]::NewGuid().ToString('N') + '.zip')
 $entries = [ordered]@{
     'JTDX-AutoCQ.exe' = 'build/JTDX-AutoCQ.exe'
+    'JTDX-AutoCQ-Patch.exe' = 'build/JTDX-AutoCQ-Patch.exe'
+    'Update-AutoCQ.ps1' = 'Update-AutoCQ.ps1'
+    'update.json' = 'build/update.json'
     'README.md' = 'README.md'
     'README.en.md' = 'README.en.md'
     'RELEASE.md' = 'RELEASE.md'
+    'USER-GUIDE.md' = 'USER-GUIDE.md'
+    'USER-GUIDE.en.md' = 'USER-GUIDE.en.md'
+    'CONTRIBUTING.md' = 'CONTRIBUTING.md'
     'Patch-JTDX.ps1' = 'Patch-JTDX.ps1'
     'docs/autocq-demo.png' = 'docs/autocq-demo.png'
+    'docs/setup-demo.png' = 'docs/setup-demo.png'
+    'docs/updates-demo.png' = 'docs/updates-demo.png'
+    'docs/monitor-demo.png' = 'docs/monitor-demo.png'
+    'docs/monitor-timeouts-demo.png' = 'docs/monitor-timeouts-demo.png'
+    'docs/user-guide.ru.html' = 'docs/user-guide.ru.html'
+    'docs/user-guide.en.html' = 'docs/user-guide.en.html'
+    'docs/guide.css' = 'docs/guide.css'
+    'docs/icon.png' = 'docs/icon.png'
     'patch/build-native.cjs' = 'patch/build-native.cjs'
     'patch/queue-reply.asm' = 'patch/queue-reply.asm'
     'patch/queue-reply.bin' = 'patch/queue-reply.bin'
@@ -126,6 +140,12 @@ try {
 }
 $digest = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
 [IO.File]::WriteAllText($manifestPath, "$digest  $name" + [Environment]::NewLine)
+$packageTest = Join-Path $PSScriptRoot 'build/TestPackage.exe'
+$compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
+& $compiler /nologo /target:exe /platform:x64 /codepage:65001 "/out:$packageTest" "/r:$program" /r:System.Windows.Forms.dll (Join-Path $PSScriptRoot 'tests/TestPackage.cs')
+if ($LASTEXITCODE -ne 0) { throw 'Package verifier compilation failed.' }
+& $packageTest $archivePath
+if ($LASTEXITCODE -ne 0) { throw 'Final archive verification failed.' }
 Write-Output $archivePath
 if ($PackageOnly) { return }
 

@@ -108,6 +108,7 @@ class AutoCqTests
             report.WriteLine("Рабочий профиль JTDX и трансивер в этих тестах не используются.\n");
             try
             {
+                UpdateTests.RunAll(Run, args.Length > 1 ? args[1] : null);
                 Run("Initial CQ is sent once and requires TX acknowledgement", () => {
                     AutoCqEngine e = new AutoCqEngine(); int cq = 0; e.RequestCq = () => cq++;
                     e.OnStatus(S(false, ""), At); e.Start(At); e.Tick(At.AddSeconds(1), true); e.Tick(At.AddSeconds(2), true);
@@ -1944,14 +1945,14 @@ class AutoCqTests
                             "Direct call was encoded as a received line or a regular Reply.");
                     }
                 });
-                Run("Monitoring accepts only fresh visible target CQ, 73 or RRR", () => {
-                    foreach (string allowed in new[] { "CQ", "73", "RRR" })
+                Run("Monitoring accepts only fresh visible target CQ, 73, RRR or RR73", () => {
+                    foreach (string allowed in new[] { "CQ", "73", "RRR", "RR73" })
                     {
                         List<string> commands;
                         AutoCqEngine engine = MonitorActive(out commands);
                         engine.AddQueuedCall("DL3ZZB", At);
                         engine.OnDecode(D(At, "W3ABC", "FN20"), At.AddSeconds(14));
-                        foreach (string ignored in new[] { "CQ DL1ZZC JO62", "CQ JA1ZZA PM95", "W7ZZD JA2ZZB RR73", "QRZ JA2ZZB" })
+                        foreach (string ignored in new[] { "CQ DL1ZZC JO62", "CQ JA1ZZA PM95", "W7ZZD JA2ZZB -10", "QRZ JA2ZZB" })
                         {
                             DecodedMessage decode = D(ignored.StartsWith("CQ JA1") ? At.AddMinutes(-1) : At, "JA2ZZB", "73");
                             decode.Message = ignored; decode.IsNew = false;
@@ -1968,6 +1969,60 @@ class AutoCqTests
                         engine.Tick(At.AddSeconds(14.5), true);
                         Assert(commands.SequenceEqual(new[] { "REPLY " + target.Message }), "The visible target was skipped.");
                     }
+                });
+                Run("Monitoring selects the RR73 sender by DXCC, callsign and mask in FT8 and FT4", () => {
+                    foreach (string mode in new[] { "FT8", "FT4" })
+                    foreach (string kind in new[] { "dxcc", "call", "mask" })
+                    {
+                        List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                        e.Stop("Configure monitor fixture", false);
+                        e.Options.MonitorDxcc = kind == "dxcc" ? new[] { "JA" } : new string[0];
+                        e.Options.MonitorCalls = kind == "call" ? new[] { "JA2ZZB" } : new string[0];
+                        e.Options.MonitorMasks = kind == "mask" ? new[] { "JA2Z*" } : new string[0];
+                        RadioStatus receiving = S(false, ""); receiving.Mode = mode;
+                        e.OnStatus(receiving, At); e.Start(At);
+                        double slot = mode == "FT4" ? 7.5 : 15;
+                        DateTime now = At.AddSeconds(2 * slot - 1);
+                        DecodedMessage d = D(At.AddSeconds(slot), "JA2ZZB", "RR73");
+                        d.Mode = mode == "FT4" ? ":" : "~"; d.IsNew = false;
+                        d.Message = "W7ZZD JA2ZZB RR73";
+                        e.OnDecode(d, now); e.Tick(now, true);
+                        Assert(commands.SequenceEqual(new[] { "REPLY W7ZZD JA2ZZB RR73" })
+                            && e.LoggedCount == 0 && e.ConfirmedCount == 0 && !e.Awaiting73,
+                            "RR73 selected its recipient, completed a nonexistent QSO, or missed a matching target");
+                    }
+                });
+                Run("RR73 monitoring preserves exclusions, completed targets and fresh third-party messages", () => {
+                    foreach (string blocked in new[] { "excluded", "completed", "stale", "addressed" })
+                    {
+                        List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                        e.Stop("Configure monitor fixture", false);
+                        if (blocked == "excluded") e.CanCall = call => call != "JA2ZZB";
+                        if (blocked == "completed") e.WorkedCallsOnBand = (band, own) => new[] { "JA1ZZA" };
+                        e.Start(At);
+                        DecodedMessage d = D(At.AddSeconds(blocked == "stale" ? -45 : 15), "JA2ZZB", "RR73");
+                        d.IsNew = false; d.Message = (blocked == "addressed" ? "K1ABC" : "W7ZZD") + " JA2ZZB RR73";
+                        e.OnDecode(d, At.AddSeconds(29)); e.Tick(At.AddSeconds(29.1), true);
+                        Assert(e.Monitoring && commands.Count == 0, "An ineligible RR73 started a call: " + blocked);
+                    }
+                });
+                Run("A monitored RR73 target returns to RX after unanswered calls and can select another RR73", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                    DecodedMessage d = D(At.AddSeconds(15), "JA2ZZB", "RR73");
+                    d.IsNew = false; d.Message = "W7ZZD JA2ZZB RR73";
+                    e.OnDecode(d, At.AddSeconds(29)); e.Tick(At.AddSeconds(29.1), true);
+                    e.OnStatus(S(true, "JA2ZZB"), At.AddSeconds(29.2));
+                    e.OnLine(Tx(At.AddSeconds(30), "JA2ZZB", "-15"), At.AddSeconds(30));
+                    e.OnLine(Tx(At.AddSeconds(60), "JA2ZZB", "-15"), At.AddSeconds(60));
+                    e.OnLine(DecodeFinished(At.AddSeconds(89)), At.AddSeconds(89)); e.Tick(At.AddSeconds(89.1), true);
+                    e.OnLine("Halt Tx triggered at RX: UDP request", At.AddSeconds(89.2));
+                    e.OnStatus(S(false, "JA2ZZB"), At.AddSeconds(89.3));
+                    e.Tick(At.AddSeconds(89.4), true); e.Tick(At.AddSeconds(89.5), true);
+                    Assert(e.Monitoring && !e.Status.TxEnabled && commands.SequenceEqual(new[] { "REPLY W7ZZD JA2ZZB RR73", "HALT" }),
+                        "A target selected by RR73 started CQ or exhausted the monitor session");
+                    d = D(At.AddSeconds(90), "JA3ZZC", "RR73"); d.IsNew = false; d.Message = "W7ZZD JA3ZZC RR73";
+                    e.OnDecode(d, At.AddSeconds(104)); e.Tick(At.AddSeconds(104.2), true);
+                    Assert(commands.Last() == "REPLY W7ZZD JA3ZZC RR73", "Monitoring did not resume for the next RR73 target");
                 });
                 Run("Monitoring returns to RX at the limit and can then select a different target", () => {
                     List<string> commands;
@@ -2010,6 +2065,69 @@ class AutoCqTests
                     engine.OnStatus(S(false, "JA2ZZB"), At.AddSeconds(89.2));
                     engine.Tick(At.AddSeconds(89.3), true);
                     Assert(!engine.Armed && engine.ConfirmedCount == 1 && commands.Count == 1, "Timer queued a new call after the target completed.");
+                });
+                Run("Monitoring exposes only unanswered calls until their five-minute retry expires", () => {
+                    List<string> commands;AutoCqEngine e=MonitorActive(out commands);
+                    var target=CqD(At.AddSeconds(15),"JA2ZZB");target.IsNew=false;
+                    e.OnDecode(target,At.AddSeconds(29));e.Tick(At.AddSeconds(29.1),true);
+                    Assert(!e.Cqs.MonitorTimeouts(At.AddSeconds(29.1)).Any(),"A station still being called appeared as unanswered");
+                    e.OnStatus(S(true,"JA2ZZB"),At.AddSeconds(29.2));
+                    e.OnLine(Tx(At.AddSeconds(30),"JA2ZZB","-15"),At.AddSeconds(30));
+                    e.OnLine(Tx(At.AddSeconds(60),"JA2ZZB","-15"),At.AddSeconds(60));
+                    e.OnLine(DecodeFinished(At.AddSeconds(89)),At.AddSeconds(89));e.Tick(At.AddSeconds(89.1),true);
+                    e.OnLine("Halt Tx triggered at RX: UDP request",At.AddSeconds(89.2));
+                    e.OnStatus(S(false,"JA2ZZB"),At.AddSeconds(89.3));e.Tick(At.AddSeconds(89.4),true);e.Tick(At.AddSeconds(89.5),true);
+                    CqStation paused=e.Cqs.MonitorTimeouts(At.AddSeconds(90)).Single();
+                    Assert(paused.Call=="JA2ZZB" && (paused.MonitorRetryUntilUtc-At.AddSeconds(90)).TotalSeconds>299,"The retry pause was not recorded at the failed call");
+                    DateTime end=paused.MonitorRetryUntilUtc;
+                    target=CqD(end.AddSeconds(-15),"JA2ZZB");target.IsNew=false;e.OnDecode(target,end.AddSeconds(-1));
+                    Assert(e.Cqs.MonitorTimeouts(end.AddSeconds(-1)).Any() && !e.Cqs.CanTry(paused,end.AddSeconds(-1),true),"A fresh CQ bypassed the pause");
+                    Assert(!e.Cqs.MonitorTimeouts(end).Any() && e.Cqs.CanTry(paused,end,true),"The station did not leave the list exactly when its pause expired");
+                });
+                Run("A visible rc10 replay missing the final token matches the complete decode for long calls", () => {
+                    foreach(string final in new[]{"73","RRR","RR73"})
+                    {
+                        List<string> commands;AutoCqEngine e=MonitorActive(out commands);
+                        e.Options.MonitorDxcc=new string[0];e.Options.MonitorCalls=new[]{"JA2ZZB"};
+                        e.Stop("configure",false);e.Start(At);
+                        var raw=D(At.AddSeconds(15),"JA2ZZB",final);raw.Message="W7ZZDD JA2ZZB "+final;
+                        e.OnDecode(raw,At.AddSeconds(28));e.Tick(At.AddSeconds(28.1),true);
+                        Assert(commands.Count==0 && e.Cqs.Find("JA2ZZB")==null,"A hidden raw decode bypassed the JTDX filter");
+                        var visible=raw.Copy();visible.IsNew=false;visible.Message="W7ZZDD JA2ZZB";
+                        e.OnDecode(visible,At.AddSeconds(29));e.Tick(At.AddSeconds(29.1),true);
+                        Assert(commands.SequenceEqual(new[]{"REPLY W7ZZDD JA2ZZB "+final}) && e.Cqs.Find("JA2ZZB").Signoff==final,"The replay lost the sender's final token: "+final);
+                    }
+                });
+                Run("Truncated replay recovery never matches another period, signal, callsign or a non-final report", () => {
+                    foreach(string mismatch in new[]{"time","snr","frequency","mode","callsign","report"})
+                    {
+                        var rows=new HeardCqList();RadioStatus status=S(false,"");rows.SetContext(status);
+                        var raw=D(At,"JA2ZZB","73");raw.Message="W7ZZDD JA2ZZB "+(mismatch=="report"?"-12":"73");
+                        rows.Observe(raw,status,At,false);
+                        var visible=raw.Copy();visible.IsNew=false;visible.Message=mismatch=="callsign"?"W7ZZDE JA2ZZB":"W7ZZDD JA2ZZB";
+                        if(mismatch=="time")visible.Milliseconds+=15000;
+                        if(mismatch=="snr")visible.Snr++;
+                        if(mismatch=="frequency")visible.DeltaFrequency++;
+                        if(mismatch=="mode")visible.Mode=":";
+                        rows.Observe(visible,status,At.AddSeconds(15),true);
+                        Assert(rows.Find("JA2ZZB")==null,"An unrelated decode supplied a final sign-off: "+mismatch);
+                    }
+                });
+                Run("Stopping monitoring clears its failed-call pauses without clearing ordinary search history", () => {
+                    List<string> commands;AutoCqEngine e=MonitorActive(out commands);
+                    foreach(string call in new[]{"JA2ZZB","JA3ZZC"})e.Cqs.Observe(CqD(At,call),e.Status,At);
+                    e.Cqs.Failed("JA2ZZB",At,true);e.Cqs.Failed("JA3ZZC",At,false);
+                    e.Stop("operator stop",false);
+                    Assert(!e.Cqs.MonitorTimeouts(At).Any() && e.Cqs.Find("JA2ZZB").NextTryUtc==DateTime.MinValue,"Stopping left a hidden monitoring timeout");
+                    Assert(e.Cqs.Find("JA3ZZC").NextTryUtc==At.AddMinutes(5),"Stopping changed an unrelated ordinary-search pause");
+                    e.OnStatus(S(false,""),At.AddSeconds(1));e.Start(At.AddSeconds(1));
+                    Assert(!e.Cqs.MonitorTimeouts(At.AddSeconds(1)).Any() && e.Cqs.CanTry(e.Cqs.Find("JA2ZZB"),At.AddSeconds(1),true),"A new monitor session inherited the old pause");
+                });
+                Run("Manual retry and a completed QSO remove a station from the monitoring pause list", () => {
+                    var rows=new HeardCqList();rows.SetContext(S(false,""));
+                    foreach(string call in new[]{"JA2ZZB","JA3ZZC"}){rows.Observe(CqD(At,call),S(false,""),At);rows.Failed(call,At,true);}
+                    rows.Retry("JA2ZZB");rows.Complete("JA3ZZC");
+                    Assert(!rows.MonitorTimeouts(At).Any() && rows.Find("JA2ZZB").NextTryUtc==DateTime.MinValue,"A retry or completion left a stale timeout row");
                 });
                 Run("Monitoring one per band uses exact, mask and DXCC targets and restores completed targets from ADIF", () => {
                     var options = new AutoCqOptions { MonitorDxcc = new[] { "JA" }, MonitorCalls = new[] { "w1aw" },

@@ -1,0 +1,39 @@
+name: Bug report — English
+description: Tell us what happened and what you expected AutoCQ to do.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve AutoCQ. You can find the installed version in the window title.
+  - type: input
+    id: version
+    attributes:
+      label: AutoCQ version
+      placeholder: For example, 0.9.6
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: JTDX, Windows and logbook
+      description: Include the JTDX build, Windows version and any external logbook you use.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What happened?
+      description: Describe your settings, the steps you took and when the problem appeared.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example or screenshot
+      description: A screenshot and a short log excerpt around the event, with its time, can help. Remove personal information before posting. Full profiles, passwords and authentication files are not needed.

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Вопросы и обсуждения / Questions and discussions
+    url: https://github.com/ub3dqy/jtdx-autocq/discussions
+    about: Помощь с настройками, обмен опытом и обсуждение идей / Setup help, shared experience and ideas.
+  - name: Руководство пользователя / User guide
+    url: https://github.com/ub3dqy/jtdx-autocq/blob/main/USER-GUIDE.md
+    about: Установка и работа шаг за шагом / Installation and operating instructions.

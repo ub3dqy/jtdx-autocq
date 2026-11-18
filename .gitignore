@@ -6,6 +6,7 @@ connection.xml
 operator.xml
 status.xml
 runtime.log
+preferences.xml
 *_ALL.TXT
 *.adif
 *.adi

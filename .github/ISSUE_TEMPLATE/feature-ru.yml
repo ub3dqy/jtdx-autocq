@@ -1,0 +1,23 @@
+name: Предложение — Русский
+description: Предложите новую функцию или улучшение существующей.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: Чего вам не хватает
+      description: Расскажите на примере, какую задачу сейчас трудно решить.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Как вы хотели бы это использовать
+      description: Опишите желаемое поведение. Техническое решение придумывать необязательно.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Дополнительные пояснения
+      description: Примеры, рисунки или похожие возможности других программ.

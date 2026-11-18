@@ -16,8 +16,8 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.5.0")]
-[assembly: AssemblyFileVersion("0.9.5.0")]
+[assembly: AssemblyVersion("0.9.6.0")]
+[assembly: AssemblyFileVersion("0.9.6.0")]
 
 namespace JtdxAutoCq
 {
@@ -197,7 +197,7 @@ namespace JtdxAutoCq
 
     public sealed class MainForm : Form
     {
-        const string ModuleVersion = "0.9.5";
+        const string ModuleVersion = "0.9.6";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = "B615BFBDC23291A7CA297FE1EAE4EB7D2AF0E8966C962D4FB0EA620C6FF6B12F";
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -208,7 +208,15 @@ namespace JtdxAutoCq
         static readonly Color Mint = Color.FromArgb(112, 239, 212);
         readonly AutoCqEngine engine = new AutoCqEngine();
         readonly bool demo;
-        readonly string jtdxPath;
+        string jtdxPath;
+        readonly AppPreferences preferences;
+        readonly AppPreferencesStore preferenceStore;
+        readonly UpdateClient updateClient = new UpdateClient(ModuleVersion);
+        readonly Button updatesButton = new Button(), helpButton = new Button();
+        readonly ToolTip updatesTip = new ToolTip();
+        BackgroundWorker automaticUpdateWorker;
+        AvailableUpdate availableUpdate;
+        DateTime nextAutomaticUpdate = DateTime.UtcNow.AddSeconds(8);
         SettingsManager settings;
         LogTail tail;
         UdpBridge bridge;
@@ -232,6 +240,7 @@ namespace JtdxAutoCq
         bool replayRequested, nativeStatusSeen;
         bool cqUiDirty = true;
         DateTime nextCqRefresh;
+        DateTime nextTimeoutRefresh;
         readonly Label heading = new Label(), status = new Label(), radio = new Label(), counts = new Label();
         readonly Panel header = new Panel(), optionsPanel = new Panel();
         readonly Button open = new Button(), start = new Button(), stop = new Button(), restore = new Button();
@@ -248,23 +257,27 @@ namespace JtdxAutoCq
         readonly Label sessionInfo = new Label(), listHint = new Label(), optionsHint = new Label();
         readonly TabControl lists = new TabControl();
         readonly ListView cqView = new ListView();
+        readonly ListView timeoutView = new ListView();
+        readonly TabPage timeoutTab = new TabPage("Пауза мониторинга");
         readonly Button callSelectedCq = new Button(), retrySelectedCq = new Button();
         readonly List<Control> waitEditors = new List<Control>();
 
-        public MainForm(bool demo, string jtdxPath = DefaultJtdxPath)
+        public MainForm(bool demo, string jtdxPath = null)
         {
             this.demo = demo;
-            this.jtdxPath = Path.GetFullPath(jtdxPath);
-            if (!String.Equals(Path.GetFileName(this.jtdxPath), "jtdx.exe", StringComparison.OrdinalIgnoreCase))
-                throw new ArgumentException("Укажите путь к файлу jtdx.exe.");
             if (!demo)
             {
                 settings = new SettingsManager(); operatorStore = new OperatorStateStore(settings.StateDirectory);
                 OperatorState saved = operatorStore.Load(); engine.Options = saved.Options; engine.Waiting.Load(saved.Stations);
                 jtdxPresent = JtdxRunning();
             }
+            preferenceStore = new AppPreferencesStore(demo ? null : settings.StateDirectory);
+            preferences = preferenceStore.Load();
+            this.jtdxPath = Path.GetFullPath(jtdxPath ?? (demo ? DefaultJtdxPath : NativeInstaller.FindJtdx(preferences.JtdxPath)));
+            if (!String.Equals(Path.GetFileName(this.jtdxPath), "jtdx.exe", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("Укажите путь к файлу jtdx.exe.");
             engine.Waiting.Changed = delegate { queueDirty = true; queueUiDirty = true; };
-            engine.Cqs.Changed = delegate { cqUiDirty = true; };
+            engine.Cqs.Changed = delegate { cqUiDirty = true; nextTimeoutRefresh = DateTime.MinValue; };
             Text = "AutoCQ " + ModuleVersion + " — JTDX" + (demo ? " [ДЕМО]" : "");
             using (Stream iconStream = typeof(MainForm).Assembly.GetManifestResourceStream("AutoCQ.ico"))
                 if (iconStream != null) Icon = new Icon(iconStream);
@@ -283,6 +296,11 @@ namespace JtdxAutoCq
             }
             heading.Text = "AutoCQ"; heading.Font = new Font("Segoe UI Semibold", 22F); heading.ForeColor = Color.White;
             heading.SetBounds(76, 17, 230, 41); header.Controls.Add(heading);
+            updatesButton.Text = "Обновления"; updatesButton.SetBounds(426, 23, 196, 33);
+            updatesButton.Anchor = AnchorStyles.Right | AnchorStyles.Top;
+            StyleButton(updatesButton, Color.FromArgb(35, 54, 78), Color.White, Color.FromArgb(78, 103, 129));
+            header.Controls.Add(updatesButton); updatesButton.Click += delegate { ShowUpdates(); };
+            updatesTip.IsBalloon = true; updatesTip.SetToolTip(updatesButton, "Проверить новую версию и обновить AutoCQ");
             sessionInfo.SetBounds(640, 16, 294, 45);
             sessionInfo.Anchor = AnchorStyles.Right | AnchorStyles.Top;
             sessionInfo.TextAlign = ContentAlignment.MiddleRight;
@@ -326,7 +344,7 @@ namespace JtdxAutoCq
             priorityAfter73.CheckedChanged += delegate { ChangeOptions(); cqUiDirty = true; };
             monitor.SetBounds(511, 103, 192, 24);
             monitor.Text = "Режим мониторинга"; monitor.Checked = engine.Options.MonitorEnabled;
-            monitor.CheckedChanged += delegate { ChangeOptions(); UpdateUi(); };
+            monitor.CheckedChanged += delegate { if(!monitor.Checked)engine.Cqs.ClearMonitorTimeouts(); ChangeOptions(); UpdateUi(); };
             monitorSetup.SetBounds(711, 102, 181, 26);
             StyleButton(monitorSetup, Color.White, Ink, Color.FromArgb(201, 213, 224));
             monitorSetup.Click += delegate { Guard(EditMonitorTargets); };
@@ -343,7 +361,10 @@ namespace JtdxAutoCq
             Controls.AddRange(new Control[] { open, start, stop });
             lists.SetBounds(26, 413, 908, 149); lists.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
             TabPage waitTab=new TabPage("Очередь станций"),cqTab=new TabPage("Станции из левого окна JTDX");
-            lists.TabPages.Add(waitTab);lists.TabPages.Add(cqTab);Controls.Add(lists);lists.SelectedIndexChanged+=delegate{UpdateEditors();};
+            lists.TabPages.Add(waitTab);lists.TabPages.Add(cqTab);lists.TabPages.Add(timeoutTab);Controls.Add(lists);lists.SelectedIndexChanged+=delegate{UpdateEditors();};
+            timeoutView.Dock=DockStyle.Fill;timeoutView.View=View.Details;timeoutView.FullRowSelect=true;timeoutView.GridLines=true;
+            timeoutView.Columns.Add("Позывной",145);timeoutView.Columns.Add("Осталось",140);timeoutView.Columns.Add("Повтор после",175);timeoutView.Columns.Add("Причина",418);
+            timeoutTab.Controls.Add(timeoutView);
             waitingView.Dock=DockStyle.Fill;
             waitingView.View = View.Details; waitingView.FullRowSelect = true; waitingView.HideSelection = false; waitingView.GridLines = true;
             waitingView.Columns.Add("№",38); waitingView.Columns.Add("Позывной",125); waitingView.Columns.Add("Состояние",230);
@@ -373,7 +394,11 @@ namespace JtdxAutoCq
             restore.Text = "Восстановить прежние настройки JTDX"; restore.SetBounds(26, 695, 360, 31);
             restore.Anchor = AnchorStyles.Left | AnchorStyles.Bottom; Controls.Add(restore);
             Label foot = new Label { Text = demo ? "ДЕМО: команды в радио не отправляются" : "Настройки окна JTDX сохранены.\r\n«Одиночное QSO» выключается при подготовке.", Font = new Font("Segoe UI",9F) };
-            foot.SetBounds(410, 691, 524, 43); foot.Anchor = AnchorStyles.Right | AnchorStyles.Bottom; foot.ForeColor = Slate; Controls.Add(foot);
+            foot.SetBounds(410, 691, 312, 43); foot.Anchor = AnchorStyles.Right | AnchorStyles.Bottom; foot.ForeColor = Slate; Controls.Add(foot);
+            helpButton.Text = "Как пользоваться"; helpButton.SetBounds(744, 695, 190, 31);
+            helpButton.Anchor = AnchorStyles.Right | AnchorStyles.Bottom;
+            StyleButton(helpButton, Color.White, Ink, Color.FromArgb(201, 213, 224)); Controls.Add(helpButton);
+            helpButton.Click += delegate { Guard(OpenGuide); };
             engine.Notice = Log;
             engine.RequestCq = SendCq; engine.RequestHalt = SendHalt; engine.RequestReply = SendReply;
             engine.RequestCallerReply = decode => SendReply(decode, true);
@@ -414,8 +439,54 @@ namespace JtdxAutoCq
                 Log("Нажмите «1. Подготовить», затем запустите JTDX. При работе с LogHX используйте его значок в журнале.");
             }
             timer.Interval = 150; timer.Tick += Tick; UpdateEditors(); UpdateUi(); timer.Start();
+            timer.Tick += delegate { CheckUpdatesAutomatically(); };
         }
 
+        void OpenGuide()
+        {
+            string local = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "docs", "user-guide.ru.html");
+            string target = File.Exists(local) ? local : UpdateClient.RepositoryUrl + "/blob/main/USER-GUIDE.md";
+            Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+        }
+        void ShowUpdates()
+        {
+            string directory = demo ? Path.Combine(Path.GetTempPath(), "AutoCQ-demo-updates") : settings.StateDirectory;
+            using(var dialog = new UpdateDialog(updateClient, preferences, preferenceStore, directory, jtdxPath, demo,
+                () => { engine.Stop("Установка обновления. Автомат выключен.", true); Close(); }, availableUpdate))
+                dialog.ShowDialog(this);
+            if(!preferences.AutomaticUpdates) nextAutomaticUpdate = DateTime.MaxValue;
+            else if(nextAutomaticUpdate == DateTime.MaxValue) nextAutomaticUpdate = DateTime.UtcNow.AddSeconds(3);
+        }
+        void CheckUpdatesAutomatically()
+        {
+            if(demo || !preferences.AutomaticUpdates || IsDisposed || DateTime.UtcNow < nextAutomaticUpdate
+                || automaticUpdateWorker != null && automaticUpdateWorker.IsBusy) return;
+            nextAutomaticUpdate = DateTime.UtcNow.AddDays(1);
+            automaticUpdateWorker = new BackgroundWorker();
+            automaticUpdateWorker.DoWork += delegate(object sender, DoWorkEventArgs e) { e.Result = updateClient.Check(); };
+            automaticUpdateWorker.RunWorkerCompleted += delegate(object sender, RunWorkerCompletedEventArgs e) {
+                if(IsDisposed) { automaticUpdateWorker.Dispose(); return; }
+                preferences.LastUpdateCheckUtc = DateTime.UtcNow;
+                if(e.Error == null)
+                {
+                    availableUpdate = (AvailableUpdate)e.Result;
+                    if(availableUpdate.Version > updateClient.CurrentVersion && preferences.AutomaticUpdates)
+                    {
+                        updatesButton.Text = "Обновить: " + availableUpdate.Version.ToString(3);
+                        StyleButton(updatesButton, Mint, Navy, Mint);
+                        if(preferences.NotifiedVersion != availableUpdate.Version.ToString(3))
+                        {
+                            preferences.NotifiedVersion = availableUpdate.Version.ToString(3);
+                            updatesTip.Show("Доступна новая версия AutoCQ. Нажмите, чтобы посмотреть и установить.", updatesButton, 0, updatesButton.Height, 12000);
+                        }
+                    }
+                }
+                else DiagnosticEvent("Не удалось проверить обновления. Повторите проверку кнопкой «Обновления».");
+                try { preferenceStore.Save(preferences); } catch(IOException) {} catch(UnauthorizedAccessException) {}
+                automaticUpdateWorker.Dispose();
+            };
+            automaticUpdateWorker.RunWorkerAsync();
+        }
         void AddNumber(NumericUpDown input, string caption, int x, int y, int width, int maximum, int value)
         {
             var label = new Label { Text = caption, TextAlign = ContentAlignment.MiddleLeft };
@@ -538,7 +609,7 @@ namespace JtdxAutoCq
                 MaximizeBox = false, MinimizeBox = false
             })
             {
-                var description = new Label { Text = "AutoCQ вызывает цели по CQ, 73 или RRR из левого окна JTDX." };
+                var description = new Label { Text = "AutoCQ вызывает цели по CQ, 73, RRR или RR73 из левого окна JTDX." };
                 description.SetBounds(16, 15, 542, 24);
                 var pick = new Button { Text = "Выбрать DXCC" };
                 pick.SetBounds(16, 48, 155, 31);
@@ -600,13 +671,14 @@ namespace JtdxAutoCq
         }
         void UpdateEditors()
         {
-            bool cq=lists.SelectedIndex==1;foreach(Control control in waitEditors)control.Visible=!cq;
+            bool cq=lists.SelectedIndex==1;foreach(Control control in waitEditors)control.Visible=lists.SelectedIndex==0;
             callSelectedCq.Visible=retrySelectedCq.Visible=cq;
             UpdateListHint();
         }
         void UpdateListHint()
         {
-            listHint.Text = engine.Monitoring ? "Мониторинг вызывает выбранные цели по CQ, 73 или RRR из левого окна."
+            listHint.Text = lists.SelectedIndex==2 ? "После пяти минут станцию снова можно вызвать по свежему сообщению. При остановке мониторинга список очищается."
+                : engine.Monitoring ? "Мониторинг вызывает выбранные цели по CQ, 73, RRR или RR73 из левого окна."
                 : lists.SelectedIndex == 1 ? "Свежие CQ, 73, RRR и RR73 из левого окна JTDX. Двойной щелчок выбирает станцию."
                 : "После ответов на ваш позывной AutoCQ вызывает добавленные вручную станции напрямую.";
         }
@@ -703,6 +775,27 @@ namespace JtdxAutoCq
             }
             finally{cqView.EndUpdate();cqUiDirty=false;nextCqRefresh=DateTime.UtcNow.AddSeconds(1);}
         }
+        void RefreshMonitorTimeouts()
+        {
+            DateTime now=DateTime.UtcNow;
+            string selected=timeoutView.SelectedItems.Count==1?timeoutView.SelectedItems[0].Text:null;
+            timeoutView.BeginUpdate();
+            try
+            {
+                timeoutView.Items.Clear();
+                foreach(CqStation row in engine.Cqs.MonitorTimeouts(now))
+                {
+                    TimeSpan remaining=TimeSpan.FromSeconds(Math.Ceiling((row.MonitorRetryUntilUtc-now).TotalSeconds));
+                    var item=new ListViewItem(row.Call);
+                    item.SubItems.Add(String.Format("{0:00}:{1:00}",(int)remaining.TotalMinutes,remaining.Seconds));
+                    item.SubItems.Add(row.MonitorRetryUntilUtc.ToLocalTime().ToString("HH:mm:ss"));
+                    item.SubItems.Add("Не ответил на вызовы");
+                    timeoutView.Items.Add(item);if(row.Call==selected)item.Selected=true;
+                }
+                timeoutTab.Text="Пауза мониторинга"+(timeoutView.Items.Count==0?"":"  ·  "+timeoutView.Items.Count);
+            }
+            finally{timeoutView.EndUpdate();nextTimeoutRefresh=now.AddSeconds(1);}
+        }
         void Guard(Action action)
         {
             try { action(); }
@@ -746,7 +839,15 @@ namespace JtdxAutoCq
         void PrepareConnection()
         {
             if (JtdxRunning()) throw new InvalidOperationException("JTDX уже запущен. Закройте его, нажмите «1. Подготовить», затем запустите JTDX обычным способом. При работе с LogHX используйте его значок в журнале.");
-            if (!File.Exists(jtdxPath)) throw new FileNotFoundException("Не найден " + jtdxPath + "\r\nЕсли JTDX установлен в другом месте, укажите путь через --jtdx.");
+            if (!File.Exists(jtdxPath) || JtdxPatcher.HashFile(jtdxPath) != NativeQueueHash)
+            {
+                using(var setup = new SetupDialog(jtdxPath))
+                {
+                    if(setup.ShowDialog(this) != DialogResult.OK) return;
+                    jtdxPath = setup.SelectedPath;
+                }
+            }
+            preferences.JtdxPath = jtdxPath; preferenceStore.Save(preferences);
             string version = FileVersionInfo.GetVersionInfo(jtdxPath).FileVersion;
             if (version != "2.2.160-32A-rc10") throw new InvalidOperationException("Эта сборка подготовлена для JTDX 2.2.160-32A-rc10.");
             VerifyNativeQueueSupport();
@@ -1040,6 +1141,7 @@ namespace JtdxAutoCq
             else{sessionInfo.Text="AutoCQ выключен";sessionInfo.ForeColor=counts.ForeColor;}
             if (queueUiDirty) RefreshQueue();
             if(cqUiDirty || DateTime.UtcNow>=nextCqRefresh)RefreshCqs();
+            if(DateTime.UtcNow>=nextTimeoutRefresh)RefreshMonitorTimeouts();
         }
         void Log(string message)
         {
@@ -1118,6 +1220,13 @@ namespace JtdxAutoCq
                         x.WriteElementString("HeardUtc",row.HeardUtc.ToString("O"));x.WriteEndElement();
                     }
                     x.WriteEndElement();
+                    x.WriteStartElement("MonitorTimeouts");
+                    foreach(CqStation row in engine.Cqs.MonitorTimeouts(DateTime.UtcNow))
+                    {
+                        x.WriteStartElement("Station");x.WriteElementString("Call",row.Call);
+                        x.WriteElementString("RetryUtc",row.MonitorRetryUntilUtc.ToString("O"));x.WriteEndElement();
+                    }
+                    x.WriteEndElement();
                     x.WriteElementString("Notice", lastNotice);
                     if (engine.Status != null)
                     {
@@ -1184,7 +1293,7 @@ namespace JtdxAutoCq
                 return;
             }
             if (!demo) { settings.Restore(); bridge.Dispose(); }
-            timer.Stop(); tray.Dispose();
+            timer.Stop(); tray.Dispose(); updatesTip.Dispose();
         }
     }
 
@@ -1214,7 +1323,7 @@ namespace JtdxAutoCq
                     int pathArg = Array.IndexOf(args, "--jtdx");
                     if (pathArg >= 0 && (pathArg + 1 == args.Length || args[pathArg + 1].StartsWith("--", StringComparison.Ordinal)))
                         throw new ArgumentException("После --jtdx укажите путь к файлу jtdx.exe.");
-                    string jtdxPath = pathArg < 0 ? MainForm.DefaultJtdxPath : args[pathArg + 1];
+                    string jtdxPath = pathArg < 0 ? null : args[pathArg + 1];
                     Application.Run(new MainForm(demo, jtdxPath));
                 }
                 catch (Exception e) { MessageBox.Show(e.Message, "JTDX AutoCQ", MessageBoxButtons.OK, MessageBoxIcon.Error); }

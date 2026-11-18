@@ -289,6 +289,7 @@ namespace JtdxAutoCq
 
         public void Stop(string reason, bool halt)
         {
+            if(Monitoring)Cqs.ClearMonitorTimeouts();
             Armed = false; pending = false; commandOutstanding = false; loggedCall = null;
             unexplainedStop = null;
             manualCq = null; hunting = finishing = false; ResetCqRound();
@@ -531,7 +532,7 @@ namespace JtdxAutoCq
         {
             bool callerTakesOver = yieldingToCaller;
             Waiting.Pause(call, CallerQueue.NoAnswer, now);
-            Cqs.Failed(call, now);
+            Cqs.Failed(call, now, Monitoring);
             ResetContact();
             ResetCqRound(keepPendingHalt: true);
             loggedCall = null;
@@ -949,7 +950,7 @@ namespace JtdxAutoCq
         public bool IsMonitorCandidate(CqStation row, DateTime now)
         {
             return Monitoring && now - row.HeardUtc <= SlotDuration + SlotDuration + TimeSpan.FromMilliseconds(500)
-                && (row.Signoff == "73" || row.Signoff == "RRR" || row.Signoff == null
+                && (row.Signoff == "73" || row.Signoff == "RRR" || row.Signoff == "RR73" || row.Signoff == null
                     && !row.Decode.Message.TrimStart().StartsWith("QRZ ", StringComparison.OrdinalIgnoreCase))
                 && monitorTargets.CanTry(row.Call);
         }

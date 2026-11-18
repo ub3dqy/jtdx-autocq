@@ -1,0 +1,39 @@
+name: Ошибка — Русский
+description: Расскажите, что произошло и какое поведение вы ожидали.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Спасибо за помощь! Чем понятнее пример, тем проще найти причину. Версию AutoCQ видно в заголовке окна.
+  - type: input
+    id: version
+    attributes:
+      label: Версия AutoCQ
+      placeholder: Например, 0.9.6
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: JTDX, Windows и журнал
+      description: Укажите сборку JTDX, версию Windows и название внешнего журнала, если он используется.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Что произошло
+      description: Какие настройки были выбраны, что вы сделали и в какой момент появилась ошибка?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Как должно было сработать
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Пример или снимок экрана
+      description: Можно приложить снимок и небольшой фрагмент журнала вокруг события с указанием времени. Перед публикацией уберите личные данные. Полные профили, пароли и файлы авторизации не нужны.

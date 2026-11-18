@@ -11,6 +11,7 @@ namespace JtdxAutoCq
         public string Call;
         public DecodedMessage Decode;
         public DateTime HeardUtc, LastAttemptUtc, NextTryUtc, LastActivityUtc;
+        public DateTime MonitorRetryUntilUtc;
         public bool Available, Worked, Busy;
         public string Activity, Signoff;
     }
@@ -19,6 +20,8 @@ namespace JtdxAutoCq
     {
         readonly List<CqStation> rows = new List<CqStation>();
         readonly HashSet<string> worked = new HashSet<string>();
+        sealed class SignoffReplay { public DecodedMessage Decode; public DateTime HeardUtc; }
+        readonly Dictionary<string,SignoffReplay> signoffReplays = new Dictionary<string,SignoffReplay>();
         string context;
         public Action Changed = delegate { };
         public ReadOnlyCollection<CqStation> Rows { get { return rows.AsReadOnly(); } }
@@ -26,7 +29,7 @@ namespace JtdxAutoCq
         {
             string next = status.Frequency + "/" + status.Mode + "/" + Callsign.Clean(status.DeCall);
             if (next == context) return;
-            rows.Clear(); worked.Clear(); context = next; Changed();
+            rows.Clear(); worked.Clear(); signoffReplays.Clear(); context = next; Changed();
         }
         public void Invalidate()
         { foreach(CqStation row in rows)row.Available=false; Changed(); }
@@ -43,6 +46,17 @@ namespace JtdxAutoCq
             DateTime time=decode.UtcTime(now);
             if(time>now.AddSeconds(2) || (now-time).TotalSeconds>120)return;
             if (words.Length < 2) return;
+            // rc10 replayDecodes cuts at the first space at/after column 35.
+            // For two long calls this drops the final 73/RRR/RR73. Require an
+            // actual visible replay and match its complete original UDP decode.
+            string replayKey=time.Ticks+"/"+decode.Mode+"/"+decode.DeltaFrequency+"/"+decode.Snr+"/"+words[0]+"/"+words[1];
+            foreach(string key in signoffReplays.Where(item=>now-item.Value.HeardUtc>TimeSpan.FromSeconds(120)).Select(item=>item.Key).ToArray())signoffReplays.Remove(key);
+            if(visible && words.Length==2)
+            {
+                SignoffReplay complete;
+                if(signoffReplays.TryGetValue(replayKey,out complete) && Math.Abs(complete.Decode.DeltaTime-decode.DeltaTime)<0.06)
+                {decode=decode.Copy();decode.Message=complete.Decode.Message;words=MessageWords(decode);}
+            }
             string own = Callsign.Clean(status.DeCall);
             bool generalCall = words[0] == "CQ" || words[0] == "CQDX" || words[0] == "QRZ";
             if (generalCall && !visible) return;
@@ -69,6 +83,11 @@ namespace JtdxAutoCq
                 && (words[0] == "<...>" || Callsign.Parse(recipient) != null);
             string signoff = !generalCall && thirdParty && words.Length == 3
                 && (words[2] == "73" || words[2] == "RRR" || words[2] == "RR73") ? words[2] : null;
+            if(signoff!=null)
+            {
+                signoffReplays[replayKey]=new SignoffReplay{Decode=decode.Copy(),HeardUtc=time};
+                if(signoffReplays.Count>200)signoffReplays.Remove(signoffReplays.OrderBy(item=>item.Value.HeardUtc).First().Key);
+            }
             CqStation row = Find(call);
             if (signoff != null && !visible)
             {
@@ -146,13 +165,21 @@ namespace JtdxAutoCq
                 .OrderByDescending(r=>r.HeardUtc).ThenBy(r=>r.LastAttemptUtc).FirstOrDefault();
         }
         public void Attempt(string call,DateTime now)
-        {CqStation row=Find(call);if(row==null)return;row.LastAttemptUtc=now;row.NextTryUtc=now.AddMinutes(5);Changed();}
-        public void Failed(string call,DateTime now)
-        {CqStation row=Find(call);if(row==null)return;row.NextTryUtc=now.AddMinutes(5);Changed();}
+        {CqStation row=Find(call);if(row==null)return;row.LastAttemptUtc=now;row.NextTryUtc=now.AddMinutes(5);row.MonitorRetryUntilUtc=DateTime.MinValue;Changed();}
+        public void Failed(string call,DateTime now,bool monitoring=false)
+        {CqStation row=Find(call);if(row==null)return;row.NextTryUtc=now.AddMinutes(5);row.MonitorRetryUntilUtc=monitoring?row.NextTryUtc:DateTime.MinValue;Changed();}
+        public IEnumerable<CqStation> MonitorTimeouts(DateTime now)
+        {return rows.Where(row=>row.MonitorRetryUntilUtc>now).OrderBy(row=>row.MonitorRetryUntilUtc);}
+        public void ClearMonitorTimeouts()
+        {
+            foreach(CqStation row in rows.Where(row=>row.MonitorRetryUntilUtc!=DateTime.MinValue))
+            {row.NextTryUtc=DateTime.MinValue;row.MonitorRetryUntilUtc=DateTime.MinValue;}
+            Changed();
+        }
         public void Complete(string call)
-        {call=Callsign.Clean(call);worked.Add(call);CqStation row=Find(call);if(row==null)return;row.Worked=true;Changed();}
+        {call=Callsign.Clean(call);worked.Add(call);CqStation row=Find(call);if(row==null)return;row.Worked=true;row.MonitorRetryUntilUtc=DateTime.MinValue;Changed();}
         public void Retry(string call)
-        {CqStation row=Find(call);if(row==null)return;worked.Remove(row.Call);row.NextTryUtc=DateTime.MinValue;row.Worked=false;Changed();}
+        {CqStation row=Find(call);if(row==null)return;worked.Remove(row.Call);row.NextTryUtc=DateTime.MinValue;row.MonitorRetryUntilUtc=DateTime.MinValue;row.Worked=false;Changed();}
         public string State(CqStation row,DateTime now)
         {
             if(row.Worked)return "Связь записана";
