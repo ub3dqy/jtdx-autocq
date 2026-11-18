@@ -1,6 +1,6 @@
 # Using AutoCQ
 
-Guide for AutoCQ 0.9.10 · Author: **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
+Guide for AutoCQ 0.9.11 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
 
 AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.
 
@@ -123,7 +123,7 @@ An exact callsign target is checked for that callsign. A pattern target is compl
 
 ### Stations that did not answer
 
-**«Пауза мониторинга»** (Monitoring retry pause) lists stations that did not answer within the call limit. Each row shows minutes and seconds remaining and the local time when the pause ends. It refreshes every second. An active exchange is not listed as unanswered.
+**«Пауза мониторинга»** (Monitoring retry pause) lists stations that AutoCQ is waiting to call again. This includes calls JTDX ends because the frequency is occupied or the other station answers someone else. Monitoring continues with the same end time. Each row shows the time remaining and the local time when the pause ends.
 
 ![Time remaining before a station can be called again](docs/monitor-timeouts-demo.png)
 
@@ -137,7 +137,7 @@ Stopping monitoring, including a timer stop, clears this list and its pauses. Cl
 
 At startup and daily while open, AutoCQ checks GitHub for releases. A newer version highlights Updates and shows a notification. You can disable automatic checks in the window. Requests use public project files; no callsign, settings or log data are uploaded.
 
-Click **«Проверить обновления»** (Check), then **«Скачать»** (Download). Both can run during radio operation. To install, finish the contact and close JTDX. Click **«Обновить и перезапустить»** (Update and restart). AutoCQ closes, checks the archive, replaces its files and reopens. Approve Windows permission if requested. Keep LogHX open; after the update and normal preparation, launch JTDX from LogHX.
+Click **«Проверить обновления»** (Check), then **«Скачать»** (Download). Both can run during radio operation. To install, finish the contact and close JTDX. Click **«Обновить и перезапустить»** (Update and restart). AutoCQ checks the archive, updates its files and the JTDX integration when needed, then reopens. Approve Windows permission if requested. LogHX can stay open. After preparation, launch JTDX from LogHX.
 
 Settings and queue entries are preserved. If replacement fails, the installer attempts to restore previous files and keeps a backup beside the downloaded update.
 

@@ -42,6 +42,7 @@ org 0x142d17000
 %define generate_tx     0x1400f9290
 %define choose_tx1      0x1400d08d0
 %define qso_log_data    0x14012be80
+%define qstring_assign  0x142c1d528
 %define qstring_null    0x142c1c8c0
 %define date_time_ms    0x142c1e378
 %define saved_caller    0xa8
@@ -99,6 +100,9 @@ entry first_recent_log_gate
 entry second_recent_log_gate
 entry new_exchange_in_history
 entry new_exchange_end
+entry log_with_sent_report
+entry prefer_sent_report
+entry prefer_sent_report_end
 
 ; Mutable state is placed in a separate non-executable section.
 select_until equ 0x142d18000
@@ -841,6 +845,130 @@ new_exchange_in_history:
     add rsp, 0x58
     ret
 new_exchange_end:
+
+; On the first sign-off, JTDX's history can already contain a newer
+; signal estimate. Keep the report from the previous TX when the message
+; and m_rptSent independently identify it for the current DX.
+log_with_sent_report:
+    call qso_log_data
+    cmp eax, 7
+    jle .resume
+    mov [rsp+0x20], eax         ; fifth argument slot after log_data
+    mov rcx, r14                ; MainWindow
+    mov rdx, rdi                ; sent report QString from history
+    call prefer_sent_report
+    mov eax, [rsp+0x20]
+.resume:
+    jmp 0x1400e8ee1
+
+prefer_sent_report:
+    sub rsp, 0x38
+    test byte [rel lease_flags], 2
+    jz .done
+    cmp byte [rcx+0x65f], 0      ; automatic log on sign-off
+    je .done
+    cmp byte [rcx+0x68b], 0      ; Hound/DXpedition
+    jne .done
+    mov rax, [rcx+0x2ae8]        ; mode QString
+    cmp dword [rax+4], 3
+    jne .done
+    add rax, [rax+16]
+    cmp dword [rax], 0x00540046  ; "FT" in UTF-16
+    jne .done
+    cmp word [rax+4], '8'
+    je .check_lease
+    cmp word [rax+4], '4'
+    jne .done
+.check_lease:
+    mov [rsp+0x20], rcx
+    mov [rsp+0x28], rdx
+    call_tick
+    state_load {0x48,0x3b,0x05}, select_until
+    jae .done
+    mov rcx, [rsp+0x20]
+    mov r8, [rcx+0x640]          ; last transmitted message QString
+    mov r9, [rcx+0x2a60]         ; active DX QString
+    mov r10d, [r8+4]
+    mov r11d, [r9+4]
+    cmp r10d, 37
+    ja .done
+    test r11d, r11d
+    jle .done
+    lea eax, [r11+6]             ; DX, sender and three report characters
+    cmp r10d, eax
+    jb .done
+    add r8, [r8+16]
+    add r9, [r9+16]
+    cmp word [r8+r11*2], ' '
+    jne .done
+    xor eax, eax
+.compare_call:
+    mov dx, [r8+rax*2]
+    cmp dx, [r9+rax*2]
+    jne .done
+    inc eax
+    cmp eax, r11d
+    jb .compare_call
+    inc eax
+    cmp word [r8+rax*2], ' '
+    je .done
+.skip_sender:
+    inc eax
+    cmp eax, r10d
+    jae .done
+    cmp word [r8+rax*2], ' '
+    jne .skip_sender
+    inc eax
+    lea edx, [rax+3]
+    cmp r10d, edx
+    jb .done
+    cmp word [r8+rax*2], 'R'
+    jne .compare_report
+    inc eax
+    inc edx
+    cmp r10d, edx
+    jb .done
+.compare_report:
+    mov r9, [rcx+0x2b10]         ; m_rptSent QString
+    cmp dword [r9+4], 3
+    jne .done
+    add r9, [r9+16]
+    movzx edx, word [r9]
+    cmp edx, '-'
+    je .digits
+    cmp edx, '+'
+    jne .done
+.digits:
+    movzx edx, word [r9+2]
+    sub edx, '0'
+    cmp edx, 9
+    ja .done
+    movzx edx, word [r9+4]
+    sub edx, '0'
+    cmp edx, 9
+    ja .done
+    mov edx, [r9]
+    cmp edx, [r8+rax*2]
+    jne .done
+    mov dx, [r9+4]
+    cmp dx, [r8+rax*2+4]
+    jne .done
+    add eax, 3
+.padding:
+    cmp eax, r10d
+    je .copy
+    cmp word [r8+rax*2], ' '
+    jne .done
+    inc eax
+    jmp .padding
+.copy:
+    lea rdx, [rcx+0x2b10]
+    mov rcx, [rsp+0x28]
+    iat_call qstring_assign
+.done:
+    add rsp, 0x38
+    ret
+prefer_sent_report_end:
 
 network_dll: db 'Qt5Network.dll', 0
 ipv4_export: db '_ZNK12QHostAddress13toIPv4AddressEPb', 0

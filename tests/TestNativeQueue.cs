@@ -39,6 +39,7 @@ static class TestNativeQueue
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int IndexOf(IntPtr value, IntPtr query, int start, int caseSensitivity);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int SignoffLogGate(int callIndex);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int RecentCallLogGate(IntPtr mainWindow, IntPtr stringEquals);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int ReportLog(IntPtr mainWindow, IntPtr sentReport, int historyStatus);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void DirectCall(IntPtr window, IntPtr call, int marker);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void UiAction(IntPtr receiver);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void UiText(IntPtr receiver, IntPtr value);
@@ -267,6 +268,105 @@ static class TestNativeQueue
         }
     }
 
+    static void TestSentReportLogging(IntPtr image, string dllDirectory)
+    {
+        const int codeRva = 0x2d17000, stateRva = 0x2d18000;
+        const int entry = 0x1000, logCall = 0x0e8edc, logReturn = 0x0e8ee1;
+        const int logOn73 = 0x65f, hound = 0x68b;
+        IntPtr qt = LoadLibraryEx(Path.Combine(dllDirectory, "Qt5Core.dll"), IntPtr.Zero, 8);
+        IntPtr kernel = LoadLibraryEx(Path.Combine(Environment.SystemDirectory, "kernel32.dll"), IntPtr.Zero, 0);
+        IntPtr fixture = VirtualAlloc(IntPtr.Zero, (UIntPtr)(stateRva + 0x1000), 0x3000, 0x04);
+        IntPtr window = VirtualAlloc(IntPtr.Zero, (UIntPtr)0x4000, 0x3000, 0x04);
+        try
+        {
+            if (qt == IntPtr.Zero || kernel == IntPtr.Zero || fixture == IntPtr.Zero || window == IntPtr.Zero)
+                throw new Exception("Cannot allocate the sent report fixture");
+            CopyImageCode(image, fixture, codeRva, Marshal.ReadInt32(image, codeRva + 14 * 4));
+            CopyImageCode(image, fixture, logCall, 5);
+            byte[] frame = {
+                0x41, 0x56, 0x57,                   // push r14; push rdi
+                0x48, 0x83, 0xec, 0x28,             // sub rsp, 0x28
+                0x49, 0x89, 0xce,                   // mov r14, rcx
+                0x48, 0x89, 0xd7,                   // mov rdi, rdx
+                0x48, 0x89, 0x7c, 0x24, 0x20        // original fifth argument
+            };
+            WriteCode(fixture, entry, frame);
+            WriteJump(fixture, entry + frame.Length, logCall);
+            WriteCode(fixture, logReturn, new byte[] { 0x48, 0x83, 0xc4, 0x28, 0x5f, 0x41, 0x5e, 0xc3 });
+            WriteCode(fixture, 0x12be80, new byte[] {
+                0x48, 0x39, 0x7c, 0x24, 0x28,       // the original call must receive rdi on the stack
+                0x75, 0x04,
+                0x44, 0x89, 0xc0, 0xc3,             // return the supplied history status
+                0xb8, 0xff, 0xff, 0xff, 0xff, 0xc3
+            });
+            Marshal.WriteIntPtr(fixture, stateRva + 8, Find(kernel, "GetTickCount64"));
+            Marshal.WriteIntPtr(fixture, 0x2c1d528, Find(qt, "_ZN7QStringaSERKS_"));
+            uint prior;
+            if (!VirtualProtect(fixture, (UIntPtr)stateRva, 0x20, out prior))
+                throw new Exception("Cannot protect the sent report fixture");
+
+            IntPtr history = IntPtr.Add(window, 0x3000), saved = IntPtr.Add(window, 0x3080);
+            IntPtr sent = IntPtr.Add(window, 0x3100), lastTx = IntPtr.Add(window, 0x3180);
+            IntPtr dx = IntPtr.Add(window, 0x3200), mode = IntPtr.Add(window, 0x3280);
+            Action<IntPtr, string> staticQString = (target, value) => {
+                WriteQtFixtureString(target, value);
+                Marshal.WriteInt32(target, 8, -1); // static reference count for Qt's copy assignment
+            };
+            staticQString(history, "-17");
+            staticQString(dx, "W2ABC");
+            staticQString(mode, "FT8");
+            staticQString(sent, "-11");
+            Marshal.WriteIntPtr(window, 0x2a60, Marshal.ReadIntPtr(dx));
+            Marshal.WriteIntPtr(window, 0x2ae8, Marshal.ReadIntPtr(mode));
+            Marshal.WriteIntPtr(window, 0x2b10, Marshal.ReadIntPtr(sent));
+            Marshal.WriteByte(window, logOn73, 1);
+            Marshal.WriteByte(fixture, stateRva + 16, 2);
+            Marshal.WriteInt64(fixture, stateRva, -1);
+            ReportLog log = Function<ReportLog>(IntPtr.Add(fixture, entry));
+            Func<string, int, string> recorded = (message, status) => {
+                staticQString(lastTx, message);
+                Marshal.WriteIntPtr(window, 0x640, Marshal.ReadIntPtr(lastTx));
+                Marshal.WriteIntPtr(saved, Marshal.ReadIntPtr(history));
+                if (log(window, saved, status) != status) throw new Exception("Logging changed the history status");
+                return QtString(saved);
+            };
+            Check(recorded("W2ABC K1ABC -11".PadRight(37), 10) == "-11",
+                "FT8 logs the transmitted -11 after the later receive estimate changed to -17");
+            staticQString(mode, "FT4");
+            staticQString(sent, "+00");
+            Check(recorded("W2ABC K1ABC R+00", 10) == "+00",
+                "FT4 logs the transmitted R+00 without the acknowledgement prefix");
+            staticQString(sent, "-11");
+            foreach (string message in new[] { "W2ABCD K1ABC -11", "W2ABD K1ABC -11", "W2ABC K1ABC -12",
+                "W2ABC K1ABC RR73", "W2ABC K1ABC R", "CQ K1ABC FN31", "W2ABC K1ABC -11 FN31" })
+            {
+                if (recorded(message, 10) != "-17") throw new Exception("Report assigned for unconfirmed TX: " + message);
+            }
+            Check(recorded("W2ABC K1ABC -11", 7) == "-17",
+                "Unrelated, incomplete and terminal messages and missing QSO history preserve the native report");
+            Marshal.WriteByte(window, logOn73, 0);
+            bool manual = recorded("W2ABC K1ABC -11", 10) == "-17";
+            Marshal.WriteByte(window, logOn73, 1);
+            Marshal.WriteByte(window, hound, 1);
+            bool dxpedition = recorded("W2ABC K1ABC -11", 10) == "-17";
+            Marshal.WriteByte(window, hound, 0);
+            staticQString(mode, "JT9");
+            bool anotherMode = recorded("W2ABC K1ABC -11", 10) == "-17";
+            staticQString(mode, "FT8");
+            Marshal.WriteInt64(fixture, stateRva, 0);
+            bool expired = recorded("W2ABC K1ABC -11", 10) == "-17";
+            Check(manual && dxpedition && anotherMode && expired,
+                "Manual logging, other modes and an expired AutoCQ session retain native logging");
+        }
+        finally
+        {
+            if (window != IntPtr.Zero) VirtualFree(window, UIntPtr.Zero, 0x8000);
+            if (fixture != IntPtr.Zero) VirtualFree(fixture, UIntPtr.Zero, 0x8000);
+            if (kernel != IntPtr.Zero) FreeLibrary(kernel);
+            if (qt != IntPtr.Zero) FreeLibrary(qt);
+        }
+    }
+
     static void TestPeMapping(string path, string dllDirectory)
     {
         const uint noImportsOrEntryPoint = 1;
@@ -287,6 +387,7 @@ static class TestNativeQueue
                 "Both TriggerCQ paths bypass the prompt check while normal QSO completion still reads the setting");
             TestSignoffLogging(image, dllDirectory);
             TestRepeatLogging(image, dllDirectory);
+            TestSentReportLogging(image, dllDirectory);
         }
         finally { FreeLibrary(image); }
     }

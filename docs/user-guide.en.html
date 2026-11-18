@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="author" content="UB3DQY"><title>Using AutoCQ · UB3DQY</title><link rel="icon" href="icon.png"><link rel="stylesheet" href="guide.css"></head><body><main><h1>Using AutoCQ</h1>
-<p>Guide for AutoCQ 0.9.10 · Author: <strong>UB3DQY</strong> · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
+<p>Guide for AutoCQ 0.9.11 · <strong>UB3DQY</strong> · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
 <p>AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.</p>
 <p>Monitoring works differently: JTDX listens until a wanted country or callsign appears, calls that station, then returns to receive. The application interface is currently in Russian; this guide includes the labels you will see.</p>
 <h2>1. Downloads</h2>
@@ -65,14 +65,14 @@
 <p><strong>«Одна связь на цель на диапазоне»</strong> applies to the <strong>target</strong>, rather than to every individual station. With Japan selected, any completed Japanese contact on 20 m completes the Japan target on 20 m. Other Japanese stations on that band are then skipped; Japan on 40 m can still be available.</p>
 <p>An exact callsign target is checked for that callsign. A pattern target is completed by a matching contact. The JTDX log, including earlier sessions, is considered. Clear the checkbox to work several stations from the same entity on the same band.</p>
 <h3>Stations that did not answer</h3>
-<p><strong>«Пауза мониторинга»</strong> (Monitoring retry pause) lists stations that did not answer within the call limit. Each row shows minutes and seconds remaining and the local time when the pause ends. It refreshes every second. An active exchange is not listed as unanswered.</p>
+<p><strong>«Пауза мониторинга»</strong> (Monitoring retry pause) lists stations that AutoCQ is waiting to call again. This includes calls JTDX ends because the frequency is occupied or the other station answers someone else. Monitoring continues with the same end time. Each row shows the time remaining and the local time when the pause ends.</p>
 <p><img loading="lazy" src="monitor-timeouts-demo.png" alt="Time remaining before a station can be called again"></p>
 <p>The pause lasts five minutes after the unsuccessful attempt. When it expires, the row disappears and a new fresh message can make that station eligible again. Expiry alone does not start a transmission. Use «Снять отметку попытки» in the left-pane tab to retry sooner.</p>
 <p>Stopping monitoring, including a timer stop, clears this list and its pauses. Clearing the monitoring-mode checkbox also resets them. Other entries and completed contacts are preserved.</p>
 <h2>8. Updates</h2>
 <p><img loading="lazy" src="updates-demo.png" alt="Updates window"></p>
 <p>At startup and daily while open, AutoCQ checks GitHub for releases. A newer version highlights Updates and shows a notification. You can disable automatic checks in the window. Requests use public project files; no callsign, settings or log data are uploaded.</p>
-<p>Click <strong>«Проверить обновления»</strong> (Check), then <strong>«Скачать»</strong> (Download). Both can run during radio operation. To install, finish the contact and close JTDX. Click <strong>«Обновить и перезапустить»</strong> (Update and restart). AutoCQ closes, checks the archive, replaces its files and reopens. Approve Windows permission if requested. Keep LogHX open; after the update and normal preparation, launch JTDX from LogHX.</p>
+<p>Click <strong>«Проверить обновления»</strong> (Check), then <strong>«Скачать»</strong> (Download). Both can run during radio operation. To install, finish the contact and close JTDX. Click <strong>«Обновить и перезапустить»</strong> (Update and restart). AutoCQ checks the archive, updates its files and the JTDX integration when needed, then reopens. Approve Windows permission if requested. LogHX can stay open. After preparation, launch JTDX from LogHX.</p>
 <p>Settings and queue entries are preserved. If replacement fails, the installer attempts to restore previous files and keeps a backup beside the downloaded update.</p>
 <p>Versions before 0.9.6 have no Updates button. For this first upgrade, close JTDX and AutoCQ and extract the new ZIP over the old folder, replacing files. Open the new application. Future releases can be installed from Updates.</p>
 <h3>Following download progress</h3>

@@ -2500,6 +2500,67 @@ class AutoCqTests
                     e.OnDecode(d, At.AddSeconds(104)); e.Tick(At.AddSeconds(104.2), true);
                     Assert(commands.Last() == "REPLY W7ZZD JA3ZZC RR73", "Monitoring did not resume for the next RR73 target");
                 });
+                Run("JTDX stopping one busy target keeps monitoring and its original timer", () => {
+                    foreach (bool statusFirst in new[] { false, true })
+                    foreach (bool nextCaller in new[] { false, true })
+                    {
+                        List<string> commands;
+                        AutoCqEngine e = MonitorActive(out commands);
+                        DateTime deadline = e.SessionDeadline;
+                        var target = CqD(At.AddSeconds(15), "JA2ZZB"); target.IsNew = false;
+                        e.OnDecode(target, At.AddSeconds(29)); e.Tick(At.AddSeconds(29.1), true);
+                        e.OnStatus(S(true, "JA2ZZB"), At.AddSeconds(29.2));
+                        e.OnLine(Tx(At.AddSeconds(30), "JA2ZZB", "-11"), At.AddSeconds(30));
+                        e.OnLine(Tx(At.AddSeconds(60), "JA2ZZB", "-11"), At.AddSeconds(60));
+                        var other = D(At.AddSeconds(75), "JA2ZZB", "-16"); other.Message = "OE1AAA JA2ZZB -16";
+                        e.OnDecode(other, At.AddSeconds(88.9));
+                        if (nextCaller) e.OnDecode(D(At.AddSeconds(75), "W2ABC", "FN20"), At.AddSeconds(89));
+                        if (statusFirst) e.OnStatus(S(false, "JA2ZZB"), At.AddSeconds(89.1));
+                        e.OnLine("Halt Tx triggered at RX: readFromStdout, not owner of the frequency or reply to other ", At.AddSeconds(89.2));
+                        if (!statusFirst) e.OnStatus(S(false, ""), At.AddSeconds(89.3));
+                        e.Tick(At.AddSeconds(89.4), true);
+                        Assert(e.Monitoring && e.SessionDeadline == deadline && !e.Status.TxEnabled
+                            && e.LoggedCount == 0 && e.Cqs.MonitorTimeouts(At.AddSeconds(89.4)).Single().Call == "JA2ZZB",
+                            "A native busy-target stop ended monitoring, lost the retry pause or changed the timer");
+                        if (nextCaller)
+                            Assert(commands.Last() == "REPLY K1ABC W2ABC FN20", "The caller was skipped after the busy station");
+                        else
+                        {
+                            Assert(commands.Count == 1, "The busy station or CQ was called again");
+                            var fresh = CqD(At.AddSeconds(90), "JA3ZZC"); fresh.IsNew = false;
+                            e.OnDecode(fresh, At.AddSeconds(104)); e.Tick(At.AddSeconds(104.1), true);
+                            Assert(commands.Last() == "REPLY CQ JA3ZZC FN20", "Monitoring did not select the next eligible target");
+                        }
+                    }
+                });
+                Run("A busy-target stop during a terminal exchange still waits for the last receive slot", () => {
+                    List<string> commands;
+                    AutoCqEngine e = MonitorActive(out commands);
+                    var target = CqD(At.AddSeconds(15), "JA2ZZB"); target.IsNew = false;
+                    e.OnDecode(target, At.AddSeconds(29)); e.Tick(At.AddSeconds(29.1), true);
+                    e.OnStatus(S(true, "JA2ZZB"), At.AddSeconds(29.2));
+                    e.OnLine(Tx(At.AddSeconds(30), "JA2ZZB", "RR73"), At.AddSeconds(30));
+                    e.OnLine("QSO logged: JA2ZZB", At.AddSeconds(30.1));
+                    e.OnLine("Halt Tx triggered at RX: readFromStdout, not owner of the frequency or reply to other", At.AddSeconds(59));
+                    e.OnStatus(S(false, "JA2ZZB"), At.AddSeconds(59.1));
+                    e.OnDecode(D(At.AddSeconds(45), "W2ABC", "FN31"), At.AddSeconds(59.2)); e.Tick(At.AddSeconds(59.3), true);
+                    Assert(e.Monitoring && e.Awaiting73 && commands.Count == 1, "A busy-target stop cut off the final exchange");
+                    e.OnDecode(D(At.AddSeconds(75), "JA2ZZB", "73"), At.AddSeconds(89));
+                    e.Tick(At.AddSeconds(89.2), true);
+                    Assert(e.Monitoring && e.ConfirmedCount == 1 && commands.Last() == "REPLY K1ABC W2ABC FN31",
+                        "The terminal exchange did not resume monitoring after final 73");
+                });
+                Run("A selected busy target can be released before the enabled status arrives", () => {
+                    List<string> commands;
+                    AutoCqEngine e = MonitorActive(out commands);
+                    var target = CqD(At.AddSeconds(15), "JA2ZZB"); target.IsNew = false;
+                    e.OnDecode(target, At.AddSeconds(29)); e.Tick(At.AddSeconds(29.1), true);
+                    e.OnLine("Halt Tx triggered at RX: readFromStdout, not owner of the frequency or reply to other", At.AddSeconds(29.2));
+                    e.OnStatus(S(false, ""), At.AddSeconds(29.3));
+                    e.Tick(At.AddSeconds(29.4), true);
+                    Assert(e.Monitoring && e.Cqs.MonitorTimeouts(At.AddSeconds(29.4)).Single().Call == "JA2ZZB" && commands.Count == 1,
+                        "A target rejected during selection ended monitoring or left the failed call active");
+                });
                 Run("Monitoring returns to RX at the limit and can then select a different target", () => {
                     List<string> commands;
                     AutoCqEngine engine = MonitorActive(out commands);

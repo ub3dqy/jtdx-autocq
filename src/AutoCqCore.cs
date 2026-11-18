@@ -236,6 +236,7 @@ namespace JtdxAutoCq
         static readonly Regex RxMessage = new Regex(@"^\d{8}_\d{6}\s+[+-]?\d+\s+[+-]?[\d.,]+\s+\d+\s+\S+\s+(.+)$", RegexOptions.CultureInvariant);
         static readonly Regex ReplySelected = new Regex(@"double click on call processed: (\S+); EnableTx On\b", RegexOptions.CultureInvariant);
         static readonly Regex NoDecodeHalt = new Regex(@"^Halt Tx triggered at (?:RX|TX):\s*Called station not decoded\b", RegexOptions.CultureInvariant);
+        static readonly Regex BusyTargetHalt = new Regex(@"^Halt Tx triggered at (?:RX|TX):\s*readFromStdout, not owner of the frequency or reply to other(?:\s|$)", RegexOptions.CultureInvariant);
         static readonly Regex Report = new Regex(@"^R?[+-]\d{2}$", RegexOptions.CultureInvariant);
         static readonly Regex Grid = new Regex(@"^[A-R]{2}\d{2}(?:[A-X]{2})?$", RegexOptions.CultureInvariant);
         public bool Pending { get { return pending; } }
@@ -532,17 +533,21 @@ namespace JtdxAutoCq
             bool loggedRecently = loggedCall != null && loggedCall == lastContact && (now - loggedAt).TotalSeconds < logWindow;
             bool confirmedRecently = receivedFinalAt.HasValue && waitingCall == lastContact
                 && now >= receivedFinalAt.Value && now - receivedFinalAt.Value <= SlotDuration + SlotDuration;
-            bool retryLimit = reason.IndexOf("m_houndMode", StringComparison.Ordinal) < 0
+            // The native decoder ends this attempt if the frequency is in use
+            // or the DX replies elsewhere. JTDX has disabled TX for this call.
+            string monitoredContact = waitingCall ?? selectedQueuedCall ?? attemptCall ?? (pending ? pendingOwner : null);
+            bool busyTarget = Monitoring && monitoredContact != null && monitoredContact == lastContact && BusyTargetHalt.IsMatch(reason);
+            bool retryLimit = busyTarget || reason.IndexOf("m_houndMode", StringComparison.Ordinal) < 0
                 && (reason.IndexOf("counter triggered", StringComparison.Ordinal) >= 0
                     || !String.IsNullOrEmpty(lastContact) && NoDecodeHalt.IsMatch(reason));
-            if (everEnabled && ((normalEnd && loggedRecently) || (finalStop && confirmedRecently) || retryLimit))
+            if ((everEnabled || busyTarget) && ((normalEnd && loggedRecently) || (finalStop && confirmedRecently) || retryLimit))
             {
                 if (retryLimit && !loggedRecently && waitingCall == null)
                 {
                     // The module may already have asked for Halt on the same
                     // boundary. Consume that reply too if it is still in flight.
                     if (stoppingRetry != null) cqHaltExpected = true;
-                    ContinueAfterRetry(stoppingRetry ?? lastContact, now);
+                    ContinueAfterRetry(stoppingRetry ?? lastContact, now, busyTarget);
                     return;
                 }
                 unexplainedStop = null;
@@ -557,7 +562,7 @@ namespace JtdxAutoCq
             else Stop("JTDX остановлен. Автомат выключен: " + reason, false);
         }
 
-        void ContinueAfterRetry(string call, DateTime now)
+        void ContinueAfterRetry(string call, DateTime now, bool busyTarget = false)
         {
             bool callerTakesOver = yieldingToCaller;
             Waiting.Pause(call, CallerQueue.NoAnswer, now);
@@ -569,7 +574,8 @@ namespace JtdxAutoCq
             allowClearDx = true;
             pendingOwner = call;
             hunting = false;
-            Schedule(now, callerTakesOver ? "Нет ответа от " + call + ". Отвечаю станции, которая зовёт нас сейчас."
+            Schedule(now, busyTarget ? "JTDX прервал вызов " + call + ". Продолжаю мониторинг."
+                : callerTakesOver ? "Нет ответа от " + call + ". Отвечаю станции, которая зовёт нас сейчас."
                 : "Лимит попыток " + call + " исчерпан. " + (Monitoring ? "Возвращаюсь на приём." : "Выбираю следующую станцию или CQ."));
             due = now;
         }

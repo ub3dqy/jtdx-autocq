@@ -5,8 +5,8 @@ const { createHash } = require('node:crypto');
 const path = require('node:path');
 
 const expectedSha = '6b6718432edb55b3e3c8a5b884522bdc5ef5e466bf074e9dac09cc0b64ce399c';
-const expectedStubSha = '62e1449910d718b449fde97189c4731ca900e6ab04d77aa7396cd41186abaad1';
-const expectedOutputSha = 'b615bfbdc23291a7ca297fe1eae4eb7d2af0e8966c962d4fb0ea620c6ff6b12f';
+const expectedStubSha = '6bac574c1b32ca97586e1fbcf05482808224e4c7824e81674dc45afd35d32570';
+const expectedOutputSha = '7f96272a867ca7050a7149a7a3a22106b5295bf3a89d66829e0f2cef6208b89b';
 const [originalPath, stubPath, outputPath] = process.argv.slice(2);
 const sha = data => createHash('sha256').update(data).digest('hex');
 const align = (n, a) => Math.ceil(n / a) * a;
@@ -66,11 +66,12 @@ const hooks = [
     [0x0a9f49, '488d15bbd52a01', 31, 0x0a8770],
     [0x10f4c4, '84c00f8404190000', 34, 0x10d440],
     [0x110de1, '84c00f85e3e6ffff', 35, 0x10d440],
+    [0x0e8edc, 'e89f2f0400', 38, 0x0e8cc0],
 ];
 const lastPacketType = raw(0x21e86a);
 assert(original[lastPacketType] === 51 && original.subarray(lastPacketType - 2, lastPacketType).toString('hex') === '83f8',
     'Unexpected network reader type limit.');
-const offsets = Array.from({ length: 38 }, (_, i) => stub.readUInt32LE(i * 4));
+const offsets = Array.from({ length: 41 }, (_, i) => stub.readUInt32LE(i * 4));
 assert(offsets[14] === stub.length && stub.length < sectionAlignment, 'Invalid stub map or code size.');
 for (const [rva, hex, index] of hooks) {
     assert(original.subarray(raw(rva), raw(rva) + hex.length / 2).toString('hex') === hex,
@@ -140,7 +141,12 @@ for (const [index, parent] of chainRanges) {
 }
 // Ordinary Win64 callees describe their stack allocations directly. The
 // fast return in resolve_tick precedes the stack allocation.
-for (const [begin, end, prolog, stack] of [[15, 16, 4, 0x28], [13, 18, offsets[17] - offsets[13], 0x28], [36, 37, 4, 0x58]]) {
+for (const [begin, end, prolog, stack] of [
+    [15, 16, 4, 0x28],
+    [13, 18, offsets[17] - offsets[13], 0x28],
+    [36, 37, 4, 0x58],
+    [39, 40, 4, 0x38],
+]) {
     const allocSmall = (((stack - 8) / 8) << 4) | 2;
     info.push(Buffer.from([1, prolog, 1, 0, prolog, allocSmall, 0, 0]));
     extra.push({ begin: codeRva + offsets[begin], end: codeRva + offsets[end], index: info.length - 1 });

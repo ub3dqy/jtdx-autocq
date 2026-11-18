@@ -1,39 +1,25 @@
-# AutoCQ 0.9.10
+# AutoCQ 0.9.11
 
 ## Русский
 
-Исправлено самопроизвольное выключение мониторинга после завершённого QSO. Если на границе периода JTDX успевал записать начало передачи перед выполнением команды остановки от AutoCQ, модуль мог принять ответ на собственную команду за внешнюю остановку. Теперь он сохраняет ожидание подтверждения, возвращается на приём и продолжает мониторинг. Ручная остановка остаётся действующей.
+Мониторинг продолжается, если JTDX прервал вызов из-за занятой частоты или корреспондент ответил другой станции. AutoCQ возвращается на приём, сохраняет время окончания сеанса и может ответить тем, кто уже вас зовёт. Позывной, который не ответил, появляется во вкладке «Пауза мониторинга».
 
-При скачивании обновления теперь видно, как идёт загрузка. Заполняющаяся шкала показывает процент; под ней указаны полученный и полный объём, скорость, примерное оставшееся и прошедшее время.
+Исправлена запись отправленного рапорта в FT8 и FT4. При автоматической записи JTDX сверяет рапорт с последним отправленным сообщением. Если оно содержит рапорт текущему корреспонденту, в журнал JTDX и в LogHX уходит значение из передачи. Оно сохраняется и при изменении уровня сигнала на следующем приёме.
 
-Подготовка, подключение к серверу, скачивание, проверка архива и подготовка файлов показаны отдельными этапами. 100% означает получение всего файла; установка становится доступна после успешной проверки. При обрыве соединения загрузка не выдаётся за завершённую, и её можно повторить.
+Оба исправления проверены на стенде. Обновлены русское и английское описания, руководства и офлайн-помощь.
 
-Если сервер не сообщает размер файла, AutoCQ показывает полученный объём и прошедшее время без выдуманного процента. При ожидании новых данных сообщение обновляется, а оценка времени учитывает паузу.
-
-Обновлены русское и английское описания, руководства и офлайн-помощь. Добавлен демонстрационный снимок индикатора загрузки.
-
-**Как обновиться:** откройте **«Обновления»**, проверьте выпуск и скачайте его. После окончания QSO закройте JTDX и нажмите **«Обновить и перезапустить»**. Настройки и очередь сохранятся; LogHX можно оставить открытым. Патч JTDX из 0.9.3–0.9.9 подходит для этой версии.
-
-Новый индикатор работает после установки 0.9.10. При скачивании этой версии из 0.9.9 ещё используется прежнее окно обновлений.
+**Как обновиться.** Откройте **«Обновления»**, проверьте выпуск и скачайте его. После окончания связи закройте JTDX и нажмите **«Обновить и перезапустить»**. Вместе с AutoCQ обновится дополнение JTDX. LogHX можно оставить открытым, а после подготовки снова запустить JTDX из LogHX.
 
 [Сайт UB3DQY](https://ub3dqy.com/) · [Описание AutoCQ](https://ub3dqy.com/ru/read/5/) · [Руководство](https://github.com/ub3dqy/jtdx-autocq/blob/main/USER-GUIDE.md) · [Ошибки и предложения](https://github.com/ub3dqy/jtdx-autocq/issues/new/choose)
 
 ## English
 
-Fixed monitoring switching itself off after a completed QSO. When JTDX logged the start of a transmission at the period boundary just before executing AutoCQ's Halt command, the module could mistake its own acknowledgement for an external stop. It now keeps that acknowledgement pending, returns to receive and continues monitoring. Manual stopping still takes effect.
+Monitoring continues when JTDX ends a call because the frequency is occupied or the other station replies to someone else. AutoCQ returns to receive, keeps the same session end time, and can answer stations already calling you. The unanswered callsign appears in the monitoring retry list.
 
-Downloads now show their progress. The filling bar displays the percentage; below it are the received and total size, speed, estimated time remaining and elapsed time.
+Fixed the sent report in FT8 and FT4 logs. While logging a contact automatically, JTDX checks the report against the last transmitted message. If that message contains a report for the current contact, the transmitted value goes to both the JTDX log and LogHX. A change in signal strength on the next receive period leaves that value intact.
 
-Preparation, connection, downloading, archive verification and file preparation appear as separate stages. 100% means the file has arrived; installation becomes available only after validation. An interrupted connection is not shown as a completed download, and you can retry.
+Both fixes passed offline tests. Updated the Russian and English READMEs, user guides, and offline help.
 
-When the server does not provide the total size, AutoCQ shows received bytes and elapsed time without inventing a percentage. Waiting for more data is reported, and the time estimate accounts for the pause.
-
-Updated both READMEs, user guides and offline help. Added a genuine demonstration screenshot of the download indicator.
-
-**Updating:** open **«Обновления»** (Updates), check and download the release. Finish the QSO, close JTDX and click **«Обновить и перезапустить»**. Settings and the queue are preserved; LogHX can remain open. The JTDX patch from 0.9.3–0.9.9 is compatible.
-
-The new indicator is available after installing 0.9.10. Downloading this release from 0.9.9 still uses that installed version's earlier update window.
+**Updating.** Open **«Обновления»** (Updates), check for the release, and download it. Finish the contact, close JTDX, and click **«Обновить и перезапустить»** (Update and restart). This updates both AutoCQ and its JTDX integration. LogHX can stay open. Launch JTDX from LogHX after preparation.
 
 [UB3DQY website](https://ub3dqy.com/) · [About AutoCQ](https://ub3dqy.com/ru/read/5/) · [User guide](https://github.com/ub3dqy/jtdx-autocq/blob/main/USER-GUIDE.en.md) · [Bugs and ideas](https://github.com/ub3dqy/jtdx-autocq/issues/new/choose)
-
-[JTDX 32A Win64 for AutoCQ](https://ub3dqy.com/downloads/jtdx/2.2.160-rc10/jtdx-2.2.160-32A-rc10-win64.exe.zip) · [EcoAlfa release](https://ecoalfa.org/recursos/jtdx.4/) · [Installer SHA-256](https://ecoalfa.org/recursos/jtdx.4/updates#resource-update-7)
