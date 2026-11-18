@@ -79,9 +79,10 @@ static class RenderScreenshots
             Save(form,Path.Combine(directory,"monitor-callers-demo.png"));
         }
         using(var form=new SetupDialog(@"C:\Radio\JTDX\bin\jtdx.exe"))Save(form,Path.Combine(directory,"setup-demo.png"));
+        using(var form=new AboutDialog(version))Save(form,Path.Combine(directory,"about-demo.png"));
         using(var form=new UpdateDialog(new UpdateClient(version),new AppPreferences(),new AppPreferencesStore(null),Path.GetTempPath(),@"C:\Radio\JTDX\bin\jtdx.exe",true,()=>{},
-            new AvailableUpdate{Version=Version.Parse(version),Notes="AutoCQ "+version+"\r\n\r\n• Ответ входящим станциям вне фильтра мониторинга.\r\n• Очередь вызовов после финального 73.\r\n• Возврат к своим целям после связи или лимита вызовов.\r\n\r\nДЕМО: пример описания установленного выпуска."}))
+            new AvailableUpdate{Version=Version.Parse(version),Notes="AutoCQ "+version+" · UB3DQY\r\n\r\n• Позывной автора в главном окне.\r\n• Ссылка на ub3dqy.com и новое окно «О программе».\r\n• Автор и название в свойствах файла программы.\r\n\r\nДЕМО: пример описания установленного выпуска."}))
             Save(form,Path.Combine(directory,"updates-demo.png"));
-        Console.WriteLine("Rendered seven offline demo screenshots.");
+        Console.WriteLine("Rendered eight offline demo screenshots.");
     }
 }

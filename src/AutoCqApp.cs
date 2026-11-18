@@ -15,8 +15,13 @@ using System.Xml;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.8.0")]
-[assembly: AssemblyFileVersion("0.9.8.0")]
+[assembly: AssemblyVersion("0.9.9.0")]
+[assembly: AssemblyFileVersion("0.9.9.0")]
+[assembly: AssemblyTitle(JtdxAutoCq.AppBrand.DisplayName)]
+[assembly: AssemblyProduct(JtdxAutoCq.AppBrand.DisplayName)]
+[assembly: AssemblyCompany(JtdxAutoCq.AppBrand.Author)]
+[assembly: AssemblyDescription(JtdxAutoCq.AppBrand.DisplayName + " — JTDX FT8/FT4. " + JtdxAutoCq.AppBrand.Website)]
+[assembly: AssemblyCopyright(JtdxAutoCq.AppBrand.Copyright)]
 
 namespace JtdxAutoCq
 {
@@ -196,7 +201,7 @@ namespace JtdxAutoCq
 
     public sealed class MainForm : Form
     {
-        const string ModuleVersion = "0.9.8";
+        const string ModuleVersion = "0.9.9";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = JtdxPatcher.PatchedHash;
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -277,9 +282,8 @@ namespace JtdxAutoCq
                 throw new ArgumentException("Укажите путь к файлу jtdx.exe.");
             engine.Waiting.Changed = delegate { queueDirty = true; queueUiDirty = true; };
             engine.Cqs.Changed = delegate { cqUiDirty = true; nextTimeoutRefresh = DateTime.MinValue; };
-            Text = "AutoCQ " + ModuleVersion + " — JTDX" + (demo ? " [ДЕМО]" : "");
-            using (Stream iconStream = typeof(MainForm).Assembly.GetManifestResourceStream("AutoCQ.ico"))
-                if (iconStream != null) Icon = new Icon(iconStream);
+            Text = AppBrand.DisplayName + " " + ModuleVersion + " — JTDX" + (demo ? " [ДЕМО]" : "");
+            BrandUi.ApplyIcon(this);
             AutoScaleMode = AutoScaleMode.Dpi; Font = new Font("Segoe UI", 10F);
             ClientSize = new Size(960, 739); MinimumSize = Size; StartPosition = FormStartPosition.CenterScreen;
             BackColor = Color.FromArgb(238, 243, 248); ForeColor = Ink;
@@ -294,7 +298,14 @@ namespace JtdxAutoCq
                 Disposed += delegate { logo.Image.Dispose(); };
             }
             heading.Text = "AutoCQ"; heading.Font = new Font("Segoe UI Semibold", 22F); heading.ForeColor = Color.White;
-            heading.SetBounds(76, 17, 230, 41); header.Controls.Add(heading);
+            heading.SetBounds(76, 17, 155, 41); header.Controls.Add(heading);
+            var authorBadge = new LinkLabel { Text = AppBrand.Author, Font = new Font("Consolas", 14F, FontStyle.Bold),
+                LinkColor = Mint, ActiveLinkColor = Color.White, VisitedLinkColor = Mint, LinkBehavior = LinkBehavior.HoverUnderline,
+                BackColor = Color.FromArgb(35, 54, 78), BorderStyle = BorderStyle.FixedSingle, TextAlign = ContentAlignment.MiddleCenter,
+                AccessibleName = "О программе AutoCQ и авторе UB3DQY" };
+            authorBadge.SetBounds(238, 24, 153, 33); header.Controls.Add(authorBadge);
+            authorBadge.LinkClicked += delegate { Guard(ShowAbout); };
+            updatesTip.SetToolTip(authorBadge, "О программе и авторе " + AppBrand.Author);
             updatesButton.Text = "Обновления"; updatesButton.SetBounds(426, 23, 196, 33);
             updatesButton.Anchor = AnchorStyles.Right | AnchorStyles.Top;
             StyleButton(updatesButton, Color.FromArgb(35, 54, 78), Color.White, Color.FromArgb(78, 103, 129));
@@ -392,8 +403,11 @@ namespace JtdxAutoCq
             journal.BackColor = Color.White; journal.ForeColor = Ink; journal.Font = new Font("Segoe UI", 9F); Controls.Add(journal);
             restore.Text = "Восстановить прежние настройки JTDX"; restore.SetBounds(26, 695, 360, 31);
             restore.Anchor = AnchorStyles.Left | AnchorStyles.Bottom; Controls.Add(restore);
-            Label foot = new Label { Text = demo ? "ДЕМО: команды в радио не отправляются" : "Настройки окна JTDX сохранены.\r\n«Одиночное QSO» выключается при подготовке.", Font = new Font("Segoe UI",9F) };
-            foot.SetBounds(410, 691, 312, 43); foot.Anchor = AnchorStyles.Right | AnchorStyles.Bottom; foot.ForeColor = Slate; Controls.Add(foot);
+            var website = BrandUi.Link(AppBrand.Author + " · " + AppBrand.WebsiteLabel, AppBrand.Website);
+            website.Font = new Font("Segoe UI Semibold", 10F); website.SetBounds(410, 691, 312, 24);
+            website.Anchor = AnchorStyles.Right | AnchorStyles.Bottom; Controls.Add(website);
+            Label foot = new Label { Text = demo ? "ДЕМО: команды в радио не отправляются" : "Автор и разработчик AutoCQ", Font = new Font("Segoe UI",8F) };
+            foot.SetBounds(410, 716, 312, 18); foot.Anchor = AnchorStyles.Right | AnchorStyles.Bottom; foot.ForeColor = Slate; Controls.Add(foot);
             helpButton.Text = "Как пользоваться"; helpButton.SetBounds(744, 695, 190, 31);
             helpButton.Anchor = AnchorStyles.Right | AnchorStyles.Bottom;
             StyleButton(helpButton, Color.White, Ink, Color.FromArgb(201, 213, 224)); Controls.Add(helpButton);
@@ -415,10 +429,11 @@ namespace JtdxAutoCq
             stop.Click += delegate { engine.Stop("Остановлено оператором.", true); UpdateUi(); };
             restore.Click += delegate { Guard(Restore); };
             FormClosing += ClosingForm;
-            tray.Icon = Icon ?? SystemIcons.Application; tray.Text = "JTDX AutoCQ";
+            tray.Icon = Icon ?? SystemIcons.Application; tray.Text = AppBrand.DisplayName;
             tray.DoubleClick += delegate { closeWhenDone = false; Show(); WindowState = FormWindowState.Normal; Activate(); };
             ContextMenuStrip menu = new ContextMenuStrip();
             menu.Items.Add("Открыть", null, delegate { closeWhenDone = false; Show(); Activate(); });
+            menu.Items.Add("О программе · " + AppBrand.Author, null, delegate { Guard(ShowAbout); });
             menu.Items.Add("СТОП — Halt TX", null, delegate { engine.Stop("Остановлено оператором.", true); });
             tray.ContextMenuStrip = menu;
             if (demo) { SetDemoStatus(false, false, ""); open.Enabled = restore.Enabled = false; SeedDemoCqs(); }
@@ -439,6 +454,11 @@ namespace JtdxAutoCq
             }
             timer.Interval = 150; timer.Tick += Tick; UpdateEditors(); UpdateUi(); timer.Start();
             timer.Tick += delegate { CheckUpdatesAutomatically(); };
+        }
+
+        void ShowAbout()
+        {
+            using (var dialog = new AboutDialog(ModuleVersion)) dialog.ShowDialog(this);
         }
 
         void OpenGuide()

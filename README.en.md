@@ -1,4 +1,4 @@
-# AutoCQ for JTDX
+# AutoCQ · UB3DQY — for JTDX
 
 [Русский](README.md) · [Download AutoCQ](https://github.com/ub3dqy/jtdx-autocq/releases/latest) · [User guide](USER-GUIDE.en.md) · [AutoCQ on UB3DQY](https://ub3dqy.com/ru/read/5/)
 
@@ -6,7 +6,7 @@
 
 You could let it work for an hour, answering callers and looking for another station when nobody replies. Or enable monitoring: AutoCQ watches for wanted countries and callsigns, and also answers stations that call you.
 
-![AutoCQ 0.9.8 with sample settings and queue. The app interface is in Russian.](docs/autocq-demo.png)
+![AutoCQ 0.9.9 by UB3DQY with sample settings and queue. The app interface is in Russian.](docs/autocq-demo.png)
 
 ## What AutoCQ can do
 
@@ -63,7 +63,15 @@ Version 0.9.6 introduces **«Обновления»** (Updates). AutoCQ checks G
 
 Checking and downloading can happen during operation. To install, finish the contact and close JTDX, then click **«Обновить и перезапустить»** (Update and restart). Leave LogHX open. AutoCQ replaces its files and reopens; start JTDX from LogHX afterwards. The queue, AutoCQ settings and JTDX profile are preserved.
 
-**Upgrading from 0.9.5 or earlier:** those releases have no Updates section. Close JTDX and AutoCQ, download the new archive and extract it over the previous folder. Open the new `JTDX-AutoCQ.exe` and click Prepare. The JTDX patch from 0.9.3–0.9.7 also works with 0.9.8.
+**Upgrading from 0.9.5 or earlier:** those releases have no Updates section. Close JTDX and AutoCQ, download the new archive and extract it over the previous folder. Open the new `JTDX-AutoCQ.exe` and click Prepare. The JTDX patch from 0.9.3–0.9.8 also works with 0.9.9.
+
+## Author and website
+
+AutoCQ is developed by amateur radio operator **UB3DQY**. Visit [ub3dqy.com](https://ub3dqy.com/) for the author's radio projects and the [AutoCQ page](https://ub3dqy.com/ru/read/5/) for an overview and installation information.
+
+The author's callsign appears at the top of the application. Click it to open **«О программе»** (About), where you can find the version, website, project description, source code and releases. The link at the bottom of the main window opens the author's website directly.
+
+![About AutoCQ: author UB3DQY and project links](docs/about-demo.png)
 
 ![AutoCQ Updates window](docs/updates-demo.png)
 

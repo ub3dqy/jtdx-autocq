@@ -27,9 +27,10 @@ namespace JtdxAutoCq
         public UpdateDialog(UpdateClient client,AppPreferences preferences,AppPreferencesStore store,string stateDirectory,string jtdxPath,bool demo,Action installing,AvailableUpdate cached=null)
         {
             this.client=client;this.preferences=preferences;this.store=store;this.stateDirectory=stateDirectory;this.jtdxPath=jtdxPath;this.demo=demo;this.installing=installing;
-            Text="Обновления AutoCQ";Font=new Font("Segoe UI",10F);AutoScaleMode=AutoScaleMode.Dpi;ClientSize=new Size(690,540);
+            Text="Обновления — "+AppBrand.DisplayName;Font=new Font("Segoe UI",10F);AutoScaleMode=AutoScaleMode.Dpi;ClientSize=new Size(690,540);
+            BrandUi.ApplyIcon(this);
             FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;MinimizeBox=false;StartPosition=FormStartPosition.CenterParent;BackColor=Color.FromArgb(238,243,248);
-            var title=new Label{Text="Обновления AutoCQ",Font=new Font("Segoe UI Semibold",18F)};title.SetBounds(22,17,640,38);Controls.Add(title);
+            var title=new Label{Text="Обновления "+AppBrand.DisplayName,Font=new Font("Segoe UI Semibold",18F)};title.SetBounds(22,17,640,38);Controls.Add(title);
             installed.Text="Установлена версия "+client.CurrentVersion.ToString(3);installed.SetBounds(24,68,630,26);Controls.Add(installed);
             notice.Text="Нажмите «Проверить обновления».";notice.SetBounds(24,101,636,52);Controls.Add(notice);
             check.Text="Проверить обновления";check.SetBounds(24,161,206,36);Controls.Add(check);check.Click+=delegate{CheckNow();};

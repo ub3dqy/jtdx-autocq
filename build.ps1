@@ -27,8 +27,9 @@ $patcher = Join-Path $build 'JTDX-AutoCQ-Patch.exe'
 $patchVersion = Join-Path $build 'PatchVersionInfo.cs'
 $appVersion = [regex]::Match((Get-Content -LiteralPath (Join-Path $source 'AutoCqApp.cs') -Raw), 'AssemblyFileVersion\("([0-9.]+)"\)').Groups[1].Value
 $versionSource = '[assembly: System.Reflection.AssemblyVersion("' + $appVersion + '")]' + [Environment]::NewLine + '[assembly: System.Reflection.AssemblyFileVersion("' + $appVersion + '")]'
+$versionSource += [Environment]::NewLine + '[assembly: System.Reflection.AssemblyTitle(JtdxAutoCq.AppBrand.DisplayName + " — JTDX preparation")]' + [Environment]::NewLine + '[assembly: System.Reflection.AssemblyProduct(JtdxAutoCq.AppBrand.DisplayName)]' + [Environment]::NewLine + '[assembly: System.Reflection.AssemblyCompany(JtdxAutoCq.AppBrand.Author)]' + [Environment]::NewLine + '[assembly: System.Reflection.AssemblyCopyright(JtdxAutoCq.AppBrand.Copyright)]'
 [IO.File]::WriteAllText($patchVersion,$versionSource,(New-Object Text.UTF8Encoding($false)))
-& $compiler /nologo /target:exe /platform:x64 /main:JtdxAutoCq.PatchProgram /optimize+ /codepage:65001 "/out:$patcher" "/resource:$stub,queue-reply.bin" /r:System.Core.dll (Join-Path $source 'JtdxPatcher.cs') $patchVersion
+& $compiler /nologo /target:exe /platform:x64 /main:JtdxAutoCq.PatchProgram /optimize+ /codepage:65001 "/out:$patcher" "/resource:$stub,queue-reply.bin" /r:System.Core.dll (Join-Path $source 'JtdxPatcher.cs') (Join-Path $source 'AppBrand.cs') $patchVersion
 if ($LASTEXITCODE -ne 0) { throw 'Built-in JTDX patcher compilation failed.' }
 $resources = @("/resource:$icon,AutoCQ.ico", "/resource:$stub,queue-reply.bin", "/resource:$helper,Update-AutoCQ.ps1", "/resource:$patcher,JTDX-AutoCQ-Patch.exe")
 

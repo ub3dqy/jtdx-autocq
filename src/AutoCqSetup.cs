@@ -72,7 +72,8 @@ namespace JtdxAutoCq
         public string SelectedPath { get { return Path.GetFullPath(path.Text.Trim()); } }
         public SetupDialog(string initialPath)
         {
-            Text="Подготовка JTDX для AutoCQ";Font=new Font("Segoe UI",10F);AutoScaleMode=AutoScaleMode.Dpi;
+            Text="Подготовка JTDX — "+AppBrand.DisplayName;Font=new Font("Segoe UI",10F);AutoScaleMode=AutoScaleMode.Dpi;
+            BrandUi.ApplyIcon(this);
             ClientSize=new Size(650,355);FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;MinimizeBox=false;StartPosition=FormStartPosition.CenterParent;
             BackColor=Color.FromArgb(238,243,248);
             var title=new Label{Text="Подготовим JTDX к работе с AutoCQ",Font=new Font("Segoe UI Semibold",16F),AutoSize=true};title.SetBounds(22,20,610,30);Controls.Add(title);
@@ -83,8 +84,9 @@ namespace JtdxAutoCq
             choose.Click+=delegate{using(var dialog=new OpenFileDialog{Title="Выберите установленный jtdx.exe",Filter="Программа JTDX (jtdx.exe)|jtdx.exe",CheckFileExists=true}){if(dialog.ShowDialog(this)==DialogResult.OK)path.Text=dialog.FileName;}};
             notice.Text="Нужна JTDX 2.2.160-32A-rc10, 64 бита. Ваши настройки и журнал сохранятся.";
             notice.SetBounds(22,185,606,56);Controls.Add(notice);
-            var getJtdx=new LinkLabel{Text="Где скачать подходящий JTDX?",AutoSize=true};getJtdx.SetBounds(22,228,440,23);Controls.Add(getJtdx);
-            getJtdx.LinkClicked+=delegate{Process.Start(new ProcessStartInfo("https://ub3dqy.com/ru/read/5/"){UseShellExecute=true});};
+            var getJtdx=BrandUi.Link("Где скачать подходящий JTDX?",AppBrand.ProjectPage);getJtdx.SetBounds(22,228,440,23);Controls.Add(getJtdx);
+            var author=BrandUi.Link(AppBrand.Author+" · "+AppBrand.WebsiteLabel,AppBrand.Website);
+            author.Font=new Font("Segoe UI",9F);author.TextAlign=ContentAlignment.MiddleCenter;author.SetBounds(250,282,221,39);Controls.Add(author);
             progress.SetBounds(22,250,606,8);progress.Visible=false;Controls.Add(progress);
             prepare.Text="Подготовить JTDX";prepare.SetBounds(22,282,218,39);prepare.BackColor=Color.FromArgb(0,100,91);prepare.ForeColor=Color.White;prepare.FlatStyle=FlatStyle.Flat;Controls.Add(prepare);
             done.Text="Отмена";done.SetBounds(482,282,146,39);Controls.Add(done);done.Click+=delegate{DialogResult=done.Tag==null?DialogResult.Cancel:DialogResult.OK;};

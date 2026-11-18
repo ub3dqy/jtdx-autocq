@@ -49,7 +49,7 @@ function render(source) {
   return out.join('\n');
 }
 for (const [language, name, title] of [['ru', 'USER-GUIDE.md', 'Как пользоваться AutoCQ'], ['en', 'USER-GUIDE.en.md', 'Using AutoCQ']]) {
-  const html = '<!doctype html>\n<html lang="' + language + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' + title + '</title><link rel="icon" href="icon.png"><link rel="stylesheet" href="guide.css"></head><body><main>' + render(fs.readFileSync(path.join(root, name), 'utf8')) + '</main></body></html>\n';
+  const html = '<!doctype html>\n<html lang="' + language + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="author" content="UB3DQY"><title>' + title + ' · UB3DQY</title><link rel="icon" href="icon.png"><link rel="stylesheet" href="guide.css"></head><body><main>' + render(fs.readFileSync(path.join(root, name), 'utf8')) + '</main></body></html>\n';
   fs.writeFileSync(path.join(__dirname, 'user-guide.' + language + '.html'), html);
 }
 console.log('Generated Russian and English offline guides.');

@@ -16,7 +16,7 @@ static class TestPackage
             if(prepared.JtdxSha256!=JtdxPatcher.PatchedHash)throw new Exception("Native patch version does not match the updater manifest.");
             string directory=Path.Combine(destination,"package");
             foreach(string name in new[]{"JTDX-AutoCQ-Patch.exe","Update-AutoCQ.ps1","USER-GUIDE.md","USER-GUIDE.en.md","README.md","README.en.md","CONTRIBUTING.md",
-                "docs/user-guide.ru.html","docs/user-guide.en.html","docs/guide.css","docs/autocq-demo.png","docs/setup-demo.png","docs/updates-demo.png","docs/monitor-demo.png","docs/monitor-timeouts-demo.png","docs/monitor-manual-demo.png","docs/monitor-callers-demo.png"})
+                "docs/user-guide.ru.html","docs/user-guide.en.html","docs/guide.css","docs/autocq-demo.png","docs/setup-demo.png","docs/updates-demo.png","docs/monitor-demo.png","docs/monitor-timeouts-demo.png","docs/monitor-manual-demo.png","docs/monitor-callers-demo.png","docs/about-demo.png"})
                 if(!File.Exists(Path.Combine(directory,name)))throw new Exception("The release is missing "+name);
             if(!JtdxPatcher.Resource("Update-AutoCQ.ps1").SequenceEqual(File.ReadAllBytes(Path.Combine(directory,"Update-AutoCQ.ps1"))))throw new Exception("Embedded installer differs from the packaged source.");
             Console.WriteLine("PASS  Final archive is accepted by the updater and contains the patcher, both guides and current screenshots.");
