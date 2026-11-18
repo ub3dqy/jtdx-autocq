@@ -868,7 +868,9 @@ namespace JtdxAutoCq
                 if (Armed) TrackCq(radioTime ?? now, now);
                 return;
             }
-            ResetCqRound();
+            // A TX line can be written just before JTDX consumes our Halt.
+            // Keep the pending acknowledgement across that late log entry.
+            ResetCqRound(keepPendingHalt: cqHaltExpected);
             string peer = CleanCall(w[0]), own = CleanCall(w[1]);
             if (Status != null && !String.IsNullOrEmpty(Status.DeCall) && own != CleanCall(Status.DeCall)) return;
             if (Monitoring && peer != selectedQueuedCall && peer != pendingOwner)

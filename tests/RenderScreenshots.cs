@@ -81,8 +81,16 @@ static class RenderScreenshots
         using(var form=new SetupDialog(@"C:\Radio\JTDX\bin\jtdx.exe"))Save(form,Path.Combine(directory,"setup-demo.png"));
         using(var form=new AboutDialog(version))Save(form,Path.Combine(directory,"about-demo.png"));
         using(var form=new UpdateDialog(new UpdateClient(version),new AppPreferences(),new AppPreferencesStore(null),Path.GetTempPath(),@"C:\Radio\JTDX\bin\jtdx.exe",true,()=>{},
-            new AvailableUpdate{Version=Version.Parse(version),Notes="AutoCQ "+version+" · UB3DQY\r\n\r\n• Позывной автора в главном окне.\r\n• Ссылка на ub3dqy.com и новое окно «О программе».\r\n• Автор и название в свойствах файла программы.\r\n\r\nДЕМО: пример описания установленного выпуска."}))
+            new AvailableUpdate{Version=Version.Parse(version),Notes="AutoCQ "+version+" · UB3DQY\r\n\r\n• Процент и объём загрузки.\r\n• Скорость и примерное оставшееся время.\r\n• Отдельные этапы проверки и подготовки файлов.\r\n\r\nДЕМО: пример описания установленного выпуска."}))
             Save(form,Path.Combine(directory,"updates-demo.png"));
-        Console.WriteLine("Rendered eight offline demo screenshots.");
+        using(var form=new UpdateDialog(new UpdateClient("0.9.9"),new AppPreferences(),new AppPreferencesStore(null),Path.GetTempPath(),@"C:\Radio\JTDX\bin\jtdx.exe",true,()=>{},
+            new AvailableUpdate{Version=Version.Parse(version),Notes="AutoCQ "+version+" · UB3DQY\r\n\r\nДЕМО: пример нового индикатора загрузки.\r\nЧисла приведены для наглядности; файлы не скачиваются."}))
+        {
+            typeof(Control).GetMethod("CreateControl",BindingFlags.Instance|BindingFlags.NonPublic,null,new[]{typeof(bool)},null).Invoke(form,new object[]{true});
+            Invoke(form,"ShowDownloadProgress",new UpdateDownloadProgress(UpdateDownloadStage.Downloading,424*1024,640*1024,TimeSpan.FromSeconds(3)));
+            foreach(string button in new[]{"check","download","install"})((Button)Field(form,button)).Enabled=false;
+            Save(form,Path.Combine(directory,"updates-download-demo.png"));
+        }
+        Console.WriteLine("Rendered nine offline demo screenshots.");
     }
 }

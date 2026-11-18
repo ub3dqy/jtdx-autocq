@@ -15,8 +15,8 @@ using System.Xml;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.9.0")]
-[assembly: AssemblyFileVersion("0.9.9.0")]
+[assembly: AssemblyVersion("0.9.10.0")]
+[assembly: AssemblyFileVersion("0.9.10.0")]
 [assembly: AssemblyTitle(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyProduct(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyCompany(JtdxAutoCq.AppBrand.Author)]
@@ -201,7 +201,7 @@ namespace JtdxAutoCq
 
     public sealed class MainForm : Form
     {
-        const string ModuleVersion = "0.9.9";
+        const string ModuleVersion = "0.9.10";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = JtdxPatcher.PatchedHash;
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -1005,7 +1005,11 @@ namespace JtdxAutoCq
             }
             try
             {
-                if (clientId != null) Send(QtPacket.Halt(clientId, schema));
+                if (clientId != null)
+                {
+                    Send(QtPacket.Halt(clientId, schema));
+                    DiagnosticEvent("TX COMMAND HaltTX endpoint=" + client);
+                }
                 UpdateNativeSelection(DateTime.UtcNow);
             }
             catch (SocketException e) { Log("Команда остановки: " + e.Message); }

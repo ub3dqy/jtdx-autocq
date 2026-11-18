@@ -84,6 +84,27 @@ class AutoCqTests
         e.OnStatus(S(false, ""), At); e.Start(At);
         return e;
     }
+    static AutoCqEngine TerminalHaltRace(out List<string> commands, bool monitorMode, string mode, bool logged)
+    {
+        AutoCqEngine e = monitorMode ? MonitorActive(out commands) : Active(out commands);
+        e.Stop("fixture", false);
+        RadioStatus initial = S(!monitorMode, monitorMode ? "" : "W1AW"); initial.Mode = mode;
+        e.OnStatus(initial, At); e.Start(At);
+        if (monitorMode)
+        {
+            e.OnLine(ManualSelection(At.AddSeconds(1), "W1AW"), At.AddSeconds(1));
+            RadioStatus selected = S(true, "W1AW"); selected.Mode = mode; e.OnStatus(selected, At.AddSeconds(1.1));
+        }
+        double slot = mode == "FT4" ? 7.5 : 15;
+        e.OnLine(Tx(At.AddSeconds(2 * slot), "W1AW", "RR73").Replace("FT8:", mode + ":"), At.AddSeconds(2 * slot));
+        if (logged) e.OnLine("QSO logged: W1AW", At.AddSeconds(2 * slot + 0.1));
+        var final = D(At.AddSeconds(3 * slot), "W1AW", "73"); final.Mode = mode == "FT4" ? ":" : "~";
+        e.OnDecode(final, At.AddSeconds(4 * slot - 0.75));
+        e.OnLine(DecodeFinished(At.AddSeconds(4 * slot + 0.711)), At.AddSeconds(4 * slot + 0.711));
+        e.Tick(At.AddSeconds(4 * slot + 0.812), true);
+        Assert(commands.SequenceEqual(new[] { "HALT" }), "The race fixture did not request its terminal Halt TX");
+        return e;
+    }
     static void CqListen(AutoCqEngine e)
     {
         e.OnLine(Tx(At,"CQ","FN20"),At);RadioStatus tx=S(true,"");tx.Transmitting=true;e.OnStatus(tx,At.AddSeconds(1));e.OnStatus(S(true,""),At.AddSeconds(14));e.Tick(At.AddSeconds(14),true);
@@ -2183,6 +2204,52 @@ class AutoCqTests
                     e.OnStatus(S(false, "DL3ZZB"), At.AddSeconds(119.3)); e.Tick(At.AddSeconds(119.4), true);
                     Assert(e.Monitoring && e.Finishing && e.IncomingMonitorCall == "W2ABC" && commands.Count == 2,
                         "Refreshing an accepted queue entry made the timer discard it");
+                });
+                Run("A late TX log cannot erase the pending acknowledgement of our own terminal Halt", () => {
+                    foreach (bool monitoring in new[] { false, true })
+                    foreach (string mode in new[] { "FT8", "FT4" })
+                    foreach (bool logged in new[] { false, true })
+                    foreach (bool statusFirst in new[] { false, true })
+                    foreach (string payload in new[] { "-08", "RR73" })
+                    {
+                        List<string> commands; AutoCqEngine e = TerminalHaltRace(out commands, monitoring, mode, logged);
+                        double slot = mode == "FT4" ? 7.5 : 15; DateTime boundary = At.AddSeconds(4 * slot);
+                        RadioStatus off = S(false, "W1AW"); off.Mode = mode;
+                        e.OnLine(Tx(boundary, "W1AW", payload).Replace("FT8:", mode + ":"), boundary.AddSeconds(0.977));
+                        if (statusFirst) e.OnStatus(off, boundary.AddSeconds(0.98));
+                        e.OnLine("Halt Tx triggered at TX: UDP request 14.074 MHz FT8: W1AW K1ABC " + payload, boundary.AddSeconds(1));
+                        Assert(e.Armed, "Our own Halt was misclassified as a manual stop after the TX log");
+                        if (!statusFirst) e.OnStatus(off, boundary.AddSeconds(1.01));
+                        e.Tick(boundary.AddSeconds(1.02), true);
+                        Assert(e.Armed && e.ConfirmedCount == 1 && e.Missing73Count == 0
+                            && commands.SequenceEqual(monitoring ? new[] { "HALT" } : new[] { "HALT", "CQ" }),
+                            "The acknowledged stop disabled automation or lost the completed QSO");
+                        if (monitoring)
+                        {
+                            var target = CqD(boundary, "JA2ZZB"); target.Mode = mode == "FT4" ? ":" : "~"; target.IsNew = false;
+                            e.OnDecode(target, boundary.AddSeconds(1.1)); e.Tick(boundary.AddSeconds(1.2), true);
+                            Assert(e.Monitoring && commands.Last() == "REPLY CQ JA2ZZB FN20",
+                                "Monitoring did not continue after consuming its own Halt acknowledgement");
+                        }
+                    }
+                });
+                Run("Terminal Halt acknowledgement handling still honours manual and external stops", () => {
+                    foreach (string reason in new[] { "Halt Tx button clicked", "TX halted via Escape button" })
+                    {
+                        List<string> commands; AutoCqEngine e = TerminalHaltRace(out commands, true, "FT8", true);
+                        e.OnLine(Tx(At.AddSeconds(60), "W1AW", "-08"), At.AddSeconds(60.9));
+                        e.OnLine("Halt Tx triggered at TX: " + reason, At.AddSeconds(61));
+                        Assert(!e.Armed, "An operator stop was swallowed as our own Halt acknowledgement");
+                    }
+                    List<string> external; AutoCqEngine idle = MonitorActive(out external);
+                    idle.OnLine("Halt Tx triggered at RX: UDP request", At.AddSeconds(1));
+                    Assert(!idle.Armed && external.Count == 0, "An unrequested external UDP stop was ignored");
+                });
+                Run("A missing acknowledgement after the late TX race still times out without resuming", () => {
+                    List<string> commands; AutoCqEngine e = TerminalHaltRace(out commands, true, "FT8", true);
+                    e.OnLine(Tx(At.AddSeconds(60), "W1AW", "-08"), At.AddSeconds(60.977));
+                    e.Tick(At.AddSeconds(106), true);
+                    Assert(!e.Armed && commands.SequenceEqual(new[] { "HALT" }), "A lost Halt acknowledgement resumed TX or left monitoring stuck");
                 });
                 Run("Manual JTDX selection outside monitoring targets survives status and log arrival in either order", () => {
                     foreach (string mode in new[] { "FT8", "FT4" })

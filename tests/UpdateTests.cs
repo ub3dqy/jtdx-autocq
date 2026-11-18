@@ -1,9 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Threading;
+using System.Reflection;
+using System.Windows.Forms;
 using System.Runtime.Serialization.Json;
 using System.Text;
 using JtdxAutoCq;
@@ -18,7 +24,68 @@ static class UpdateTests
         public byte[] Metadata,Archive,Checksums;
         public readonly List<string> Requests=new List<string>();
         public byte[] Read(string url,int maximumBytes){Requests.Add(url);byte[] b=url==UpdateClient.LatestApi?Metadata:Checksums;if(b.Length>maximumBytes)throw new IOException("Too large");return b;}
-        public void Download(string url,string file,int maximumBytes,Action<int> progress){Requests.Add(url);if(Archive.Length>maximumBytes)throw new IOException("Too large");File.WriteAllBytes(file,Archive);if(progress!=null)progress(100);}
+        public Action<UpdateDownloadProgress> Transferring;
+        public bool Interrupt;
+        public void Download(string url,string file,int maximumBytes,Action<UpdateDownloadProgress> progress)
+        {
+            Requests.Add(url);if(Archive.Length>maximumBytes)throw new IOException("Too large");
+            if(progress!=null)
+            {
+                progress(new UpdateDownloadProgress(UpdateDownloadStage.Connecting));
+                var sample=new UpdateDownloadProgress(UpdateDownloadStage.Downloading,Archive.Length/2,Archive.Length,TimeSpan.FromSeconds(2));
+                progress(sample);if(Transferring!=null)Transferring(sample);
+            }
+            if(Interrupt)throw new WebException("Simulated interrupted download");
+            File.WriteAllBytes(file,Archive);
+            if(progress!=null)progress(new UpdateDownloadProgress(UpdateDownloadStage.Downloading,Archive.Length,Archive.Length,TimeSpan.FromSeconds(4)));
+        }
+    }
+    sealed class HttpFixture : IDisposable
+    {
+        readonly TcpListener listener;
+        readonly Thread thread;
+        public readonly string Url;
+        Exception error;
+        public HttpFixture(byte[] bytes, bool chunked, bool truncated=false)
+        {
+            listener=new TcpListener(IPAddress.Loopback,0);listener.Start();
+            Url="http://127.0.0.1:"+((IPEndPoint)listener.LocalEndpoint).Port+"/update.zip";
+            thread=new Thread(()=>{
+                try
+                {
+                    using(TcpClient socket=listener.AcceptTcpClient())
+                    using(NetworkStream stream=socket.GetStream())
+                    {
+                        socket.ReceiveTimeout=socket.SendTimeout=5000;
+                        var headers=new StringBuilder();
+                        while(headers.Length<16384 && !headers.ToString().EndsWith("\r\n\r\n",StringComparison.Ordinal))
+                        {int value=stream.ReadByte();if(value<0)throw new IOException("Request ended early");headers.Append((char)value);}
+                        Write(stream,"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nConnection: close\r\n"
+                            +(chunked?"Transfer-Encoding: chunked":("Content-Length: "+(bytes.Length+(truncated?100:0))))+"\r\n\r\n");
+                        for(int offset=0;offset<bytes.Length;offset+=8192)
+                        {
+                            int count=Math.Min(8192,bytes.Length-offset);
+                            if(chunked)Write(stream,count.ToString("X")+"\r\n");
+                            stream.Write(bytes,offset,count);
+                            if(chunked)Write(stream,"\r\n");
+                        }
+                        if(chunked)Write(stream,"0\r\n\r\n");
+                    }
+                }
+                catch(Exception failure){error=failure;}
+            });thread.IsBackground=true;thread.Start();
+        }
+        static void Write(Stream stream,string text){byte[] bytes=Encoding.ASCII.GetBytes(text);stream.Write(bytes,0,bytes.Length);}
+        public void Dispose()
+        {listener.Stop();if(!thread.Join(5000))throw new Exception("HTTP fixture did not finish");if(error!=null)throw new Exception("HTTP fixture failed",error);}
+    }
+    static object Field(object instance,string name)
+    {return instance.GetType().GetField(name,BindingFlags.Instance|BindingFlags.NonPublic).GetValue(instance);}
+    static void PumpUi(Func<bool> ready)
+    {
+        var watch=Stopwatch.StartNew();
+        while(!ready() && watch.ElapsedMilliseconds<5000){Application.DoEvents();Thread.Sleep(5);}
+        Application.DoEvents();Assert(ready(),"Download UI did not respond before the deadline");
     }
     static string ModuleVersion { get { return new Version(FileVersionInfo.GetVersionInfo(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"JTDX-AutoCQ.exe")).FileVersion).ToString(3); } }
     static ReleaseDocument Release(string version,string digest)
@@ -42,6 +109,89 @@ static class UpdateTests
     }
     public static void RunAll(Action<string,Action> run,string original)
     {
+        run("HTTP downloads report real bytes for fixed-length and chunked responses",()=>{
+            byte[] body=Enumerable.Range(0,65537).Select(value=>(byte)value).ToArray();
+            foreach(bool chunked in new[]{false,true})
+            using(var server=new HttpFixture(body,chunked))
+            {
+                var samples=new List<UpdateDownloadProgress>();string file=Path.Combine(Fixture(),"update.zip");
+                new HttpUpdateTransport().Download(server.Url,file,body.Length,samples.Add);
+                var transferred=samples.Where(value=>value.Stage==UpdateDownloadStage.Downloading).ToArray();
+                Assert(File.ReadAllBytes(file).SequenceEqual(body) && samples[0].Stage==UpdateDownloadStage.Connecting
+                    && transferred.First().ReceivedBytes==0 && transferred.Last().ReceivedBytes==body.Length,
+                    "The HTTP byte count or payload was incorrect");
+                Assert(transferred.Select(value=>value.ReceivedBytes).SequenceEqual(transferred.Select(value=>value.ReceivedBytes).OrderBy(value=>value)),"Progress went backwards");
+                Assert(chunked?transferred.All(value=>!value.Percent.HasValue && !value.TotalBytes.HasValue && !value.Remaining.HasValue)
+                    :transferred.Last().Percent==100 && transferred.Last().TotalBytes==body.Length
+                        && transferred.Any(value=>value.Percent>0 && value.Percent<100),"Known or unknown file size was misrepresented");
+            }
+        });
+        run("A truncated HTTP response cannot report a fully downloaded archive",()=>{
+            byte[] body=new byte[32768];var samples=new List<UpdateDownloadProgress>();bool rejected=false;
+            using(var server=new HttpFixture(body,false,true))
+            {
+                try{new HttpUpdateTransport().Download(server.Url,Path.Combine(Fixture(),"partial.zip"),body.Length+100,samples.Add);}
+                catch(IOException){rejected=true;}catch(WebException){rejected=true;}
+            }
+            Assert(rejected && samples.All(value=>value.Percent!=100),"An incomplete transfer appeared finished");
+        });
+        run("Download speed and remaining time derive from received bytes and elapsed time",()=>{
+            var sample=new UpdateDownloadProgress(UpdateDownloadStage.Downloading,1024,4096,TimeSpan.FromSeconds(2));
+            Assert(sample.Percent==25 && sample.BytesPerSecond==512 && sample.Remaining==TimeSpan.FromSeconds(6),"Progress estimates did not match actual transfer counts");
+            var unknown=new UpdateDownloadProgress(UpdateDownloadStage.Downloading,1024,null,TimeSpan.FromSeconds(2));
+            var initial=new UpdateDownloadProgress(UpdateDownloadStage.Downloading,0,4096);
+            Assert(!unknown.Percent.HasValue && !unknown.Remaining.HasValue && !initial.Remaining.HasValue,"A missing size or rate produced a fabricated estimate");
+        });
+        run("Download progress separates receiving, archive verification and preparation",()=>{
+            foreach(bool corrupt in new[]{false,true})
+            {
+                string folder=Fixture(),archive=Archive(folder),digest=JtdxPatcher.HashFile(archive),version=ModuleVersion;
+                var server=new Server{Archive=File.ReadAllBytes(archive),Metadata=Json(Release(version,digest)),Checksums=Encoding.UTF8.GetBytes(digest+"  JTDX-AutoCQ-"+version+"-win64.zip\n")};
+                if(corrupt)server.Archive[0]^=1;
+                var client=new UpdateClient("0.0.1",server);var samples=new List<UpdateDownloadProgress>();bool rejected=false;
+                try{client.Download(client.Check(),folder,samples.Add);}catch(InvalidDataException){rejected=true;}
+                var stages=samples.Select(value=>value.Stage).Distinct().ToArray();
+                Assert(rejected==corrupt && stages.SequenceEqual(corrupt
+                    ?new[]{UpdateDownloadStage.Preparing,UpdateDownloadStage.Connecting,UpdateDownloadStage.Downloading,UpdateDownloadStage.Verifying}
+                    :new[]{UpdateDownloadStage.Preparing,UpdateDownloadStage.Connecting,UpdateDownloadStage.Downloading,UpdateDownloadStage.Verifying,UpdateDownloadStage.Extracting,UpdateDownloadStage.Ready}),
+                    "Download stages claimed readiness before validation or hid the verification phase");
+            }
+        });
+        run("The update window receives worker progress and handles success and interruption",()=>{
+            foreach(bool fail in new[]{false,true})
+            {
+                string folder=Fixture(),archive=Archive(folder),digest=JtdxPatcher.HashFile(archive),version=ModuleVersion;
+                var server=new Server{Archive=File.ReadAllBytes(archive),Metadata=Json(Release(version,digest)),Checksums=Encoding.UTF8.GetBytes(digest+"  JTDX-AutoCQ-"+version+"-win64.zip\n"),Interrupt=fail};
+                var client=new UpdateClient("0.0.1",server);
+                using(var proceed=new ManualResetEvent(false))
+                using(var paused=new ManualResetEvent(false))
+                using(var dialog=new UpdateDialog(client,new AppPreferences(),new AppPreferencesStore(null),folder,@"C:\Radio\JTDX\bin\jtdx.exe",true,()=>{},client.Check()))
+                {
+                    server.Transferring=value=>{paused.Set();if(!proceed.WaitOne(5000))throw new Exception("UI never acknowledged transfer progress");};
+                    IntPtr handle=dialog.Handle;
+                    var bar=(ProgressBar)Field(dialog,"progress");var details=(Label)Field(dialog,"transferDetails");
+                    var notice=(Label)Field(dialog,"notice");var check=(Button)Field(dialog,"check");var install=(Button)Field(dialog,"install");
+                    try
+                    {
+                        typeof(UpdateDialog).GetMethod("DownloadNow",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(dialog,null);
+                        int expected=(int)(100L*(server.Archive.Length/2)/server.Archive.Length);
+                        PumpUi(()=>paused.WaitOne(0) && bar.Value==expected && notice.Text.Contains(expected+"%"));
+                        Assert(bar.Style==ProgressBarStyle.Continuous && details.Text.Contains(" из ") && details.Text.Contains("/с")
+                            && details.Text.Contains("осталось") && !install.Enabled,"The window still showed an unconnected marquee or hid transfer details");
+                        using(var bitmap=new Bitmap(bar.Width,bar.Height))
+                        {
+                            bar.DrawToBitmap(bitmap,new Rectangle(0,0,bar.Width,bar.Height));
+                            Assert(bitmap.GetPixel(bar.Width/4,bar.Height/2).ToArgb()!=bitmap.GetPixel(3*bar.Width/4,bar.Height/2).ToArgb(),
+                                "The progress value changed but the visible bar remained empty");
+                        }
+                        proceed.Set();PumpUi(()=>check.Enabled);
+                        Assert(install.Enabled==!fail && (fail?bar.Value<100:bar.Value==100)
+                            && bar.Style==ProgressBarStyle.Continuous,"An interrupted transfer enabled installation or a completed transfer reset its progress");
+                    }
+                    finally{proceed.Set();}
+                }
+            }
+        });
         run("Updater accepts only a stable release and exact files from the project repository",()=>{
             foreach(string bad in new[]{"none","foreign-url","prerelease","duplicate","tag"})
             {

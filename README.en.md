@@ -6,7 +6,7 @@
 
 You could let it work for an hour, answering callers and looking for another station when nobody replies. Or enable monitoring: AutoCQ watches for wanted countries and callsigns, and also answers stations that call you.
 
-![AutoCQ 0.9.9 by UB3DQY with sample settings and queue. The app interface is in Russian.](docs/autocq-demo.png)
+![AutoCQ 0.9.10 by UB3DQY with sample settings and queue. The app interface is in Russian.](docs/autocq-demo.png)
 
 ## What AutoCQ can do
 
@@ -17,7 +17,7 @@ You could let it work for an hour, answering callers and looking for another sta
 - **Make a manual call while monitoring.** Choose an interesting station outside the target list. After that contact, AutoCQ resumes monitoring with the same settings and time remaining.
 - **Watch for wanted stations.** Match DXCC entities, callsigns and patterns against fresh CQ, 73, RRR or RR73. Return to receive after the contact or attempt limit.
 - **Answer callers while monitoring.** Stations calling you take priority over searching for another target, even when they are outside your target list.
-- **Update from the application.** Notify you about new releases, download them and install when you choose.
+- **Update from the application.** Notify you about new releases and show download percentage, transferred size, speed and estimated time remaining. Install when you choose.
 - **Show monitoring retry pauses.** List unanswered stations with a countdown to their next eligible attempt. Stopping monitoring clears the list.
 
 Audio, radio control, filters and left-pane clearing remain JTDX settings. The current interface is in Russian; the guide translates the button labels.
@@ -63,7 +63,11 @@ Version 0.9.6 introduces **«Обновления»** (Updates). AutoCQ checks G
 
 Checking and downloading can happen during operation. To install, finish the contact and close JTDX, then click **«Обновить и перезапустить»** (Update and restart). Leave LogHX open. AutoCQ replaces its files and reopens; start JTDX from LogHX afterwards. The queue, AutoCQ settings and JTDX profile are preserved.
 
-**Upgrading from 0.9.5 or earlier:** those releases have no Updates section. Close JTDX and AutoCQ, download the new archive and extract it over the previous folder. Open the new `JTDX-AutoCQ.exe` and click Prepare. The JTDX patch from 0.9.3–0.9.8 also works with 0.9.9.
+During downloading, the bar fills as the file arrives. It shows the received and total size, speed and estimated time remaining. At 100%, AutoCQ separately verifies the archive and prepares the installation files. If the server does not provide a total size, the window shows received bytes and elapsed time.
+
+![Example of the new AutoCQ download indicator](docs/updates-download-demo.png)
+
+**Upgrading from 0.9.5 or earlier:** those releases have no Updates section. Close JTDX and AutoCQ, download the new archive and extract it over the previous folder. Open the new `JTDX-AutoCQ.exe` and click Prepare. The JTDX patch from 0.9.3–0.9.9 also works with 0.9.10.
 
 ## Author and website
 

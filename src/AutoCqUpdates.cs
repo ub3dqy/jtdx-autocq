@@ -81,7 +81,7 @@ namespace JtdxAutoCq
     public interface IUpdateTransport
     {
         byte[] Read(string url, int maximumBytes);
-        void Download(string url, string file, int maximumBytes, Action<int> progress);
+        void Download(string url, string file, int maximumBytes, Action<UpdateDownloadProgress> progress);
     }
     public sealed class HttpUpdateTransport : IUpdateTransport
     {
@@ -93,25 +93,39 @@ namespace JtdxAutoCq
             request.Timeout=20000;request.ReadWriteTimeout=20000;request.AutomaticDecompression=DecompressionMethods.GZip|DecompressionMethods.Deflate;
             return request;
         }
-        static void Transfer(string url, Stream destination, int maximumBytes, Action<int> progress)
+        static void Transfer(string url, Stream destination, int maximumBytes, Action<UpdateDownloadProgress> progress, bool archive = false)
         {
-            using(var response=(HttpWebResponse)Request(url).GetResponse())
+            if (progress != null) progress(new UpdateDownloadProgress(UpdateDownloadStage.Connecting));
+            var request = Request(url);
+            // Archive bytes must match their checksum and Content-Length.
+            // Metadata can still use HTTP compression.
+            if (archive) { request.AutomaticDecompression = DecompressionMethods.None; request.Headers[HttpRequestHeader.AcceptEncoding] = "identity"; }
+            using(var response=(HttpWebResponse)request.GetResponse())
             using(Stream input=response.GetResponseStream())
             {
                 if(response.ContentLength>maximumBytes)throw new InvalidDataException("Размер загрузки превышает допустимый.");
+                long? size = response.ContentLength >= 0 ? (long?)response.ContentLength : null;
+                var watch = Stopwatch.StartNew(); long nextReport = 0;
+                if (progress != null) progress(new UpdateDownloadProgress(UpdateDownloadStage.Downloading, 0, size));
                 byte[] buffer=new byte[16384];int total=0,read;
                 while((read=input.Read(buffer,0,buffer.Length))>0)
                 {
                     total=checked(total+read);if(total>maximumBytes)throw new InvalidDataException("Размер загрузки превышает допустимый.");
                     destination.Write(buffer,0,read);
-                    if(progress!=null && response.ContentLength>0)progress((int)Math.Min(100,100L*total/response.ContentLength));
+                    if(progress!=null && watch.ElapsedMilliseconds >= nextReport)
+                    {
+                        progress(new UpdateDownloadProgress(UpdateDownloadStage.Downloading, total, size, watch.Elapsed));
+                        nextReport = watch.ElapsedMilliseconds + 150;
+                    }
                 }
+                if (archive && size.HasValue && total != size.Value) throw new IOException("Загрузка оборвалась до получения всего файла. Повторите скачивание.");
+                if (progress != null) progress(new UpdateDownloadProgress(UpdateDownloadStage.Downloading, total, size, watch.Elapsed));
             }
         }
         public byte[] Read(string url,int maximumBytes)
         { using(var output=new MemoryStream()){Transfer(url,output,maximumBytes,null);return output.ToArray();} }
-        public void Download(string url,string file,int maximumBytes,Action<int> progress)
-        { using(var output=new FileStream(file,FileMode.CreateNew,FileAccess.Write,FileShare.None))Transfer(url,output,maximumBytes,progress); }
+        public void Download(string url,string file,int maximumBytes,Action<UpdateDownloadProgress> progress)
+        { using(var output=new FileStream(file,FileMode.CreateNew,FileAccess.Write,FileShare.None))Transfer(url,output,maximumBytes,progress,true); }
     }
     public sealed class UpdateClient
     {
@@ -161,21 +175,27 @@ namespace JtdxAutoCq
             }
             if(result==null)throw new InvalidDataException("Не найдена контрольная сумма архива AutoCQ.");return result;
         }
-        public PreparedUpdate Download(AvailableUpdate release,string directory,Action<int> progress=null)
+        public PreparedUpdate Download(AvailableUpdate release,string directory,Action<UpdateDownloadProgress> progress=null)
         {
             if(release.Version<=CurrentVersion)throw new InvalidOperationException("Уже установлена эта или более новая версия AutoCQ.");
+            if (progress != null) progress(new UpdateDownloadProgress(UpdateDownloadStage.Preparing));
             string name="JTDX-AutoCQ-"+release.Version.ToString(3)+"-win64.zip";
             string expected=ExpectedChecksum(Encoding.UTF8.GetString(transport.Read(release.ChecksumUrl,65536)),name);
             if(release.ArchiveDigest!=null && !expected.Equals(release.ArchiveDigest,StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("Контрольные суммы GitHub и архива не совпадают. Загрузка остановлена.");
             string folder=Path.Combine(directory,"updates",release.Version.ToString(3)+"-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(folder);
-            string archive=Path.Combine(folder,name);transport.Download(release.ArchiveUrl,archive,64*1024*1024,progress);
-            return VerifyAndExtract(archive,expected,release.Version.ToString(3),folder);
+            UpdateDownloadProgress last = null;
+            Action<UpdateDownloadProgress> report = value => { last = value; if (progress != null) progress(value); };
+            string archive=Path.Combine(folder,name);transport.Download(release.ArchiveUrl,archive,64*1024*1024,report);
+            if (last == null) last = new UpdateDownloadProgress(UpdateDownloadStage.Downloading, new FileInfo(archive).Length, new FileInfo(archive).Length);
+            return VerifyAndExtract(archive,expected,release.Version.ToString(3),folder,stage => report(last.AtStage(stage)));
         }
-        public static PreparedUpdate VerifyAndExtract(string archive,string expected,string version,string directory)
+        public static PreparedUpdate VerifyAndExtract(string archive,string expected,string version,string directory,Action<UpdateDownloadStage> progress=null)
         {
+            if (progress != null) progress(UpdateDownloadStage.Verifying);
             if(!Sha.IsMatch(expected??"") || !JtdxPatcher.HashFile(archive).Equals(expected,StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("Контрольная сумма загруженного архива не совпала. Установка отменена.");
+            if (progress != null) progress(UpdateDownloadStage.Extracting);
             string extracted=Path.GetFullPath(Path.Combine(directory,"package"));Directory.CreateDirectory(extracted);
             var names=new HashSet<string>(StringComparer.OrdinalIgnoreCase);long total=0;
             using(var zip=ZipFile.OpenRead(archive))
@@ -201,6 +221,7 @@ namespace JtdxAutoCq
             if(manifest.Version!=version || !Sha.IsMatch(manifest.JtdxSha256??"")
                 || FileVersionInfo.GetVersionInfo(Path.Combine(extracted,"JTDX-AutoCQ.exe")).FileVersion!=version+".0")
                 throw new InvalidDataException("Версия файлов обновления не совпала с выпуском GitHub.");
+            if (progress != null) progress(UpdateDownloadStage.Ready);
             return new PreparedUpdate{Folder=directory,Archive=archive,ArchiveSha256=expected.ToUpperInvariant(),Version=version,JtdxSha256=manifest.JtdxSha256.ToUpperInvariant()};
         }
         public static Process LaunchInstaller(PreparedUpdate prepared,string targetExe,string jtdxExe,bool demo)
