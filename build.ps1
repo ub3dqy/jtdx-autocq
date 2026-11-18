@@ -35,7 +35,8 @@ $resources = @("/resource:$icon,AutoCQ.ico", "/resource:$stub,queue-reply.bin", 
 & $compiler /nologo /target:winexe /main:JtdxAutoCq.Program /optimize+ /codepage:65001 "/out:$program" "/win32icon:$icon" @resources @references @files
 if ($LASTEXITCODE -ne 0) { throw 'AutoCQ compilation failed.' }
 Write-Output $program
-$nativeHash = [regex]::Match((Get-Content -LiteralPath (Join-Path $source 'AutoCqApp.cs') -Raw), 'NativeQueueHash = "([A-F0-9]{64})"').Groups[1].Value
+$nativeHash = [regex]::Match((Get-Content -LiteralPath (Join-Path $source 'JtdxPatcher.cs') -Raw), 'PatchedHash\s*=\s*"([A-F0-9]{64})"').Groups[1].Value
+if (!$nativeHash) { throw 'The verified JTDX patch checksum was not found.' }
 @{version=([version]$appVersion).ToString(3);jtdxSha256=$nativeHash} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $build 'update.json') -Encoding UTF8
 
 if ($Screenshots) {

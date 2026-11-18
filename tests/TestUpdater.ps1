@@ -26,6 +26,7 @@ function New-UpdateFixture {
     return [pscustomobject]@{Directory=$directory;App=$app;Settings=$settings;NativeWanted=$nativeWanted;BeforeExe=(Get-UpdateHash $exe);BeforeDemo=(Get-UpdateHash $demo);BeforeNative=(Get-UpdateHash $native);Request=[pscustomobject]@{TargetExe=$exe;JtdxExe=$native;Archive=$zip;ArchiveSha256=(Get-UpdateHash $zip);Version=$version;JtdxSha256=$nativeHash}}
 }
 $patch={param($tool,$file)[IO.File]::WriteAllText($file,'updated-native')}
+try {
 Test-UpdateCase 'Update helper installs verified files and keeps operator settings' {
     $f=New-UpdateFixture
     $null=Invoke-AutoCQUpdate -Request $f.Request -JtdxRunning {$false} -ApplyPatch $patch -ProtectedPaths @($f.Settings)
@@ -64,3 +65,8 @@ Test-UpdateCase 'Update helper blocks ZIP traversal independently of the UI' {
     Assert-UpdateTest ($failed -and !(Test-Path -LiteralPath (Join-Path $f.Directory 'escaped.txt')) -and (Get-UpdateHash $f.Request.TargetExe) -eq $f.BeforeExe) 'Unsafe archive was applied'
 }
 Write-Output ('ALL '+$script:passed+' UPDATE HELPER CHECKS PASSED')
+} finally {
+    $resolvedRoot=[IO.Path]::GetFullPath($root)
+    if([IO.Path]::GetDirectoryName($resolvedRoot) -ne [IO.Path]::GetFullPath($BuildDirectory) -or [IO.Path]::GetFileName($resolvedRoot) -notmatch '^update-helper-tests-[a-f0-9]{32}$'){throw 'Invalid helper test directory.'}
+    if(Test-Path -LiteralPath $resolvedRoot){Remove-Item -LiteralPath $resolvedRoot -Recurse -Force}
+}

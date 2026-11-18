@@ -51,11 +51,21 @@ static class RenderScreenshots
             monitor.Cqs.Failed("JA1BBB",now.AddSeconds(-72),true);monitor.Cqs.Failed("CE1AAA",now.AddSeconds(-185),true);
             ((TabControl)Field(form,"lists")).SelectedIndex=2;Invoke(form,"UpdateUi");
             Save(form,Path.Combine(directory,"monitor-timeouts-demo.png"));
+            var outside=new DecodedMessage{IsNew=false,Milliseconds=(uint)now.TimeOfDay.TotalMilliseconds,Snr=-9,DeltaTime=0.1,DeltaFrequency=1700,Mode="~",Message="CQ DL1AAA JO62"};
+            monitor.Cqs.Observe(outside,monitor.Status,now);
+            ((TabControl)Field(form,"lists")).SelectedIndex=1;Invoke(form,"UpdateUi");
+            var view=(ListView)Field(form,"cqView");
+            foreach(ListViewItem item in view.Items)if((string)item.Tag=="DL1AAA"){item.Selected=true;item.Focused=true;}
+            if(!((Button)Field(form,"callSelectedCq")).Enabled)throw new Exception("Manual call button is disabled in monitoring.");
+            Invoke(form,"CallSelectedCq");monitor.Tick(DateTime.UtcNow,true);Invoke(form,"UpdateUi");
+            if(!monitor.Monitoring || monitor.ManualMonitorCall!="DL1AAA")throw new Exception("Manual call did not preserve monitoring.");
+            foreach(ListViewItem item in view.Items)if((string)item.Tag=="DL1AAA")item.EnsureVisible();
+            Save(form,Path.Combine(directory,"monitor-manual-demo.png"));
         }
         using(var form=new SetupDialog(@"C:\Radio\JTDX\bin\jtdx.exe"))Save(form,Path.Combine(directory,"setup-demo.png"));
         using(var form=new UpdateDialog(new UpdateClient(version),new AppPreferences(),new AppPreferencesStore(null),Path.GetTempPath(),@"C:\Radio\JTDX\bin\jtdx.exe",true,()=>{},
-            new AvailableUpdate{Version=Version.Parse(version),Notes="AutoCQ "+version+"\r\n\r\n• Мониторинг по CQ, 73, RRR и RR73.\r\n• Подготовка JTDX из окна программы.\r\n• Проверка и установка обновлений.\r\n\r\nДЕМО: пример описания установленного выпуска."}))
+            new AvailableUpdate{Version=Version.Parse(version),Notes="AutoCQ "+version+"\r\n\r\n• Ручной вызов любой станции во время мониторинга.\r\n• Возврат к своим целям после связи или лимита вызовов.\r\n• Сохранение целей и оставшегося времени.\r\n\r\nДЕМО: пример описания установленного выпуска."}))
             Save(form,Path.Combine(directory,"updates-demo.png"));
-        Console.WriteLine("Rendered five offline demo screenshots.");
+        Console.WriteLine("Rendered six offline demo screenshots.");
     }
 }

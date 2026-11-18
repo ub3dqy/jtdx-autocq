@@ -9,6 +9,19 @@ using System.Threading;
 using System.Xml.Serialization;
 using JtdxAutoCq;
 
+sealed class TestWorkspace : IDisposable
+{
+    static readonly string Parent = Path.GetFullPath(Directory.GetCurrentDirectory());
+    static readonly string Root = Path.Combine(Parent, "test-fixtures-" + Guid.NewGuid().ToString("N"));
+    public static string Create()
+    { string path = Path.Combine(Root, Guid.NewGuid().ToString("N")); Directory.CreateDirectory(path); return path; }
+    public void Dispose()
+    {
+        if (Path.GetDirectoryName(Path.GetFullPath(Root)) != Parent) throw new IOException("Invalid test workspace.");
+        if (Directory.Exists(Root)) Directory.Delete(Root, true);
+    }
+}
+
 class AutoCqTests
 {
     static readonly DateTime At = new DateTime(2025, 11, 7, 12, 0, 0, DateTimeKind.Utc);
@@ -39,6 +52,8 @@ class AutoCqTests
     {return time.ToString("yyyyMMdd_HHmmss")+" -10 0.1 1500 ~ K1ABC "+peer+" "+payload;}
     static string DecodeFinished(DateTime time)
     { return time.ToString("yyyyMMdd_HHmmss.fff") + "(0)  Decoding finished"; }
+    static string ManualSelection(DateTime time, string call)
+    { return time.ToString("yyyyMMdd_HHmmss.fff") + "(0)  double click on call processed: " + call + "; EnableTx On, AutoTx On"; }
     static DecodedMessage D(DateTime time,string peer,string payload)
     {return new DecodedMessage {IsNew=true,Milliseconds=(uint)time.TimeOfDay.TotalMilliseconds,Snr=-11,DeltaTime=0.2,DeltaFrequency=1736,Mode="~",Message="K1ABC "+peer+" "+payload};}
     static byte[] DecodePacket(DecodedMessage d)
@@ -94,13 +109,12 @@ class AutoCqTests
     static void Send(UdpClient socket, byte[] bytes, int port)
     { socket.Send(bytes, bytes.Length, new IPEndPoint(IPAddress.Loopback, port)); }
     static string Fixture()
-    {
-        string p = Path.Combine("work", "tests", Guid.NewGuid().ToString("N")); Directory.CreateDirectory(p); return Path.GetFullPath(p);
-    }
+    { return TestWorkspace.Create(); }
 
     [STAThread]
     static int Main(string[] args)
     {
+        using (var workspace = new TestWorkspace())
         using (report = new StreamWriter(args[0], false, new UTF8Encoding(true)))
         {
             report.AutoFlush = true;
@@ -1944,6 +1958,175 @@ class AutoCqTests
                             && packet.Text() == "W3ABC" && !packet.Bool() && packet.Byte() == 0xaa,
                             "Direct call was encoded as a received line or a regular Reply.");
                     }
+                });
+                Run("Manual JTDX selection outside monitoring targets survives status and log arrival in either order", () => {
+                    foreach (string mode in new[] { "FT8", "FT4" })
+                    foreach (bool newPeriod in new[] { true, false })
+                    foreach (bool statusFirst in new[] { true, false })
+                    {
+                        List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                        e.Stop("fixture", false); RadioStatus idle = S(false, ""); idle.Mode = mode;
+                        e.OnStatus(idle, At); e.Start(At); DateTime deadline = e.SessionDeadline;
+                        RadioStatus selected = S(true, "DL3ZZB"); selected.Mode = mode; selected.TxFirst = newPeriod;
+                        if (statusFirst)
+                        {
+                            e.OnStatus(selected, At.AddSeconds(2.12)); e.Tick(At.AddSeconds(2.15), true);
+                            Assert(e.Monitoring && commands.Count == 0, "Status cancelled the user's transmission before its log entry");
+                        }
+                        e.OnLine(ManualSelection(At.AddSeconds(2.1), "DL3ZZB"), At.AddSeconds(2.16));
+                        if (!statusFirst) e.OnStatus(selected, At.AddSeconds(2.2));
+                        e.OnLine(Tx(At.AddSeconds(2.222), "DL3ZZB", "-17").Replace("FT8:", mode + ":"), At.AddSeconds(2.222));
+                        e.Tick(At.AddSeconds(3.3), true);
+                        Assert(e.Monitoring && e.ManualMonitorCall == "DL3ZZB" && e.HoldNativeSelection
+                            && e.SessionDeadline == deadline && e.CqTxFirst == newPeriod && commands.Count == 0,
+                            "The manual call was halted, duplicated, changed the timer or lost its TX period");
+                        Assert(e.Options.MonitorDxcc.SequenceEqual(new[] { "JA" }) && e.Options.MonitorCalls.Length == 0,
+                            "The manual exception changed the configured targets");
+                    }
+                });
+                Run("A manually selected QSO returns to the original monitoring targets with or without a log record", () => {
+                    foreach (bool logged in new[] { true, false })
+                    {
+                        List<string> commands; AutoCqEngine e = MonitorActive(out commands); DateTime deadline = e.SessionDeadline;
+                        e.OnStatus(S(true, "DL3ZZB"), At.AddSeconds(2.12));
+                        e.OnLine(ManualSelection(At.AddSeconds(2.1), "DL3ZZB"), At.AddSeconds(2.16));
+                        e.OnLine(Tx(At.AddSeconds(30), "DL3ZZB", "RR73"), At.AddSeconds(30));
+                        if (logged) e.OnLine("QSO logged: DL3ZZB", At.AddSeconds(30.1));
+                        e.OnLine(Rx(At.AddSeconds(45), "DL3ZZB", "73"), At.AddSeconds(59));
+                        e.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(59.1));
+                        e.OnStatus(S(false, "DL3ZZB"), At.AddSeconds(59.2)); e.Tick(At.AddSeconds(59.3), true);
+                        Assert(e.Monitoring && e.ManualMonitorCall == "" && e.ConfirmedCount == 1
+                            && e.SessionDeadline == deadline && commands.Count == 0, "The one-off QSO ended monitoring or triggered CQ");
+                        var other = CqD(At.AddSeconds(60), "DL4ZZC"); other.IsNew = false;
+                        e.OnDecode(other, At.AddSeconds(74)); e.Tick(At.AddSeconds(74.1), true);
+                        Assert(commands.Count == 0, "A manual exception admitted another non-target station");
+                        other = CqD(At.AddSeconds(75), "JA2ZZB"); other.IsNew = false;
+                        e.OnDecode(other, At.AddSeconds(89)); e.Tick(At.AddSeconds(89.1), true);
+                        Assert(commands.SequenceEqual(new[] { "REPLY CQ JA2ZZB FN20" }), "The original target list was not resumed");
+                    }
+                });
+                Run("A manual monitoring call uses the attempt limit and returns to receive", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands); DateTime deadline = e.SessionDeadline;
+                    e.OnLine(ManualSelection(At.AddSeconds(2), "DL3ZZB"), At.AddSeconds(2));
+                    e.OnStatus(S(true, "DL3ZZB"), At.AddSeconds(2.1));
+                    e.OnLine(Tx(At.AddSeconds(30), "DL3ZZB", "-15"), At.AddSeconds(30));
+                    e.OnLine(Tx(At.AddSeconds(60), "DL3ZZB", "-15"), At.AddSeconds(60));
+                    e.OnLine(DecodeFinished(At.AddSeconds(89)), At.AddSeconds(89)); e.Tick(At.AddSeconds(89.1), true);
+                    Assert(commands.SequenceEqual(new[] { "HALT" }), "A manual call ignored the configured attempt limit");
+                    e.OnLine("Halt Tx triggered at RX: UDP request", At.AddSeconds(89.2));
+                    e.OnStatus(S(false, "DL3ZZB"), At.AddSeconds(89.3)); e.Tick(At.AddSeconds(89.4), true);
+                    e.Tick(At.AddSeconds(90), true);
+                    Assert(e.Monitoring && e.ManualMonitorCall == "" && e.SessionDeadline == deadline
+                        && !e.Status.TxEnabled && commands.Count == 1, "The failed manual call stopped monitoring or called CQ");
+                });
+                Run("The monitoring call button allows a one-off selection outside filters, worked limits and retry pauses", () => {
+                    foreach (string message in new[] { "CQ DL3ZZB JO62", "W7ZZD DL3ZZB 73", "W7ZZD DL3ZZB RRR", "W7ZZD DL3ZZB RR73" })
+                    {
+                        List<string> commands; AutoCqEngine e = MonitorActive(out commands); DateTime deadline = e.SessionDeadline;
+                        var d = CqD(At.AddSeconds(15), "DL3ZZB"); d.IsNew = false; d.Message = message;
+                        e.OnDecode(d, At.AddSeconds(29)); e.Cqs.Failed("DL3ZZB", At.AddSeconds(28), true); e.Cqs.Complete("DL3ZZB");
+                        e.SelectCq("DL3ZZB", At.AddSeconds(29.1)); e.Tick(At.AddSeconds(29.2), true);
+                        Assert(e.Monitoring && e.ManualMonitorCall == "DL3ZZB" && e.SessionDeadline == deadline
+                            && commands.SequenceEqual(new[] { "REPLY " + message }), "The explicit selection was filtered, duplicated or stopped the monitor");
+                    }
+                });
+                Run("A manual module selection waits for the current monitored QSO", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                    var first = CqD(At.AddSeconds(15), "JA2ZZB"); first.IsNew = false;
+                    e.OnDecode(first, At.AddSeconds(29)); e.Tick(At.AddSeconds(29.1), true);
+                    e.OnStatus(S(true, "JA2ZZB"), At.AddSeconds(29.2));
+                    var second = CqD(At.AddSeconds(30), "DL3ZZB"); second.IsNew = false;
+                    e.OnDecode(second, At.AddSeconds(44)); e.SelectCq("DL3ZZB", At.AddSeconds(44.1)); e.Tick(At.AddSeconds(44.2), true);
+                    Assert(commands.Count == 1, "Manual selection interrupted the current QSO");
+                    e.OnLine(Tx(At.AddSeconds(60), "JA2ZZB", "RR73"), At.AddSeconds(60));
+                    e.OnLine(Rx(At.AddSeconds(75), "JA2ZZB", "73"), At.AddSeconds(89));
+                    e.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(89.1));
+                    e.OnStatus(S(false, "JA2ZZB"), At.AddSeconds(89.2)); e.Tick(At.AddSeconds(89.3), true); e.Tick(At.AddSeconds(89.4), true);
+                    Assert(e.Monitoring && e.ManualMonitorCall == "DL3ZZB" && commands.Last() == "REPLY CQ DL3ZZB FN20", "The saved manual selection was lost after the QSO");
+                });
+                Run("Manual selection cannot bypass DXCC exclusions or an expired monitor timer", () => {
+                    foreach (bool expired in new[] { true, false })
+                    {
+                        List<string> commands; AutoCqEngine e = MonitorActive(out commands, 1);
+                        if (!expired) e.CanCall = call => call != "DL3ZZB";
+                        DateTime now = At.AddSeconds(expired ? 60 : 2);
+                        var d = CqD(now, "DL3ZZB"); d.IsNew = false; e.OnDecode(d, now);
+                        bool rejected = false; try { e.SelectCq("DL3ZZB", now); } catch (InvalidOperationException) { rejected = true; }
+                        Assert(rejected, "The call button bypassed an exclusion or expired timer");
+                        e.OnStatus(S(true, "DL3ZZB"), now);
+                        e.OnLine(ManualSelection(now, "DL3ZZB"), now); e.Tick(now.AddSeconds(1.1), true);
+                        Assert(!e.Armed && commands.SequenceEqual(new[] { "HALT" }), "A native manual call bypassed an exclusion or expired timer");
+                    }
+                });
+                Run("Unconfirmed, stale and mismatched manual selections do not authorize out-of-target TX", () => {
+                    foreach (string bad in new[] { "missing", "stale", "wrongCall", "previousSession", "noTimestamp" })
+                    {
+                        List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                        e.OnStatus(S(true, "DL3ZZB"), At.AddSeconds(10));
+                        DateTime when = At.AddSeconds(bad == "stale" ? 5 : bad == "previousSession" ? -1 : 10);
+                        if (bad != "missing") e.OnLine(bad == "noTimestamp" ? "double click on call processed: DL3ZZB; EnableTx On, AutoTx On"
+                            : ManualSelection(when, bad == "wrongCall" ? "DL4ZZC" : "DL3ZZB"), At.AddSeconds(10.1));
+                        e.OnStatus(S(true, "DL3ZZB"), At.AddSeconds(10.5)); e.Tick(At.AddSeconds(11.1), true);
+                        Assert(!e.Armed && commands.SequenceEqual(new[] { "HALT" }), "Unverified TX was accepted: " + bad);
+                    }
+                });
+                Run("Manual monitoring still respects stop, connection loss and context changes", () => {
+                    foreach (string reason in new[] { "stop", "connection", "band", "mode", "watchdog", "CQ" })
+                    {
+                        List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                        e.OnLine(ManualSelection(At.AddSeconds(2), "DL3ZZB"), At.AddSeconds(2));
+                        e.OnStatus(S(true, "DL3ZZB"), At.AddSeconds(2.1));
+                        if (reason == "stop") e.OnLine("Halt Tx triggered at RX: Halt Tx button clicked", At.AddSeconds(3));
+                        else if (reason == "connection") e.Tick(At.AddSeconds(3), false);
+                        else if (reason == "CQ") e.OnLine(Tx(At.AddSeconds(3), "CQ", "FN20"), At.AddSeconds(3));
+                        else
+                        {
+                            RadioStatus s = S(true, "DL3ZZB");
+                            if (reason == "band") s.Frequency = 7074000;
+                            if (reason == "mode") s.Mode = "FT4";
+                            if (reason == "watchdog") s.Watchdog = true;
+                            e.OnStatus(s, At.AddSeconds(3));
+                        }
+                        Assert(!e.Armed && e.ManualMonitorCall == "" && !e.HoldNativeSelection, "Manual selection suppressed " + reason);
+                    }
+                });
+                Run("The monitoring timer finishes a manually selected QSO without resetting the session", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands, 1);
+                    e.OnLine(ManualSelection(At.AddSeconds(2), "DL3ZZB"), At.AddSeconds(2)); e.OnStatus(S(true, "DL3ZZB"), At.AddSeconds(2.1));
+                    e.OnLine(Tx(At.AddSeconds(60), "DL3ZZB", "RR73"), At.AddSeconds(60));
+                    e.OnLine("QSO logged: DL3ZZB", At.AddSeconds(60)); e.Tick(At.AddSeconds(61), true);
+                    Assert(e.Monitoring && e.Finishing && commands.Count == 0, "The timer cut off the manually selected QSO");
+                    e.OnLine(Rx(At.AddSeconds(75), "DL3ZZB", "RR73"), At.AddSeconds(89));
+                    e.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(89.1));
+                    e.OnStatus(S(false, "DL3ZZB"), At.AddSeconds(89.2)); e.Tick(At.AddSeconds(89.3), true);
+                    Assert(!e.Armed && e.ConfirmedCount == 1 && commands.Count == 0, "The timer restarted monitoring after the manual QSO");
+                });
+                Run("A confirmed monitored QSO completes its target even when the log record is missing", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                    var first = CqD(At.AddSeconds(15), "JA2ZZB"); first.IsNew = false;
+                    e.OnDecode(first, At.AddSeconds(29)); e.Tick(At.AddSeconds(29.1), true);
+                    e.OnStatus(S(true, "JA2ZZB"), At.AddSeconds(29.2));
+                    e.OnLine(Tx(At.AddSeconds(30), "JA2ZZB", "RR73"), At.AddSeconds(30));
+                    e.OnLine(Rx(At.AddSeconds(45), "JA2ZZB", "73"), At.AddSeconds(59));
+                    e.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(59.1));
+                    e.OnStatus(S(false, "JA2ZZB"), At.AddSeconds(59.2)); e.Tick(At.AddSeconds(59.3), true);
+                    var second = CqD(At.AddSeconds(60), "JA3ZZC"); second.IsNew = false;
+                    e.OnDecode(second, At.AddSeconds(74)); e.Tick(At.AddSeconds(74.1), true);
+                    Assert(e.Monitoring && e.Cqs.Find("JA2ZZB").Worked && e.LoggedCount == 0
+                        && commands.Count == 1, "One-per-target was not updated after a confirmed exchange without a record");
+                    e.SelectCq("JA3ZZC", At.AddSeconds(74.2)); e.Tick(At.AddSeconds(74.3), true);
+                    Assert(e.ManualMonitorCall == "JA3ZZC" && commands.Last() == "REPLY CQ JA3ZZC FN20",
+                        "Explicit manual choice could not override a completed monitoring target");
+                });
+                Run("An unavailable manual selection returns to monitoring without calling a different non-target", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                    var d = CqD(At.AddSeconds(15), "DL3ZZB"); d.IsNew = false;
+                    e.OnDecode(d, At.AddSeconds(29)); e.SelectCq("DL3ZZB", At.AddSeconds(29.1)); e.Tick(At.AddSeconds(29.2), true);
+                    e.OnLine("UDP Reply request ignored, decode not found: CQ DL3ZZB FN20", At.AddSeconds(29.3));
+                    e.Tick(At.AddSeconds(29.4), true);
+                    Assert(e.Monitoring && e.ManualMonitorCall == "" && commands.Count == 1, "A rejected manual reply disabled monitoring");
+                    d = CqD(At.AddSeconds(30), "DL4ZZC"); d.IsNew = false; e.OnDecode(d, At.AddSeconds(44)); e.Tick(At.AddSeconds(44.1), true);
+                    Assert(commands.Count == 1, "The unavailable selection widened monitoring targets");
                 });
                 Run("Monitoring accepts only fresh visible target CQ, 73, RRR or RR73", () => {
                     foreach (string allowed in new[] { "CQ", "73", "RRR", "RR73" })

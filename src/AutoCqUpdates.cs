@@ -5,7 +5,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
-using System.Reflection;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Text;
@@ -206,7 +205,7 @@ namespace JtdxAutoCq
         }
         public static Process LaunchInstaller(PreparedUpdate prepared,string targetExe,string jtdxExe,bool demo)
         {
-            if(Process.GetProcessesByName("jtdx").Length>0)throw new InvalidOperationException("Закройте JTDX перед установкой обновления. LogHX можно оставить открытым.");
+            if(JtdxPatcher.IsRunning())throw new InvalidOperationException("Закройте JTDX перед установкой обновления. LogHX можно оставить открытым.");
             string script=Path.Combine(prepared.Folder,"install-update.ps1"),request=Path.Combine(prepared.Folder,"request.json");
             File.WriteAllText(script,Encoding.UTF8.GetString(JtdxPatcher.Resource("Update-AutoCQ.ps1")).TrimStart('\ufeff'),new UTF8Encoding(true));
             using(Process parent=Process.GetCurrentProcess())

@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
@@ -48,10 +47,18 @@ namespace JtdxAutoCq
             {
                 string folder=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"JtdxAutoCQ","tools",Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(folder);string tool=Path.Combine(folder,"JTDX-AutoCQ-Patch.exe");
-                File.WriteAllBytes(tool,JtdxPatcher.Resource("JTDX-AutoCQ-Patch.exe"));
-                var start=new ProcessStartInfo(tool,"--jtdx "+UpdateClient.Quote(file)){UseShellExecute=true,Verb="runas",WindowStyle=ProcessWindowStyle.Hidden};
-                using(Process helper=Process.Start(start)){helper.WaitForExit();if(helper.ExitCode!=0)throw new IOException("Windows не разрешил подготовку JTDX. Проверьте путь и повторите.");}
-                if(JtdxPatcher.HashFile(file)!=JtdxPatcher.PatchedHash)throw new IOException("Подготовка JTDX не завершилась.");
+                try
+                {
+                    File.WriteAllBytes(tool,JtdxPatcher.Resource("JTDX-AutoCQ-Patch.exe"));
+                    var start=new ProcessStartInfo(tool,"--jtdx "+UpdateClient.Quote(file)){UseShellExecute=true,Verb="runas",WindowStyle=ProcessWindowStyle.Hidden};
+                    using(Process helper=Process.Start(start)){helper.WaitForExit();if(helper.ExitCode!=0)throw new IOException("Windows не разрешил подготовку JTDX. Проверьте путь и повторите.");}
+                    if(JtdxPatcher.HashFile(file)!=JtdxPatcher.PatchedHash)throw new IOException("Подготовка JTDX не завершилась.");
+                }
+                finally
+                {
+                    try { if(File.Exists(tool))File.Delete(tool);Directory.Delete(folder); }
+                    catch(IOException){}catch(UnauthorizedAccessException){}
+                }
             }
         }
     }

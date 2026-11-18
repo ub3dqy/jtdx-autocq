@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Using AutoCQ</title><link rel="icon" href="icon.png"><link rel="stylesheet" href="guide.css"></head><body><main><h1>Using AutoCQ</h1>
-<p>Guide for AutoCQ 0.9.6 · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
+<p>Guide for AutoCQ 0.9.7 · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
 <p>AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.</p>
 <p>Monitoring works differently: JTDX listens until a wanted country or callsign appears, calls that station, then returns to receive. The application interface is currently in Russian; this guide includes the labels you will see.</p>
 <h2>1. Downloads</h2>
@@ -48,6 +48,12 @@
 <p><img loading="lazy" src="monitor-demo.png" alt="The main window in monitoring mode, showing the number of selected targets"></p>
 <p>Separate callsigns with spaces, commas or new lines. In patterns, <strong>*</strong> matches any number of characters and <strong>?</strong> matches one: <code>9J*</code> matches calls beginning with 9J; <code>K?ABC</code> matches K1ABC or K2ABC.</p>
 <p>Save the targets, enable <strong>«Режим мониторинга»</strong>, then click <strong>«2. Включить мониторинг»</strong>. AutoCQ listens for recent CQ, 73, RRR and RR73 from matching stations. A sign-off selects its sender. After the QSO or attempt limit, the program returns to receive. It does not call CQ in this mode.</p>
+<h3>Calling another station manually</h3>
+<p>While monitoring is listening, you can double-click an interesting station's message in JTDX's left pane, even if that station is outside your targets. AutoCQ accepts your choice and follows the contact. Keep JTDX's AutoTX and AutoSelect enabled.</p>
+<p>You can also open <strong>«Станции из левого окна JTDX»</strong> in AutoCQ, select a row and click <strong>«Позвать выбранную»</strong> (Call selected). Recent CQ, 73, RRR or RR73 messages are supported. If a contact is already in progress, the button saves your selection until it ends. The selected message must still be available when the call starts.</p>
+<p><img loading="lazy" src="monitor-manual-demo.png" alt="Calling DL1AAA manually while keeping the monitoring targets"></p>
+<p>After the QSO or the configured number of unanswered calls, AutoCQ returns to receive and resumes your original targets. Monitoring stays enabled, and its settings and time remaining are preserved. The activity log identifies the manual selection.</p>
+<p>This permits one contact attempt even for a non-target station, an already completed target or a station in a retry pause. DXCC exclusions still apply. Once the session timer expires, the module will not start new manual calls; the current contact finishes as usual.</p>
 <h3>One contact per target per band</h3>
 <p><strong>«Одна связь на цель на диапазоне»</strong> applies to the <strong>target</strong>, rather than to every individual station. With Japan selected, any completed Japanese contact on 20 m completes the Japan target on 20 m. Other Japanese stations on that band are then skipped; Japan on 40 m can still be available.</p>
 <p>An exact callsign target is checked for that callsign. A pattern target is completed by a matching contact. The JTDX log, including earlier sessions, is considered. Clear the checkbox to work several stations from the same entity on the same band.</p>

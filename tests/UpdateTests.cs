@@ -11,7 +11,7 @@ using JtdxAutoCq;
 static class UpdateTests
 {
     static void Assert(bool valid,string message){if(!valid)throw new Exception(message);}
-    static string Fixture(){string p=Path.GetFullPath(Path.Combine("work","tests","update-"+Guid.NewGuid().ToString("N")));Directory.CreateDirectory(p);return p;}
+    static string Fixture(){return TestWorkspace.Create();}
     static byte[] Json<T>(T value){using(var output=new MemoryStream()){new DataContractJsonSerializer(typeof(T)).WriteObject(output,value);return output.ToArray();}}
     sealed class Server : IUpdateTransport
     {

@@ -13,11 +13,10 @@ using System.Windows.Forms;
 using System.Xml.Serialization;
 using System.Xml;
 using System.Reflection;
-using System.Security.Cryptography;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.6.0")]
-[assembly: AssemblyFileVersion("0.9.6.0")]
+[assembly: AssemblyVersion("0.9.7.0")]
+[assembly: AssemblyFileVersion("0.9.7.0")]
 
 namespace JtdxAutoCq
 {
@@ -197,9 +196,9 @@ namespace JtdxAutoCq
 
     public sealed class MainForm : Form
     {
-        const string ModuleVersion = "0.9.6";
+        const string ModuleVersion = "0.9.7";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
-        const string NativeQueueHash = "B615BFBDC23291A7CA297FE1EAE4EB7D2AF0E8966C962D4FB0EA620C6FF6B12F";
+        const string NativeQueueHash = JtdxPatcher.PatchedHash;
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
         static readonly Color Ink = Color.FromArgb(21, 38, 58);
         static readonly Color Slate = Color.FromArgb(79, 96, 112);
@@ -269,7 +268,7 @@ namespace JtdxAutoCq
             {
                 settings = new SettingsManager(); operatorStore = new OperatorStateStore(settings.StateDirectory);
                 OperatorState saved = operatorStore.Load(); engine.Options = saved.Options; engine.Waiting.Load(saved.Stations);
-                jtdxPresent = JtdxRunning();
+                jtdxPresent = JtdxPatcher.IsRunning();
             }
             preferenceStore = new AppPreferencesStore(demo ? null : settings.StateDirectory);
             preferences = preferenceStore.Load();
@@ -678,7 +677,7 @@ namespace JtdxAutoCq
         void UpdateListHint()
         {
             listHint.Text = lists.SelectedIndex==2 ? "После пяти минут станцию снова можно вызвать по свежему сообщению. При остановке мониторинга список очищается."
-                : engine.Monitoring ? "Мониторинг вызывает выбранные цели по CQ, 73, RRR или RR73 из левого окна."
+                : engine.Monitoring ? "Можно вручную позвать любую станцию: выберите её слева в JTDX или здесь и нажмите «Позвать выбранную»."
                 : lists.SelectedIndex == 1 ? "Свежие CQ, 73, RRR и RR73 из левого окна JTDX. Двойной щелчок выбирает станцию."
                 : "После ответов на ваш позывной AutoCQ вызывает добавленные вручную станции напрямую.";
         }
@@ -804,6 +803,7 @@ namespace JtdxAutoCq
         string WaitingState(WaitingStation row)
         {
             if (!CanCallCountry(row.Call)) return "Исключение DXCC";
+            if (row.Call == engine.ManualMonitorCall) return "Ручное QSO · мониторинг";
             RadioStatus current = engine.Status;
             if (current != null && current.TxEnabled && Callsign.Clean(current.DxCall) == row.Call) return "Идёт QSO";
             string state = engine.Waiting.State(row, engine.Status);
@@ -813,6 +813,7 @@ namespace JtdxAutoCq
         string CqState(CqStation row, DateTime now)
         {
             if (!CanCallCountry(row.Call)) return "Исключение DXCC";
+            if (row.Call == engine.ManualMonitorCall) return "Ручное QSO · мониторинг";
             if (row.Call == engine.SelectedCqCall) return "Выбрана следующей";
             string state = engine.Cqs.State(row, now);
             if (engine.Monitoring)
@@ -827,7 +828,6 @@ namespace JtdxAutoCq
             return state == "Можно вызвать" && priority ? "Приоритет DXCC" : state;
         }
 
-        bool JtdxRunning() { return Process.GetProcessesByName("jtdx").Any(); }
         void ConfigureUpstream()
         {
             upstream = null; bridge.Upstream = null;
@@ -838,7 +838,7 @@ namespace JtdxAutoCq
         }
         void PrepareConnection()
         {
-            if (JtdxRunning()) throw new InvalidOperationException("JTDX уже запущен. Закройте его, нажмите «1. Подготовить», затем запустите JTDX обычным способом. При работе с LogHX используйте его значок в журнале.");
+            if (JtdxPatcher.IsRunning()) throw new InvalidOperationException("JTDX уже запущен. Закройте его, нажмите «1. Подготовить», затем запустите JTDX обычным способом. При работе с LogHX используйте его значок в журнале.");
             if (!File.Exists(jtdxPath) || JtdxPatcher.HashFile(jtdxPath) != NativeQueueHash)
             {
                 using(var setup = new SetupDialog(jtdxPath))
@@ -860,7 +860,7 @@ namespace JtdxAutoCq
         }
         void Restore()
         {
-            if (JtdxRunning()) throw new InvalidOperationException("Закройте JTDX перед восстановлением его настроек.");
+            if (JtdxPatcher.IsRunning()) throw new InvalidOperationException("Закройте JTDX перед восстановлением его настроек.");
             settings.Restore(); upstream = null; bridge.Upstream = null; bridge.ResetClient(); client = null; clientId = null;
             replayRequested = nativeStatusSeen = false; engine.Waiting.Invalidate(); engine.Cqs.Invalidate();
             Log("Прежние настройки восстановлены. JTDX снова готов к запуску.");
@@ -930,13 +930,8 @@ namespace JtdxAutoCq
         }
         void VerifyNativeQueueSupport()
         {
-            using (SHA256 sha = SHA256.Create())
-            using (FileStream file = File.OpenRead(jtdxPath))
-            {
-                string hash = BitConverter.ToString(sha.ComputeHash(file)).Replace("-", "");
-                if (hash != NativeQueueHash)
-                    throw new InvalidOperationException("Для AutoCQ " + ModuleVersion + " примените Patch-JTDX.ps1 из этого выпуска при закрытом JTDX.");
-            }
+            if (JtdxPatcher.HashFile(jtdxPath) != NativeQueueHash)
+                throw new InvalidOperationException("Для AutoCQ " + ModuleVersion + " закройте JTDX и нажмите «1. Подготовить», чтобы обновить дополнение.");
         }
         void Send(byte[] data)
         { if (!demo && client != null) bridge.SendToClient(data); }
@@ -1051,8 +1046,12 @@ namespace JtdxAutoCq
                 if (demo) DemoTick();
                 else
                 {
+                    // A user double-click is logged after JTDX sends its status.
+                    // Drain the log on both sides of UDP polling so that the
+                    // engine sees that explicit choice before validating TX.
+                    if (engine.Monitoring) tail.Read(line => engine.OnLine(line, DateTime.UtcNow));
                     bridge.Poll(); tail.Read(line => engine.OnLine(line, DateTime.UtcNow));
-                    bool running = JtdxRunning();
+                    bool running = JtdxPatcher.IsRunning();
                     jtdxPresent = running;
                     if (running && settings.Record != null) hadProcess = true;
                     if (!running && hadProcess)
@@ -1097,7 +1096,7 @@ namespace JtdxAutoCq
             start.Text = monitor.Checked ? "2. Включить мониторинг" : "2. Включить автомат";
             int targetCount = engine.Options.MonitorDxcc.Length + engine.Options.MonitorCalls.Length + engine.Options.MonitorMasks.Length;
             monitorSetup.Text = targetCount == 0 ? "Цели мониторинга" : "Цели мониторинга  ·  " + targetCount;
-            callSelectedCq.Enabled = !engine.Monitoring;
+            callSelectedCq.Enabled = !engine.Finishing;
             UpdateListHint();
             exclusions.Text = engine.Options.ExcludedDxcc.Length == 0 ? "Исключения DXCC"
                 : "Исключения DXCC  ·  " + engine.Options.ExcludedDxcc.Length;
@@ -1179,6 +1178,7 @@ namespace JtdxAutoCq
                     x.WriteElementString("JtdxVersion", clientVersion ?? "");
                     x.WriteElementString("Armed", engine.Armed.ToString());
                     x.WriteElementString("Monitoring", engine.Monitoring.ToString());
+                    x.WriteElementString("ManualMonitorCall", engine.ManualMonitorCall);
                     x.WriteElementString("Pending", engine.Pending.ToString());
                     x.WriteElementString("LoggedQsoCount", engine.LoggedCount.ToString());
                     x.WriteElementString("ConfirmedQsoCount", engine.ConfirmedCount.ToString());
@@ -1286,7 +1286,7 @@ namespace JtdxAutoCq
         {
             engine.Stop("Автомат выключен.", true);
             SaveOperatorState();
-            if (!demo && JtdxRunning() && settings.Record != null)
+            if (!demo && JtdxPatcher.IsRunning() && settings.Record != null)
             {
                 e.Cancel = true; closeWhenDone = true; Hide(); tray.Visible = true;
                 tray.ShowBalloonTip(5000, "Автомат остановлен", "Модуль поддерживает подключение журнала и закроется после закрытия JTDX.", ToolTipIcon.Info);
@@ -1311,7 +1311,7 @@ namespace JtdxAutoCq
                 {
                     try
                     {
-                        if (Process.GetProcessesByName("jtdx").Any()) throw new InvalidOperationException("Сначала закройте JTDX.");
+                        if (JtdxPatcher.IsRunning()) throw new InvalidOperationException("Сначала закройте JTDX.");
                         new SettingsManager().Restore(); MessageBox.Show("Прежние настройки восстановлены.", "JTDX AutoCQ");
                     }
                     catch (Exception e) { MessageBox.Show(e.Message, "JTDX AutoCQ"); }

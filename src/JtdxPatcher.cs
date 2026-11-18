@@ -130,6 +130,12 @@ namespace JtdxAutoCq
             Put(output,opt+56,Align(unwindRva+unwind.Length,sectionAlign));Put(output,opt+64,0);Put(output,exception,unwindRva);Put(output,exception+4,tableBytes);
             Check(Hash(output)==PatchedHash,"Подготовленный патч не совпал с проверенной сборкой AutoCQ."); return output;
         }
+        public static bool IsRunning()
+        {
+            Process[] processes = Process.GetProcessesByName("jtdx");
+            try { return processes.Length > 0; }
+            finally { foreach (Process process in processes) process.Dispose(); }
+        }
         public static bool Apply(string executable, bool restore=false, Func<bool> running=null)
         {
             string file=Path.GetFullPath(executable),backup=file+".autocq-original";
@@ -141,7 +147,7 @@ namespace JtdxAutoCq
             string expected=restore?OriginalHash:PatchedHash;
             if(before==expected)return false;
             if(restore || Prior.Contains(before))Check(File.Exists(backup),"Не найдена исходная копия JTDX. Переустановите JTDX 2.2.160-32A-rc10.");
-            Func<bool> isRunning=running??(()=>{Process[] processes=Process.GetProcessesByName("jtdx");try{return processes.Length>0;}finally{foreach(Process p in processes)p.Dispose();}});
+            Func<bool> isRunning=running??new Func<bool>(IsRunning);
             if(isRunning())throw new IOException("Закройте JTDX перед подготовкой.");
             byte[] result=restore?File.ReadAllBytes(backup):Build(File.ReadAllBytes(before==OriginalHash?file:backup),Resource("queue-reply.bin"));
             string temporary=file+"."+Guid.NewGuid().ToString("N")+".autocq.tmp",previous=temporary+".previous";

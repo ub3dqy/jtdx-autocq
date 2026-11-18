@@ -116,6 +116,7 @@ $entries = [ordered]@{
     'docs/updates-demo.png' = 'docs/updates-demo.png'
     'docs/monitor-demo.png' = 'docs/monitor-demo.png'
     'docs/monitor-timeouts-demo.png' = 'docs/monitor-timeouts-demo.png'
+    'docs/monitor-manual-demo.png' = 'docs/monitor-manual-demo.png'
     'docs/user-guide.ru.html' = 'docs/user-guide.ru.html'
     'docs/user-guide.en.html' = 'docs/user-guide.en.html'
     'docs/guide.css' = 'docs/guide.css'
