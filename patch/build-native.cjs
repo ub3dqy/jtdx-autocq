@@ -5,8 +5,8 @@ const { createHash } = require('node:crypto');
 const path = require('node:path');
 
 const expectedSha = '6b6718432edb55b3e3c8a5b884522bdc5ef5e466bf074e9dac09cc0b64ce399c';
-const expectedStubSha = '6bac574c1b32ca97586e1fbcf05482808224e4c7824e81674dc45afd35d32570';
-const expectedOutputSha = '7f96272a867ca7050a7149a7a3a22106b5295bf3a89d66829e0f2cef6208b89b';
+const expectedStubSha = 'ec45bc177962774b8b1c154c347327dbb27913590c61a0cd313db75ce1855d93';
+const expectedOutputSha = '2a41cb063463ed67c4ba30e06283661d57ff6a9bbeda2118f0377abf6726b6b0';
 const [originalPath, stubPath, outputPath] = process.argv.slice(2);
 const sha = data => createHash('sha256').update(data).digest('hex');
 const align = (n, a) => Math.ceil(n / a) * a;
@@ -67,11 +67,13 @@ const hooks = [
     [0x10f4c4, '84c00f8404190000', 34, 0x10d440],
     [0x110de1, '84c00f85e3e6ffff', 35, 0x10d440],
     [0x0e8edc, 'e89f2f0400', 38, 0x0e8cc0],
+    [0x110754, 'e91ae1ffff', 41, 0x10d440],
+    [0x1104d0, 'e99ee3ffff', 42, 0x10d440],
 ];
 const lastPacketType = raw(0x21e86a);
 assert(original[lastPacketType] === 51 && original.subarray(lastPacketType - 2, lastPacketType).toString('hex') === '83f8',
     'Unexpected network reader type limit.');
-const offsets = Array.from({ length: 41 }, (_, i) => stub.readUInt32LE(i * 4));
+const offsets = Array.from({ length: 43 }, (_, i) => stub.readUInt32LE(i * 4));
 assert(offsets[14] === stub.length && stub.length < sectionAlignment, 'Invalid stub map or code size.');
 for (const [rva, hex, index] of hooks) {
     assert(original.subarray(raw(rva), raw(rva) + hex.length / 2).toString('hex') === hex,
@@ -145,7 +147,7 @@ for (const [begin, end, prolog, stack] of [
     [15, 16, 4, 0x28],
     [13, 18, offsets[17] - offsets[13], 0x28],
     [36, 37, 4, 0x58],
-    [39, 40, 4, 0x38],
+    [39, 40, 4, 0x68],
 ]) {
     const allocSmall = (((stack - 8) / 8) << 4) | 2;
     info.push(Buffer.from([1, prolog, 1, 0, prolog, allocSmall, 0, 0]));
@@ -169,7 +171,7 @@ for (let n = 0; n < extra.length; n++) {
 
 const codeRaw = align(original.length, fileAlignment);
 const stateRaw = codeRaw + align(stub.length, fileAlignment);
-const unwindRaw = stateRaw + fileAlignment;
+const unwindRaw = stateRaw + sectionAlignment;
 const output = Buffer.alloc(unwindRaw + align(unwind.length, fileAlignment));
 original.copy(output);
 output[lastPacketType] = 52; // 53 is consumed by the source-checked datagram hook
@@ -197,11 +199,11 @@ function addSection(i, name, va, size, ptr, flags) {
     output.writeUInt32LE(flags, p + 36);
 }
 addSection(0, '.acq', codeRva, stub.length, codeRaw, 0x60000020);
-addSection(1, '.acqdata', stateRva, 24, stateRaw, 0xc0000040);
+addSection(1, '.acqdata', stateRva, sectionAlignment, stateRaw, 0xc0000040);
 addSection(2, '.acqinfo', unwindRva, unwind.length, unwindRaw, 0x40000040);
 output.writeUInt16LE(sectionCount + 3, pe + 6);
 output.writeUInt32LE(original.readUInt32LE(opt + 4) + align(stub.length, fileAlignment), opt + 4);
-output.writeUInt32LE(original.readUInt32LE(opt + 8) + fileAlignment + align(unwind.length, fileAlignment), opt + 8);
+output.writeUInt32LE(original.readUInt32LE(opt + 8) + sectionAlignment + align(unwind.length, fileAlignment), opt + 8);
 output.writeUInt32LE(align(unwindRva + unwind.length, sectionAlignment), opt + 56);
 output.writeUInt32LE(0, opt + 64); // original image checksum no longer applies
 output.writeUInt32LE(unwindRva, exceptionDirectory);

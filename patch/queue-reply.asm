@@ -43,6 +43,7 @@ org 0x142d17000
 %define choose_tx1      0x1400d08d0
 %define qso_log_data    0x14012be80
 %define qstring_assign  0x142c1d528
+%define radio_time_ms   0x1401595b0
 %define qstring_null    0x142c1c8c0
 %define date_time_ms    0x142c1e378
 %define saved_caller    0xa8
@@ -101,13 +102,26 @@ entry second_recent_log_gate
 entry new_exchange_in_history
 entry new_exchange_end
 entry log_with_sent_report
-entry prefer_sent_report
-entry prefer_sent_report_end
+entry track_report
+entry track_report_end
+entry remember_report
+entry remember_roger_report
 
 ; Mutable state is placed in a separate non-executable section.
 select_until equ 0x142d18000
 tick_function equ select_until + 8
 lease_flags equ $$ + (select_until - 0x142d17000) + 16
+last_report equ lease_flags + 8
+report_slot equ last_report + 8
+report_epoch equ report_slot + 4
+reports equ report_epoch + 12
+
+; Recent reports use 64 bytes per station. UTC milliseconds, first
+; transmission seconds, ASCII report, frequency, mode/length, generation,
+; and up to 16 UTF-16 callsign characters. The cache lives in .acqdata.
+%define report_rows 48
+%define report_size 64
+%define report_lifetime 300000
 
 %macro state_load 2
     db %1
@@ -528,6 +542,17 @@ renew_lease:
 renew_call:
     call_tick
 renew_return:
+    mov ecx, [rsp+0x20]
+    test cl, 2
+    jz .update
+    test byte [rel lease_flags], 2
+    jz .new_session
+    state_load {0x48,0x3b,0x05}, select_until
+    jb .update
+.new_session:
+    inc dword [rel report_epoch]
+    mov qword [rel last_report], 0
+.update:
     add rax, 2500
     lea rdx, [rel lease_expiry]
     mov [rdx], rax
@@ -846,9 +871,18 @@ new_exchange_in_history:
     ret
 new_exchange_end:
 
-; On the first sign-off, JTDX's history can already contain a newer
-; signal estimate. Keep the report from the previous TX when the message
-; and m_rptSent independently identify it for the current DX.
+; Both guiUpdate paths have just assigned a report from a TX message.
+remember_roger_report:
+    jmp remember_report
+remember_report:
+    mov rcx, rbx
+    xor edx, edx                ; record a report
+    call track_report
+    jmp 0x14010e873
+
+; The auto-log can resume a contact after sending a report to another
+; station. Use the saved value for this DX instead of the latest global
+; report or a receive estimate from a different exchange.
 log_with_sent_report:
     call qso_log_data
     cmp eax, 7
@@ -856,87 +890,80 @@ log_with_sent_report:
     mov [rsp+0x20], eax         ; fifth argument slot after log_data
     mov rcx, r14                ; MainWindow
     mov rdx, rdi                ; sent report QString from history
-    call prefer_sent_report
+    lea r8, [rsp+0xbc]          ; native start in UTC seconds of day
+    call track_report
     mov eax, [rsp+0x20]
 .resume:
     jmp 0x1400e8ee1
 
-prefer_sent_report:
-    sub rsp, 0x38
+track_report:
+    sub rsp, 0x68
     test byte [rel lease_flags], 2
     jz .done
-    cmp byte [rcx+0x65f], 0      ; automatic log on sign-off
-    je .done
     cmp byte [rcx+0x68b], 0      ; Hound/DXpedition
     jne .done
+    test rdx, rdx
+    jz .mode
+    cmp byte [rcx+0x65f], 0      ; automatic log on sign-off
+    je .done
+.mode:
     mov rax, [rcx+0x2ae8]        ; mode QString
     cmp dword [rax+4], 3
     jne .done
     add rax, [rax+16]
     cmp dword [rax], 0x00540046  ; "FT" in UTF-16
     jne .done
-    cmp word [rax+4], '8'
+    movzx r9d, word [rax+4]
+    cmp r9d, '8'
     je .check_lease
-    cmp word [rax+4], '4'
+    cmp r9d, '4'
     jne .done
 .check_lease:
     mov [rsp+0x20], rcx
     mov [rsp+0x28], rdx
+    mov [rsp+0x30], r8
+    mov [rsp+0x52], r9w
     call_tick
     state_load {0x48,0x3b,0x05}, select_until
     jae .done
     mov rcx, [rsp+0x20]
-    mov r8, [rcx+0x640]          ; last transmitted message QString
-    mov r9, [rcx+0x2a60]         ; active DX QString
-    mov r10d, [r8+4]
-    mov r11d, [r9+4]
-    cmp r10d, 37
+    mov rax, [rcx+0x340]         ; dial frequency
+    mov [rsp+0x48], rax
+    mov r8, [rcx+0x2a60]         ; active DX QString
+    mov edx, [r8+4]
+    lea eax, [rdx-3]
+    cmp eax, 13
     ja .done
-    test r11d, r11d
-    jle .done
-    lea eax, [r11+6]             ; DX, sender and three report characters
-    cmp r10d, eax
-    jb .done
+    mov [rsp+0x50], dx
     add r8, [r8+16]
+    mov [rsp+0x40], r8
+    cmp qword [rsp+0x28], 0
+    jne .timestamp
+
+    ; The report assignment already validates the sender and payload.
+    ; Verify that the first word of the generated TX is this exact DX.
+    mov r9, [rcx+0x628]
+    cmp [r9+4], edx
+    jle .done
     add r9, [r9+16]
-    cmp word [r8+r11*2], ' '
+    cmp word [r9+rdx*2], ' '
     jne .done
     xor eax, eax
 .compare_call:
-    mov dx, [r8+rax*2]
-    cmp dx, [r9+rax*2]
+    mov r10w, [r8+rax*2]
+    cmp r10w, [r9+rax*2]
     jne .done
     inc eax
-    cmp eax, r11d
+    cmp eax, edx
     jb .compare_call
-    inc eax
-    cmp word [r8+rax*2], ' '
-    je .done
-.skip_sender:
-    inc eax
-    cmp eax, r10d
-    jae .done
-    cmp word [r8+rax*2], ' '
-    jne .skip_sender
-    inc eax
-    lea edx, [rax+3]
-    cmp r10d, edx
-    jb .done
-    cmp word [r8+rax*2], 'R'
-    jne .compare_report
-    inc eax
-    inc edx
-    cmp r10d, edx
-    jb .done
-.compare_report:
     mov r9, [rcx+0x2b10]         ; m_rptSent QString
     cmp dword [r9+4], 3
     jne .done
     add r9, [r9+16]
-    movzx edx, word [r9]
-    cmp edx, '-'
+    movzx eax, word [r9]
+    cmp eax, '-'
     je .digits
-    cmp edx, '+'
+    cmp eax, '+'
     jne .done
 .digits:
     movzx edx, word [r9+2]
@@ -947,28 +974,124 @@ prefer_sent_report:
     sub edx, '0'
     cmp edx, 9
     ja .done
-    mov edx, [r9]
-    cmp edx, [r8+rax*2]
+    movzx r10d, byte [r9+2]
+    shl r10d, 8
+    or eax, r10d
+    shl edx, 16
+    or eax, edx
+    add eax, '0' << 16
+    mov [rsp+0x54], eax
+.timestamp:
+    mov rcx, [rcx+0x38]          ; JTDX clock, including its configured offset
+    call radio_time_ms
+    test rax, rax
+    jle .done
+    mov [rsp+0x38], rax
+    mov r10, [rsp+0x48]
+    mov r11d, [rsp+0x50]
+    mov rcx, [rsp+0x40]
+    lea r8, [rel reports]
+    mov r9d, report_rows
+.lookup:
+    cmp r10, [r8+16]
+    jne .next
+    cmp r11d, [r8+24]
+    jne .next
+    mov edx, [rel report_epoch]
+    cmp edx, [r8+28]
+    jne .next
+    mov rax, [rsp+0x38]
+    sub rax, [r8]
+    cmp rax, report_lifetime
+    ja .next
+    movzx eax, r11w
+.compare_saved:
+    dec eax
+    mov dx, [rcx+rax*2]
+    cmp dx, [r8+rax*2+32]
+    jne .next
+    test eax, eax
+    jnz .compare_saved
+    cmp qword [rsp+0x28], 0
+    jne .log_report
+    cmp r8, [rel last_report]
+    jne .new_start
+    mov rax, [rsp+0x38]
+    sub rax, [r8]
+    cmp rax, 32000               ; consecutive reports of this attempt
+    jbe .save
+    jmp .new_start
+.next:
+    add r8, report_size
+    dec r9d
+    jnz .lookup
+    cmp qword [rsp+0x28], 0
     jne .done
-    mov dx, [r9+4]
-    cmp dx, [r8+rax*2+4]
-    jne .done
-    add eax, 3
-.padding:
-    cmp eax, r10d
-    je .copy
-    cmp word [r8+rax*2], ' '
-    jne .done
-    inc eax
-    jmp .padding
-.copy:
-    lea rdx, [rcx+0x2b10]
+    mov eax, [rel report_slot]
+    lea edx, [rax+1]
+    cmp edx, report_rows
+    jb .slot
+    xor edx, edx
+.slot:
+    mov [rel report_slot], edx
+    shl eax, 6
+    lea r8, [rel reports]
+    add r8, rax
+    mov [r8+16], r10
+    mov [r8+24], r11d
+    mov edx, [rel report_epoch]
+    mov [r8+28], edx
+    movzx eax, r11w
+.save_call:
+    dec eax
+    mov dx, [rcx+rax*2]
+    mov [r8+rax*2+32], dx
+    test eax, eax
+    jnz .save_call
+.new_start:
+    mov rax, [rsp+0x38]
+    xor edx, edx
+    mov ecx, 86400000
+    div rcx
+    mov eax, edx
+    xor edx, edx
+    mov ecx, 1000
+    div ecx
+    mov [r8+8], eax
+.save:
+    mov rax, [rsp+0x38]
+    mov [r8], rax
+    mov eax, [rsp+0x54]
+    mov [r8+12], eax
+    mov [rel last_report], r8
+    jmp .done
+.log_report:
+    mov rdx, [rsp+0x30]
+    cmp dword [rdx], 0
+    je .restore_start
+    cmp r8, [rel last_report]
+    jne .restore_start
+    mov rax, [rsp+0x38]
+    sub rax, [r8]
+    cmp rax, 46000
+    jbe .restore_report
+.restore_start:
+    mov eax, [r8+8]
+    mov [rdx], eax
+.restore_report:
+    mov qword [r8], 0            ; do not reuse a completed exchange
+    lea rcx, [rsp+0x58]
+    lea rdx, [r8+12]
+    call qstring_from_c
     mov rcx, [rsp+0x28]
+    lea rdx, [rsp+0x58]
     iat_call qstring_assign
+    lea rcx, [rsp+0x58]
+    call qstring_destroy
 .done:
-    add rsp, 0x38
+    add rsp, 0x68
     ret
-prefer_sent_report_end:
+track_report_end:
 
 network_dll: db 'Qt5Network.dll', 0
 ipv4_export: db '_ZNK12QHostAddress13toIPv4AddressEPb', 0

@@ -249,7 +249,7 @@ static class UpdateTests
             Assert(JtdxPatcher.Apply(file,true,()=>false) && JtdxPatcher.HashFile(file)==JtdxPatcher.OriginalHash,"Built-in restore did not recover the original");
         });
         string previous = String.IsNullOrEmpty(original) ? null : Path.Combine(Path.GetDirectoryName(original), "jtdx.exe.autocq-previous");
-        if (File.Exists(previous) && File.Exists(original)) run("Built-in patcher upgrades 0.9.10 without replacing its verified original backup", () => {
+        if (File.Exists(previous) && File.Exists(original)) run("Built-in patcher upgrades the previous patch without replacing its verified original backup", () => {
             string file = Path.Combine(Fixture(), "jtdx.exe"), backup = file + ".autocq-original";
             File.Copy(previous, file); File.Copy(original, backup);
             Assert(JtdxPatcher.Apply(file, false, () => false) && JtdxPatcher.HashFile(file) == JtdxPatcher.PatchedHash

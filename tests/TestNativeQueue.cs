@@ -39,7 +39,7 @@ static class TestNativeQueue
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int IndexOf(IntPtr value, IntPtr query, int start, int caseSensitivity);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int SignoffLogGate(int callIndex);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int RecentCallLogGate(IntPtr mainWindow, IntPtr stringEquals);
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int ReportLog(IntPtr mainWindow, IntPtr sentReport, int historyStatus);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int ReportLog(IntPtr mainWindow, IntPtr sentReport, int historyStatus, IntPtr startSeconds);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void DirectCall(IntPtr window, IntPtr call, int marker);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void UiAction(IntPtr receiver);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void UiText(IntPtr receiver, IntPtr value);
@@ -272,6 +272,8 @@ static class TestNativeQueue
     {
         const int codeRva = 0x2d17000, stateRva = 0x2d18000;
         const int entry = 0x1000, logCall = 0x0e8edc, logReturn = 0x0e8ee1;
+        const int reportEntry = 0x1100, rogerEntry = 0x1140, reportReturn = 0x10e873;
+        const int reportSite = 0x110754, rogerSite = 0x1104d0;
         const int logOn73 = 0x65f, hound = 0x68b;
         IntPtr qt = LoadLibraryEx(Path.Combine(dllDirectory, "Qt5Core.dll"), IntPtr.Zero, 8);
         IntPtr kernel = LoadLibraryEx(Path.Combine(Environment.SystemDirectory, "kernel32.dll"), IntPtr.Zero, 0);
@@ -283,24 +285,53 @@ static class TestNativeQueue
                 throw new Exception("Cannot allocate the sent report fixture");
             CopyImageCode(image, fixture, codeRva, Marshal.ReadInt32(image, codeRva + 14 * 4));
             CopyImageCode(image, fixture, logCall, 5);
+            CopyImageCode(image, fixture, reportSite, 5);
+            CopyImageCode(image, fixture, rogerSite, 5);
+            byte[] guiFrame = {
+                0x53,                              // push rbx
+                0x48, 0x83, 0xec, 0x20,            // sub rsp, 0x20
+                0x48, 0x89, 0xcb                   // mov rbx, rcx
+            };
+            WriteCode(fixture, reportEntry, guiFrame);
+            WriteJump(fixture, reportEntry + guiFrame.Length, reportSite);
+            WriteCode(fixture, rogerEntry, guiFrame);
+            WriteJump(fixture, rogerEntry + guiFrame.Length, rogerSite);
+            WriteCode(fixture, reportReturn, new byte[] { 0x48, 0x83, 0xc4, 0x20, 0x5b, 0xc3 });
             byte[] frame = {
                 0x41, 0x56, 0x57,                   // push r14; push rdi
-                0x48, 0x83, 0xec, 0x28,             // sub rsp, 0x28
+                0x48, 0x81, 0xec, 0xc8, 0, 0, 0,   // sub rsp, 0xc8
                 0x49, 0x89, 0xce,                   // mov r14, rcx
                 0x48, 0x89, 0xd7,                   // mov rdi, rdx
-                0x48, 0x89, 0x7c, 0x24, 0x20        // original fifth argument
+                0x48, 0x89, 0x7c, 0x24, 0x20,       // original fifth argument
+                0x4c, 0x89, 0x4c, 0x24, 0x28,       // save the fixture's time output pointer
+                0x41, 0x8b, 0x01,                   // load initial history seconds
+                0x89, 0x84, 0x24, 0xbc, 0, 0, 0    // mov [rsp+0xbc], eax
             };
             WriteCode(fixture, entry, frame);
             WriteJump(fixture, entry + frame.Length, logCall);
-            WriteCode(fixture, logReturn, new byte[] { 0x48, 0x83, 0xc4, 0x28, 0x5f, 0x41, 0x5e, 0xc3 });
+            WriteCode(fixture, logReturn, new byte[] {
+                0x48, 0x8b, 0x54, 0x24, 0x28,       // get the time output pointer
+                0x8b, 0x8c, 0x24, 0xbc, 0, 0, 0,   // get the seconds used by the native logger
+                0x89, 0x0a,
+                0x48, 0x81, 0xc4, 0xc8, 0, 0, 0, 0x5f, 0x41, 0x5e, 0xc3
+            });
             WriteCode(fixture, 0x12be80, new byte[] {
                 0x48, 0x39, 0x7c, 0x24, 0x28,       // the original call must receive rdi on the stack
                 0x75, 0x04,
                 0x44, 0x89, 0xc0, 0xc3,             // return the supplied history status
                 0xb8, 0xff, 0xff, 0xff, 0xff, 0xc3
             });
+            // Use the real Qt string conversion and destructor. Substitute
+            // only the three-character report's strlen and the radio clock.
+            CopyImageCode(image, fixture, 0x2d91b0, 0x35);
+            CopyImageCode(image, fixture, 0x2d91f0, 0x35);
+            WriteCode(fixture, 0x081a88, new byte[] { 0x31, 0xc0, 0x80, 0x3c, 0x01, 0, 0x74, 0x05, 0x48, 0xff, 0xc0, 0xeb, 0xf5, 0xc3 });
+            WriteCode(fixture, 0x1595b0, new byte[] { 0x48, 0x8b, 0x01, 0xc3 });
+            Marshal.WriteIntPtr(fixture, 0x2c1d3f8, Find(qt, "_ZN7QString16fromAscii_helperEPKci"));
+            Marshal.WriteIntPtr(fixture, 0x2c1c8b8, Find(qt, "_ZN10QArrayData10deallocateEPS_yy"));
             Marshal.WriteIntPtr(fixture, stateRva + 8, Find(kernel, "GetTickCount64"));
-            Marshal.WriteIntPtr(fixture, 0x2c1d528, Find(qt, "_ZN7QStringaSERKS_"));
+            IntPtr assign = Find(qt, "_ZN7QStringaSERKS_");
+            Marshal.WriteIntPtr(fixture, 0x2c1d528, assign);
             uint prior;
             if (!VirtualProtect(fixture, (UIntPtr)stateRva, 0x20, out prior))
                 throw new Exception("Cannot protect the sent report fixture");
@@ -308,6 +339,9 @@ static class TestNativeQueue
             IntPtr history = IntPtr.Add(window, 0x3000), saved = IntPtr.Add(window, 0x3080);
             IntPtr sent = IntPtr.Add(window, 0x3100), lastTx = IntPtr.Add(window, 0x3180);
             IntPtr dx = IntPtr.Add(window, 0x3200), mode = IntPtr.Add(window, 0x3280);
+            IntPtr clock = IntPtr.Add(window, 0x3300), seconds = IntPtr.Add(window, 0x3308);
+            const long utcMidnight = 20000L * 86400000;
+            const long fortyMetres = 7074000L;
             Action<IntPtr, string> staticQString = (target, value) => {
                 WriteQtFixtureString(target, value);
                 Marshal.WriteInt32(target, 8, -1); // static reference count for Qt's copy assignment
@@ -316,47 +350,98 @@ static class TestNativeQueue
             staticQString(dx, "W2ABC");
             staticQString(mode, "FT8");
             staticQString(sent, "-11");
+            staticQString(lastTx, "");
+            Marshal.WriteIntPtr(saved, Marshal.ReadIntPtr(history));
+            Marshal.WriteIntPtr(window, 0x38, clock);
+            Marshal.WriteInt64(window, 0x340, fortyMetres);
+            Marshal.WriteIntPtr(window, 0x628, Marshal.ReadIntPtr(lastTx));
+            Marshal.WriteIntPtr(window, 0x640, Marshal.ReadIntPtr(lastTx));
             Marshal.WriteIntPtr(window, 0x2a60, Marshal.ReadIntPtr(dx));
             Marshal.WriteIntPtr(window, 0x2ae8, Marshal.ReadIntPtr(mode));
             Marshal.WriteIntPtr(window, 0x2b10, Marshal.ReadIntPtr(sent));
             Marshal.WriteByte(window, logOn73, 1);
             Marshal.WriteByte(fixture, stateRva + 16, 2);
             Marshal.WriteInt64(fixture, stateRva, -1);
+            UiAction remember = Function<UiAction>(IntPtr.Add(fixture, reportEntry));
+            UiAction rememberRoger = Function<UiAction>(IntPtr.Add(fixture, rogerEntry));
+            UiText reset = Function<UiText>(assign);
             ReportLog log = Function<ReportLog>(IntPtr.Add(fixture, entry));
-            Func<string, int, string> recorded = (message, status) => {
-                staticQString(lastTx, message);
-                Marshal.WriteIntPtr(window, 0x640, Marshal.ReadIntPtr(lastTx));
-                Marshal.WriteIntPtr(saved, Marshal.ReadIntPtr(history));
-                if (log(window, saved, status) != status) throw new Exception("Logging changed the history status");
-                return QtString(saved);
+            Action<string, string, long, bool> transmitted = (call, report, ms, roger) => {
+                staticQString(dx, call);
+                staticQString(sent, report);
+                staticQString(lastTx, call + " K1ABC " + (roger ? "R" : "") + report);
+                Marshal.WriteInt64(clock, utcMidnight + ms);
+                if (roger) rememberRoger(window);
+                else remember(window);
             };
-            Check(recorded("W2ABC K1ABC -11".PadRight(37), 10) == "-11",
-                "FT8 logs the transmitted -11 after the later receive estimate changed to -17");
+            Func<string, long, int, int, Tuple<string, int>> recorded = (call, ms, start, status) => {
+                staticQString(dx, call);
+                Marshal.WriteInt64(clock, utcMidnight + ms);
+                Marshal.WriteInt32(seconds, start);
+                reset(saved, history);
+                if (log(window, saved, status, seconds) != status) throw new Exception("Logging changed the history status");
+                return Tuple.Create(QtString(saved), Marshal.ReadInt32(seconds));
+            };
+            transmitted("W2ABC", "-11", 30042, false);
+            Check(recorded("W2ABC", 60078, 15, 10).Equals(Tuple.Create("-11", 15)),
+                "FT8 uses the transmitted report and keeps a normal QSO start");
+            transmitted("W2ABC", "-08", 90078, false);
+            transmitted("W2ABC", "-09", 120123, false);
+            transmitted("DL1ZZZ", "-16", 150120, false);
+            Check(recorded("W2ABC", 240100, 0, 10).Equals(Tuple.Create("-09", 90)),
+                "Late response after another station restores the last sent report and the first actual start");
+            Check(recorded("W2ABC", 240150, 0, 10).Equals(Tuple.Create("-17", 0)),
+                "A completed exchange cannot supply the report for a later QSO");
+            transmitted("DL1ZZZ", "-13", 300500, false);
+            transmitted("W2ABC", "-22", 330100, false);
+            Check(recorded("DL1ZZZ", 390005, 360, 10).Equals(Tuple.Create("-13", 300)),
+                "An intervening exchange timestamp cannot replace the time of the transmitted report");
+            transmitted("W3XYZ", "-12", 420010, false);
+            transmitted("W4XYZ", "-10", 450010, false);
+            transmitted("W3XYZ", "-06", 480080, false);
+            transmitted("W4XYZ", "-11", 510135, false);
+            Check(recorded("W3XYZ", 570120, 0, 10).Equals(Tuple.Create("-06", 480)),
+                "A new attempt starts at the new report after another station");
             staticQString(mode, "FT4");
-            staticQString(sent, "+00");
-            Check(recorded("W2ABC K1ABC R+00", 10) == "+00",
-                "FT4 logs the transmitted R+00 without the acknowledgement prefix");
+            transmitted("W2ABC", "+00", 86400000 - 7500, true);
+            Check(recorded("W2ABC", 86400000 + 7510, 0, 10).Equals(Tuple.Create("+00", 86392)),
+                "FT4 carries the transmitted R+00 and its start across UTC midnight");
+
+            staticQString(mode, "FT8");
+            staticQString(dx, "W2ABC");
             staticQString(sent, "-11");
-            foreach (string message in new[] { "W2ABCD K1ABC -11", "W2ABD K1ABC -11", "W2ABC K1ABC -12",
-                "W2ABC K1ABC RR73", "W2ABC K1ABC R", "CQ K1ABC FN31", "W2ABC K1ABC -11 FN31" })
-            {
-                if (recorded(message, 10) != "-17") throw new Exception("Report assigned for unconfirmed TX: " + message);
-            }
-            Check(recorded("W2ABC K1ABC -11", 7) == "-17",
-                "Unrelated, incomplete and terminal messages and missing QSO history preserve the native report");
+            staticQString(lastTx, "W2ABCD K1ABC -11");
+            remember(window);
+            Tuple<string, int> native = Tuple.Create("-17", 0);
+            Check(recorded("W2ABC", 86415000, 0, 10).Equals(native),
+                "An unrelated recipient with the same callsign prefix does not supply a report");
+
+            transmitted("W2ABC", "-11", 86430000, false);
+            bool early = recorded("W2ABC", 86460000, 0, 7).Equals(native);
             Marshal.WriteByte(window, logOn73, 0);
-            bool manual = recorded("W2ABC K1ABC -11", 10) == "-17";
+            bool manual = recorded("W2ABC", 86460000, 0, 10).Equals(native);
             Marshal.WriteByte(window, logOn73, 1);
             Marshal.WriteByte(window, hound, 1);
-            bool dxpedition = recorded("W2ABC K1ABC -11", 10) == "-17";
+            bool dxpedition = recorded("W2ABC", 86460000, 0, 10).Equals(native);
             Marshal.WriteByte(window, hound, 0);
-            staticQString(mode, "JT9");
-            bool anotherMode = recorded("W2ABC K1ABC -11", 10) == "-17";
+            staticQString(mode, "FT4");
+            bool anotherMode = recorded("W2ABC", 86460000, 0, 10).Equals(native);
             staticQString(mode, "FT8");
+            Marshal.WriteInt64(window, 0x340, 14074000L);
+            bool anotherBand = recorded("W2ABC", 86460000, 0, 10).Equals(native);
+            Marshal.WriteInt64(window, 0x340, fortyMetres);
+            bool stale = recorded("W2ABC", 86731000, 0, 10).Equals(native);
+            Check(early && manual && dxpedition && anotherMode && anotherBand && stale,
+                "Manual logging, an incomplete exchange, other modes, bands and stale reports preserve native logging");
+
+            transmitted("W2ABC", "-11", 86760000, false);
             Marshal.WriteInt64(fixture, stateRva, 0);
-            bool expired = recorded("W2ABC K1ABC -11", 10) == "-17";
-            Check(manual && dxpedition && anotherMode && expired,
-                "Manual logging, other modes and an expired AutoCQ session retain native logging");
+            bool expired = recorded("W2ABC", 86790000, 0, 10).Equals(native);
+            Control control = Function<Control>(IntPtr.Add(fixture, codeRva + Marshal.ReadInt32(image, codeRva + 12 * 4)));
+            Send(control, JtdxAutoCq.QtPacket.HoldNativeSelection("JTDX", 3, false, true));
+            Check(expired && recorded("W2ABC", 86790000, 0, 10).Equals(native),
+                "An expired lease and a newly armed session cannot reuse the previous exchange");
+            reset(saved, history);
         }
         finally
         {

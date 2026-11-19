@@ -12,12 +12,13 @@ namespace JtdxAutoCq
     public static class JtdxPatcher
     {
         public const string OriginalHash = "6B6718432EDB55B3E3C8A5B884522BDC5EF5E466BF074E9DAC09CC0B64CE399C";
-        public const string PatchedHash = "7F96272A867CA7050A7149A7A3A22106B5295BF3A89D66829E0F2CEF6208B89B";
-        const string StubHash = "6BAC574C1B32CA97586E1FBCF05482808224E4C7824E81674DC45AFD35D32570";
+        public const string PatchedHash = "2A41CB063463ED67C4BA30E06283661D57FF6A9BBEDA2118F0377ABF6726B6B0";
+        const string StubHash = "EC45BC177962774B8B1C154C347327DBB27913590C61A0CD313DB75CE1855D93";
         static readonly string[] Prior = {
             "0ABBA5EA8429CE4158DF0D2822D9A3108DD629A7C17E8332A8D40736ED6A413A",
             "EB846375E60FB972467246B8A3C1061A8B2B32984BBF838EAA47571F9814C5A9",
-            "B615BFBDC23291A7CA297FE1EAE4EB7D2AF0E8966C962D4FB0EA620C6FF6B12F"
+            "B615BFBDC23291A7CA297FE1EAE4EB7D2AF0E8966C962D4FB0EA620C6FF6B12F",
+            "7F96272A867CA7050A7149A7A3A22106B5295BF3A89D66829E0F2CEF6208B89B"
         };
         sealed class Section { public int Address, Size, Raw; }
         sealed class Hook
@@ -78,11 +79,13 @@ namespace JtdxAutoCq
                 new Hook(0x0a9f49,"488d15bbd52a01",31,0x0a8770),
                 new Hook(0x10f4c4,"84c00f8404190000",34,0x10d440),
                 new Hook(0x110de1,"84c00f85e3e6ffff",35,0x10d440),
-                new Hook(0x0e8edc,"e89f2f0400",38,0x0e8cc0)
+                new Hook(0x0e8edc,"e89f2f0400",38,0x0e8cc0),
+                new Hook(0x110754,"e91ae1ffff",41,0x10d440),
+                new Hook(0x1104d0,"e99ee3ffff",42,0x10d440)
             };
             int packet=raw(0x21e86a);
             Check(original[packet]==51 && original[packet-2]==0x83 && original[packet-1]==0xf8,"Неизвестный обработчик сети JTDX.");
-            int[] offsets=Enumerable.Range(0,41).Select(i=>U32(stub,i*4)).ToArray();
+            int[] offsets=Enumerable.Range(0,43).Select(i=>U32(stub,i*4)).ToArray();
             Check(offsets[14]==stub.Length && stub.Length<sectionAlign,"Неизвестная карта патча.");
             Action<int,byte[]> verify=(rva,bytes)=>{int at=raw(rva);for(int i=0;i<bytes.Length;i++)Check(original[at+i]==bytes[i],"Проверка инструкций JTDX не пройдена.");};
             foreach(Hook h in hooks){verify(h.Address,h.Bytes);Check(offsets[h.Index]>=offsets.Length*4 && offsets[h.Index]<stub.Length,"Неизвестная точка патча.");}
@@ -101,7 +104,7 @@ namespace JtdxAutoCq
                 var entry=new byte[16];entry[0]=0x21;Buffer.BlockCopy(chain,0,entry,4,12);info.Add(entry);
                 extra.Add(new Unwind{Begin=codeRva+offsets[range[0]],End=codeRva+offsets.Where(x=>x>offsets[range[0]]).Min(),Index=info.Count-1});
             }
-            foreach(int[] range in new[]{new[]{15,16,4,0x28},new[]{13,18,offsets[17]-offsets[13],0x28},new[]{36,37,4,0x58},new[]{39,40,4,0x38}})
+            foreach(int[] range in new[]{new[]{15,16,4,0x28},new[]{13,18,offsets[17]-offsets[13],0x28},new[]{36,37,4,0x58},new[]{39,40,4,0x68}})
             {
                 info.Add(new byte[]{1,(byte)range[2],1,0,(byte)range[2],(byte)((((range[3]-8)/8)<<4)|2),0,0});
                 extra.Add(new Unwind{Begin=codeRva+offsets[range[0]],End=codeRva+offsets[range[1]],Index=info.Count-1});
@@ -115,7 +118,7 @@ namespace JtdxAutoCq
                 Unwind e=extra[i];int p=oldBytes+i*12;Put(unwind,p,e.Begin);Put(unwind,p+4,e.End);Put(unwind,p+8,unwindRva+infoAt);
                 byte[] bytes=info[e.Index];Buffer.BlockCopy(bytes,0,unwind,infoAt,bytes.Length);infoAt+=bytes.Length;
             }
-            int codeRaw=Align(original.Length,fileAlign),stateRaw=codeRaw+Align(stub.Length,fileAlign),unwindRaw=stateRaw+fileAlign;
+            int codeRaw=Align(original.Length,fileAlign),stateRaw=codeRaw+Align(stub.Length,fileAlign),unwindRaw=stateRaw+sectionAlign;
             var output=new byte[unwindRaw+Align(unwind.Length,fileAlign)];Buffer.BlockCopy(original,0,output,0,original.Length);
             output[packet]=52;
             foreach(int rva in new[]{0x3078f9,0x307974})Buffer.BlockCopy(Hex("b801000000"),0,output,raw(rva),5);
@@ -126,9 +129,9 @@ namespace JtdxAutoCq
                 int p=sectionsAt+(count+i)*40;Array.Clear(output,p,40);byte[] label=Encoding.ASCII.GetBytes(name);Buffer.BlockCopy(label,0,output,p,label.Length);
                 Put(output,p+8,size);Put(output,p+12,va);Put(output,p+16,Align(size,fileAlign));Put(output,p+20,ptr);Put(output,p+36,unchecked((int)flags));
             };
-            section(0,".acq",codeRva,stub.Length,codeRaw,0x60000020);section(1,".acqdata",stateRva,24,stateRaw,0xc0000040);section(2,".acqinfo",unwindRva,unwind.Length,unwindRaw,0x40000040);
+            section(0,".acq",codeRva,stub.Length,codeRaw,0x60000020);section(1,".acqdata",stateRva,sectionAlign,stateRaw,0xc0000040);section(2,".acqinfo",unwindRva,unwind.Length,unwindRaw,0x40000040);
             Buffer.BlockCopy(BitConverter.GetBytes((ushort)(count+3)),0,output,pe+6,2);
-            Put(output,opt+4,U32(original,opt+4)+Align(stub.Length,fileAlign));Put(output,opt+8,U32(original,opt+8)+fileAlign+Align(unwind.Length,fileAlign));
+            Put(output,opt+4,U32(original,opt+4)+Align(stub.Length,fileAlign));Put(output,opt+8,U32(original,opt+8)+sectionAlign+Align(unwind.Length,fileAlign));
             Put(output,opt+56,Align(unwindRva+unwind.Length,sectionAlign));Put(output,opt+64,0);Put(output,exception,unwindRva);Put(output,exception+4,tableBytes);
             Check(Hash(output)==PatchedHash,"Подготовленный патч не совпал с проверенной сборкой AutoCQ."); return output;
         }

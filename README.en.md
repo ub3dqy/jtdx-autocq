@@ -6,7 +6,7 @@
 
 You could let it work for an hour, answering callers and looking for another station when nobody replies. Or enable monitoring: AutoCQ watches for wanted countries and callsigns, and also answers stations that call you.
 
-![Sample settings and queue in AutoCQ 0.9.11 by UB3DQY. The app interface is in Russian.](docs/autocq-demo.png)
+![Sample settings and queue in AutoCQ 0.9.12 by UB3DQY. The app interface is in Russian.](docs/autocq-demo.png)
 
 ## What AutoCQ can do
 
