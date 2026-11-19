@@ -1,6 +1,6 @@
 # Помочь AutoCQ / Contributing
 
-Нашли ошибку во время работы? Нажмите **«Сообщить об ошибке»** в AutoCQ. Диагностика за предыдущие 20 минут попадёт в закрытый кабинет. Проверьте и опубликуйте черновик Issue с описанием и номером отчёта. [Как отправить отчёт](USER-GUIDE.md)
+Нашли ошибку во время работы? Нажмите **«Сообщить об ошибке»** в AutoCQ. Поддержка принимает описание и диагностику за предыдущие 20 минут без регистрации. Если у вас есть аккаунт GitHub, вы можете открыть черновик Issue с описанием и номером отчёта. [Как отправить отчёт](USER-GUIDE.md)
 
 Можно также [создать Issue вручную](https://github.com/ub3dqy/jtdx-autocq/issues/new/choose). Напишите версию AutoCQ, настройки и последовательность действий. Для ошибки в эфире укажите время события и часовой пояс.
 
@@ -12,7 +12,7 @@
 
 ## English
 
-Found a bug while using AutoCQ? Click **«Сообщить об ошибке»** (Report a bug). The preceding 20 minutes of diagnostics go to the private staff area. Review and publish the draft issue with your description and the report number. [How to send a report](USER-GUIDE.en.md)
+Found a bug while using AutoCQ? Click **«Сообщить об ошибке»** (Report a bug). You can send your description and the preceding 20 minutes of diagnostics to support without signing up. If you have a GitHub account, you can open an issue draft with your description and report number. [How to send a report](USER-GUIDE.en.md)
 
 You can also [create an issue manually](https://github.com/ub3dqy/jtdx-autocq/issues/new/choose). Include your AutoCQ version, settings and the steps needed to reproduce it. For an on-air event, give its time and time zone.
 

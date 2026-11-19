@@ -6,7 +6,7 @@
 
 You could let it work for an hour, answering callers and looking for another station when nobody replies. Or enable monitoring: AutoCQ watches for wanted countries and callsigns, and also answers stations that call you.
 
-![Sample settings and queue in AutoCQ 0.9.13 by UB3DQY. The app interface is in Russian.](docs/autocq-demo.png)
+![Sample settings and queue in AutoCQ 0.9.14 by UB3DQY. The app interface is in Russian.](docs/autocq-demo.png)
 
 ## What AutoCQ can do
 
@@ -83,7 +83,10 @@ The author's callsign appears at the top of the application. Click it to open **
 
 ## Help, bugs and ideas
 
-Click **«Сообщить об ошибке»** (Report a bug) when something goes wrong. AutoCQ freezes the preceding 20 minutes and lets you review the diagnostics. Sending opens a GitHub issue draft with your description and a report number. The diagnostic log goes to the private staff area at ub3dqy.com.
+Click **«Сообщить об ошибке»** (Report a bug) when something goes wrong. AutoCQ captures the preceding 20 minutes of diagnostics. Describe what happened and choose where to send the report.
+
+- **«Отправить в поддержку»** (Send to support) sends your description and diagnostics to the private staff area at ub3dqy.com. You can send it without an account.
+- **«Отправить и открыть GitHub»** (Send and open GitHub) sends the diagnostics to the private area and opens an issue draft with your description and report number. Sign in to GitHub to review and publish it.
 
 ![Report window with a sample description](docs/bug-report-demo.png)
 
@@ -91,7 +94,7 @@ Click **«Сообщить об ошибке»** (Report a bug) when something g
 - [Ask a question or share experience](https://github.com/ub3dqy/jtdx-autocq/discussions).
 - [Contributing](CONTRIBUTING.md).
 
-A free GitHub account is required to post. Avoid uploading an entire personal log; a description, version and short excerpt around the event are usually enough.
+A free GitHub account is required to post in Issues or Discussions. If you post manually, add your version, a description and a short log excerpt around the event.
 
 ## Download JTDX 2.2.160-rc10 for Windows
 

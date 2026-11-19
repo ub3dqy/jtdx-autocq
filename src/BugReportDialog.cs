@@ -14,10 +14,10 @@ namespace JtdxAutoCq
     {
         readonly TextBox subject = new TextBox(), description = new TextBox();
         readonly Label status = new Label(), window = new Label();
-        readonly Button preview = new Button(), submit = new Button(), copy = new Button();
+        readonly Button preview = new Button(), support = new Button(), github = new Button(), copy = new Button();
         readonly bool demo;
-        BugReportData data;
-        string number;
+        BugReportData data, supportReport;
+        string githubNumber, supportNumber;
         bool sending;
 
         internal BugReportDialog(BugReportCapture capture) : this(capture.Data, false)
@@ -41,7 +41,7 @@ namespace JtdxAutoCq
             Font = new Font("Segoe UI", 10F);
             AutoScaleMode = AutoScaleMode.Dpi;
             BackColor = Color.FromArgb(238, 243, 248);
-            ClientSize = new Size(680, 493);
+            ClientSize = new Size(680, 523);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
@@ -65,29 +65,34 @@ namespace JtdxAutoCq
             description.SetBounds(24, 199, 632, 96);
             Controls.Add(description);
 
-            var privacy = AddLabel("Диагностика отправляется в закрытый кабинет ub3dqy.com. В публичный черновик GitHub попадут ваш заголовок, описание, версия AutoCQ и номер отчёта.",
-                24, 309, 632, 50, new Font("Segoe UI", 9F));
+            var privacy = AddLabel("Диагностика поступит в закрытый кабинет ub3dqy.com. При отправке в поддержку туда же попадёт описание. Для публикации черновика с описанием и номером отчёта нужен аккаунт GitHub.",
+                24, 309, 632, 48, new Font("Segoe UI", 9F));
             privacy.ForeColor = Color.FromArgb(79, 96, 112);
-            status.SetBounds(24, 364, 632, 48);
+            status.SetBounds(24, 365, 632, 42);
             status.Text = "Собираю снимок диагностики…";
             Controls.Add(status);
 
             preview.Text = "Посмотреть диагностику";
-            preview.SetBounds(24, 433, 194, 36);
+            preview.SetBounds(24, 411, 194, 33);
             preview.Click += delegate { Preview(); };
             Controls.Add(preview);
             copy.Text = "Скопировать текст";
-            copy.SetBounds(226, 433, 168, 36);
+            copy.SetBounds(228, 411, 182, 33);
             copy.Visible = false;
-            copy.Click += delegate { CopyDraft(); };
+            copy.Click += delegate { CopyReport(); };
             Controls.Add(copy);
-            submit.Text = "Отправить и открыть GitHub";
-            submit.SetBounds(405, 433, 251, 36);
-            submit.FlatStyle = FlatStyle.Flat;
-            submit.ForeColor = Color.White;
-            submit.BackColor = Color.FromArgb(0, 100, 91);
-            submit.Click += delegate { SendOrOpen(); };
-            Controls.Add(submit);
+
+            support.Text = "Отправить в поддержку";
+            support.SetBounds(24, 461, 307, 38);
+            support.FlatStyle = FlatStyle.Flat;
+            support.ForeColor = Color.White;
+            support.BackColor = Color.FromArgb(0, 100, 91);
+            support.Click += delegate { SendToSupport(); };
+            Controls.Add(support);
+            github.Text = "Отправить и открыть GitHub";
+            github.SetBounds(349, 461, 307, 38);
+            github.Click += delegate { SendOrOpenGitHub(); };
+            Controls.Add(github);
 
             subject.TextChanged += delegate { UpdateActions(); };
             description.TextChanged += delegate { UpdateActions(); };
@@ -108,9 +113,12 @@ namespace JtdxAutoCq
         void UpdateActions()
         {
             preview.Enabled = data != null;
-            submit.Enabled = data != null && !sending && !String.IsNullOrWhiteSpace(subject.Text)
+            bool editable = !sending && supportNumber == null;
+            bool ready = data != null && editable && !String.IsNullOrWhiteSpace(subject.Text)
                 && !String.IsNullOrWhiteSpace(description.Text);
-            subject.Enabled = description.Enabled = !sending;
+            support.Enabled = github.Enabled = ready;
+            subject.Enabled = description.Enabled = editable;
+            copy.Enabled = !sending;
         }
 
         void Preview()
@@ -147,25 +155,48 @@ namespace JtdxAutoCq
             tabs.TabPages.Add(tab);
         }
 
-        void SendOrOpen()
+        void SendToSupport()
+        {
+            if (data == null) return;
+            string title = subject.Text.Trim();
+            string details = description.Text.Trim();
+            if (supportReport == null || supportReport.Title != title || supportReport.Description != details)
+                supportReport = data.ForSupport(title, details);
+
+            Send(supportReport, "Отправляю отчёт в поддержку…", receipt => {
+                supportNumber = receipt;
+                copy.Text = "Скопировать номер";
+                copy.Visible = true;
+                status.Text = "Отчёт принят поддержкой." + Environment.NewLine + receipt;
+            });
+        }
+
+        void SendOrOpenGitHub()
+        {
+            if (githubNumber != null) { OpenDraft(); return; }
+            Send(data, "Отправляю диагностику на ub3dqy.com…", receipt => {
+                githubNumber = receipt;
+                copy.Visible = true;
+                github.Text = "Открыть черновик GitHub";
+                OpenDraft();
+            });
+        }
+
+        void Send(BugReportData report, string progress, Action<string> complete)
         {
             if (demo)
             {
                 status.Text = "Демонстрационный отчёт. Можно просмотреть учебные данные.";
                 return;
             }
-            if (number != null) { OpenDraft(); return; }
-            if (data == null || sending) return;
+            if (report == null || sending) return;
             sending = true;
             UpdateActions();
-            status.Text = "Отправляю диагностику на ub3dqy.com…";
-            Run(() => BugReportClient.Send(data, BugReportClient.Endpoint), receipt => {
+            status.Text = progress;
+            Run(() => BugReportClient.Send(report, BugReportClient.Endpoint), receipt => {
                 sending = false;
-                number = (string)receipt;
-                copy.Visible = true;
-                submit.Text = "Открыть черновик GitHub";
+                complete((string)receipt);
                 UpdateActions();
-                OpenDraft();
             }, SendFailed);
         }
 
@@ -184,17 +215,17 @@ namespace JtdxAutoCq
                         return;
                     }
             }
-            status.Text = "Не удалось отправить диагностику. Проверьте связь и повторите из этого окна.";
+            status.Text = "Не удалось отправить отчёт. Проверьте связь и повторите из этого окна.";
         }
 
         string DraftBody()
         {
-            return BugReportClient.IssueBody(description.Text, data.AutoCqVersion, number);
+            return BugReportClient.IssueBody(description.Text, data.AutoCqVersion, githubNumber);
         }
 
         void OpenDraft()
         {
-            status.Text = number + Environment.NewLine + "Проверьте черновик и опубликуйте его на GitHub.";
+            status.Text = githubNumber + Environment.NewLine + "Проверьте черновик и опубликуйте его на GitHub.";
             try
             {
                 string url = BugReportClient.DraftUrl(subject.Text.Trim(), DraftBody());
@@ -202,30 +233,32 @@ namespace JtdxAutoCq
                 {
                     Clipboard.SetText(DraftBody());
                     url = BugReportClient.IssuePage + "?title=" + Uri.EscapeDataString(subject.Text.Trim());
-                    status.Text = number + Environment.NewLine + "Описание скопировано. Вставьте его в черновик GitHub (Ctrl+V).";
+                    status.Text = githubNumber + Environment.NewLine + "Описание скопировано. Вставьте его в черновик GitHub (Ctrl+V).";
                 }
                 Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
             }
             catch (Win32Exception)
             {
-                status.Text = number + Environment.NewLine + "GitHub не открылся. Можно повторить или скопировать текст.";
+                status.Text = githubNumber + Environment.NewLine + "GitHub не открылся. Можно повторить или скопировать текст.";
             }
             catch (System.Runtime.InteropServices.ExternalException)
             {
-                status.Text = number + Environment.NewLine + "Буфер обмена занят. Попробуйте ещё раз.";
+                status.Text = githubNumber + Environment.NewLine + "Буфер обмена занят. Попробуйте ещё раз.";
             }
         }
 
-        void CopyDraft()
+        void CopyReport()
         {
+            string receipt = supportNumber ?? githubNumber;
             try
             {
-                Clipboard.SetText(DraftBody());
-                status.Text = number + Environment.NewLine + "Описание и номер скопированы.";
+                Clipboard.SetText(supportNumber ?? DraftBody());
+                status.Text = receipt + Environment.NewLine
+                    + (supportNumber == null ? "Описание и номер скопированы." : "Номер скопирован.");
             }
             catch (System.Runtime.InteropServices.ExternalException)
             {
-                status.Text = number + Environment.NewLine + "Буфер обмена занят. Попробуйте ещё раз.";
+                status.Text = receipt + Environment.NewLine + "Буфер обмена занят. Попробуйте ещё раз.";
             }
         }
 

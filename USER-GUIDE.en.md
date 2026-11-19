@@ -1,6 +1,6 @@
 # Using AutoCQ
 
-Guide for AutoCQ 0.9.13 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
+Guide for AutoCQ 0.9.14 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
 
 AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.
 
@@ -181,11 +181,15 @@ The **«UB3DQY · ub3dqy.com»** link at the bottom of the main window opens the
 
 1. Click **«Сообщить об ошибке»** (Report a bug) at the bottom of the main window as soon as you notice the problem. AutoCQ freezes the preceding 20 minutes. You can do this while it is working.
 2. Give the report a short title and explain what happened and what you expected. **«Посмотреть диагностику»** (Preview diagnostics) shows the AutoCQ and JTDX events, program versions and queue state. Events may include callsigns, times and frequencies.
-3. Click **«Отправить и открыть GitHub»** (Send and open GitHub). The private staff area at ub3dqy.com receives the diagnostics. GitHub opens a draft with your description and a report number. Review the draft and publish it with your GitHub account.
+
+Choose one of the buttons at the bottom of the window.
+
+- **«Отправить в поддержку»** (Send to support). Your description and diagnostics go to the private staff area at ub3dqy.com. No sign-up is required. Wait for the report number. You can copy it from the window.
+- **«Отправить и открыть GitHub»** (Send and open GitHub). The diagnostics go to the same private area, and your browser opens an issue draft with your description and report number. Sign in to GitHub to review and publish it.
 
 ![Example of a filled-in bug report](docs/bug-report-demo.png)
 
-If the site connection drops, retry in the same window to keep the original snapshot. For a long description, AutoCQ copies it with the report number. Paste that text into the GitHub draft with **Ctrl+V**.
+If the site connection drops, retry in the same window to use the original snapshot. For a long GitHub description, AutoCQ copies the text and report number for you to paste into the draft with **Ctrl+V**.
 
 [Create an issue manually or suggest a feature](https://github.com/ub3dqy/jtdx-autocq/issues/new/choose) · [Questions and discussions](https://github.com/ub3dqy/jtdx-autocq/discussions) · [Project article](https://ub3dqy.com/ru/read/5/)
 

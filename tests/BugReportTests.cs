@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.Serialization.Json;
 using System.Text;
 using JtdxAutoCq;
 
@@ -62,6 +63,29 @@ static class BugReportTests
                 "The public draft contained private diagnostics.");
             Assert(BugReportClient.DraftUrl("Пример", new string('я', 2000)) == null,
                 "A long description must use the copy-to-clipboard path.");
+        });
+
+        run("Private support text stays separate from the GitHub snapshot", () => {
+            var snapshot = new BugReportData {
+                FromUtc = "2026-02-01T12:20:00+00:00", ToUtc = "2026-02-01T12:40:00+00:00",
+                AutoCqLog = "sample event", JtdxLog = "sample decode",
+            };
+            var support = snapshot.ForSupport("Пропуск ответа", "Пропущен вызов.\r\nПроверьте очередь.");
+            byte[] privatePayload = support.Encode();
+            string diagnosticsOnly = Encoding.UTF8.GetString(snapshot.Encode());
+            using (var stream = new MemoryStream(privatePayload))
+            {
+                var serializer = new DataContractJsonSerializer(typeof(BugReportData));
+                var received = (BugReportData)serializer.ReadObject(stream);
+                Assert(received.Schema == 2 && received.Number != snapshot.Number && received.Title == "Пропуск ответа"
+                    && received.Description == "Пропущен вызов.\r\nПроверьте очередь.",
+                    "Support reports must carry the operator's text and a separate receipt number.");
+            }
+            Assert(support.FromUtc == snapshot.FromUtc && support.ToUtc == snapshot.ToUtc
+                && support.AutoCqLog == snapshot.AutoCqLog && support.JtdxLog == snapshot.JtdxLog,
+                "Sending to support changed the captured diagnostics.");
+            Assert(snapshot.Schema == 1 && !diagnosticsOnly.Contains("\"title\"") && !diagnosticsOnly.Contains("\"description\""),
+                "The GitHub route sent a private copy of the operator's text.");
         });
     }
 }

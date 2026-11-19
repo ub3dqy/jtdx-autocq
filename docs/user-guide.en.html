@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="author" content="UB3DQY"><title>Using AutoCQ · UB3DQY</title><link rel="icon" href="icon.png"><link rel="stylesheet" href="guide.css"></head><body><main><h1>Using AutoCQ</h1>
-<p>Guide for AutoCQ 0.9.13 · <strong>UB3DQY</strong> · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
+<p>Guide for AutoCQ 0.9.14 · <strong>UB3DQY</strong> · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
 <p>AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.</p>
 <p>Monitoring works differently: JTDX listens until a wanted country or callsign appears, calls that station, then returns to receive. The application interface is currently in Russian; this guide includes the labels you will see.</p>
 <h2>1. Downloads</h2>
@@ -96,10 +96,14 @@
 <ol>
 <li>Click <strong>«Сообщить об ошибке»</strong> (Report a bug) at the bottom of the main window as soon as you notice the problem. AutoCQ freezes the preceding 20 minutes. You can do this while it is working.</li>
 <li>Give the report a short title and explain what happened and what you expected. <strong>«Посмотреть диагностику»</strong> (Preview diagnostics) shows the AutoCQ and JTDX events, program versions and queue state. Events may include callsigns, times and frequencies.</li>
-<li>Click <strong>«Отправить и открыть GitHub»</strong> (Send and open GitHub). The private staff area at ub3dqy.com receives the diagnostics. GitHub opens a draft with your description and a report number. Review the draft and publish it with your GitHub account.</li>
 </ol>
+<p>Choose one of the buttons at the bottom of the window.</p>
+<ul>
+<li><strong>«Отправить в поддержку»</strong> (Send to support). Your description and diagnostics go to the private staff area at ub3dqy.com. No sign-up is required. Wait for the report number. You can copy it from the window.</li>
+<li><strong>«Отправить и открыть GitHub»</strong> (Send and open GitHub). The diagnostics go to the same private area, and your browser opens an issue draft with your description and report number. Sign in to GitHub to review and publish it.</li>
+</ul>
 <p><img loading="lazy" src="bug-report-demo.png" alt="Example of a filled-in bug report"></p>
-<p>If the site connection drops, retry in the same window to keep the original snapshot. For a long description, AutoCQ copies it with the report number. Paste that text into the GitHub draft with <strong>Ctrl+V</strong>.</p>
+<p>If the site connection drops, retry in the same window to use the original snapshot. For a long GitHub description, AutoCQ copies the text and report number for you to paste into the draft with <strong>Ctrl+V</strong>.</p>
 <p><a href="https://github.com/ub3dqy/jtdx-autocq/issues/new/choose">Create an issue manually or suggest a feature</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/discussions">Questions and discussions</a> · <a href="https://ub3dqy.com/ru/read/5/">Project article</a></p>
 <h2>Advanced: restore the original JTDX executable</h2>
 <p>With JTDX closed, run from the AutoCQ folder:</p>

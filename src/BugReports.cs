@@ -23,9 +23,22 @@ namespace JtdxAutoCq
         [DataMember(Name = "autoCqLog")] public string AutoCqLog = "";
         [DataMember(Name = "jtdxLog")] public string JtdxLog = "";
         [DataMember(Name = "limited")] public bool Limited;
+        [DataMember(Name = "title", EmitDefaultValue = false)] public string Title;
+        [DataMember(Name = "description", EmitDefaultValue = false)] public string Description;
 
         internal const int MaxBody = 2 * 1024 * 1024;
         internal string Number { get { return "ACQ-" + RequestId; } }
+
+        internal BugReportData ForSupport(string title, string description)
+        {
+            var report = (BugReportData)MemberwiseClone();
+            report.Schema = 2;
+            report.RequestId = Guid.NewGuid().ToString("N");
+            report.Title = title;
+            report.Description = description;
+            return report;
+        }
+
         internal byte[] Encode()
         {
             using (var buffer = new MemoryStream())
