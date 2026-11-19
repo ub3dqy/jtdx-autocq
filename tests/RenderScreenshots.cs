@@ -91,6 +91,7 @@ static class RenderScreenshots
             foreach(string button in new[]{"check","download","install"})((Button)Field(form,button)).Enabled=false;
             Save(form,Path.Combine(directory,"updates-download-demo.png"));
         }
-        Console.WriteLine("Rendered nine offline demo screenshots.");
+        using(var form=BugReportDialog.CreateDemo(version))Save(form,Path.Combine(directory,"bug-report-demo.png"));
+        Console.WriteLine("Rendered ten offline demo screenshots.");
     }
 }

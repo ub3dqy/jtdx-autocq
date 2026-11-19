@@ -144,6 +144,7 @@ class AutoCqTests
             try
             {
                 UpdateTests.RunAll(Run, args.Length > 1 ? args[1] : null);
+                BugReportTests.RunAll(Run);
                 Run("Initial CQ is sent once and requires TX acknowledgement", () => {
                     AutoCqEngine e = new AutoCqEngine(); int cq = 0; e.RequestCq = () => cq++;
                     e.OnStatus(S(false, ""), At); e.Start(At); e.Tick(At.AddSeconds(1), true); e.Tick(At.AddSeconds(2), true);

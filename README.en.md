@@ -6,7 +6,7 @@
 
 You could let it work for an hour, answering callers and looking for another station when nobody replies. Or enable monitoring: AutoCQ watches for wanted countries and callsigns, and also answers stations that call you.
 
-![Sample settings and queue in AutoCQ 0.9.12 by UB3DQY. The app interface is in Russian.](docs/autocq-demo.png)
+![Sample settings and queue in AutoCQ 0.9.13 by UB3DQY. The app interface is in Russian.](docs/autocq-demo.png)
 
 ## What AutoCQ can do
 
@@ -82,6 +82,10 @@ The author's callsign appears at the top of the application. Click it to open **
 ![AutoCQ Updates window](docs/updates-demo.png)
 
 ## Help, bugs and ideas
+
+Click **«Сообщить об ошибке»** (Report a bug) when something goes wrong. AutoCQ freezes the preceding 20 minutes and lets you review the diagnostics. Sending opens a GitHub issue draft with your description and a report number. The diagnostic log goes to the private staff area at ub3dqy.com.
+
+![Report window with a sample description](docs/bug-report-demo.png)
 
 - [Report a bug or suggest a feature](https://github.com/ub3dqy/jtdx-autocq/issues/new/choose) using the English or Russian forms.
 - [Ask a question or share experience](https://github.com/ub3dqy/jtdx-autocq/discussions).

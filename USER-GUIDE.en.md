@@ -1,6 +1,6 @@
 # Using AutoCQ
 
-Guide for AutoCQ 0.9.12 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
+Guide for AutoCQ 0.9.13 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
 
 AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.
 
@@ -177,9 +177,17 @@ AutoCQ is developed by amateur radio operator **UB3DQY**. Click **UB3DQY** at th
 
 The **«UB3DQY · ub3dqy.com»** link at the bottom of the main window opens the [author's website](https://ub3dqy.com/). About also links to the [project description](https://ub3dqy.com/ru/read/5/) and source code on GitHub.
 
-[Report a bug or suggest a feature](https://github.com/ub3dqy/jtdx-autocq/issues/new/choose) · [Questions and discussions](https://github.com/ub3dqy/jtdx-autocq/discussions) · [Project article](https://ub3dqy.com/ru/read/5/)
+### Sending a bug report
 
-Include both program versions, what you did, what you expected and what happened. The event time is useful for radio issues. Share only the relevant excerpt and remove personal information.
+1. Click **«Сообщить об ошибке»** (Report a bug) at the bottom of the main window as soon as you notice the problem. AutoCQ freezes the preceding 20 minutes. You can do this while it is working.
+2. Give the report a short title and explain what happened and what you expected. **«Посмотреть диагностику»** (Preview diagnostics) shows the AutoCQ and JTDX events, program versions and queue state. Events may include callsigns, times and frequencies.
+3. Click **«Отправить и открыть GitHub»** (Send and open GitHub). The private staff area at ub3dqy.com receives the diagnostics. GitHub opens a draft with your description and a report number. Review the draft and publish it with your GitHub account.
+
+![Example of a filled-in bug report](docs/bug-report-demo.png)
+
+If the site connection drops, retry in the same window to keep the original snapshot. For a long description, AutoCQ copies it with the report number. Paste that text into the GitHub draft with **Ctrl+V**.
+
+[Create an issue manually or suggest a feature](https://github.com/ub3dqy/jtdx-autocq/issues/new/choose) · [Questions and discussions](https://github.com/ub3dqy/jtdx-autocq/discussions) · [Project article](https://ub3dqy.com/ru/read/5/)
 
 ## Advanced: restore the original JTDX executable
 

@@ -50,7 +50,7 @@ if ($Screenshots) {
 
 if ($Test) {
     $managed = Join-Path $build 'AutoCqTests.exe'
-    & $compiler /nologo /target:exe /optimize+ /codepage:65001 /main:AutoCqTests "/out:$managed" @resources @references @files (Join-Path $tests 'AutoCqTests.cs') (Join-Path $tests 'UpdateTests.cs')
+    & $compiler /nologo /target:exe /optimize+ /codepage:65001 /main:AutoCqTests "/out:$managed" @resources @references @files (Join-Path $tests 'AutoCqTests.cs') (Join-Path $tests 'UpdateTests.cs') (Join-Path $tests 'BugReportTests.cs')
     if ($LASTEXITCODE -ne 0) { throw 'Managed test compilation failed.' }
     Push-Location -LiteralPath $build
     try {

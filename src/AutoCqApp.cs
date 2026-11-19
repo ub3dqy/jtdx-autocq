@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -15,8 +16,8 @@ using System.Xml;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.12.0")]
-[assembly: AssemblyFileVersion("0.9.12.0")]
+[assembly: AssemblyVersion("0.9.13.0")]
+[assembly: AssemblyFileVersion("0.9.13.0")]
 [assembly: AssemblyTitle(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyProduct(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyCompany(JtdxAutoCq.AppBrand.Author)]
@@ -201,7 +202,7 @@ namespace JtdxAutoCq
 
     public sealed class MainForm : Form
     {
-        const string ModuleVersion = "0.9.12";
+        const string ModuleVersion = "0.9.13";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = JtdxPatcher.PatchedHash;
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -216,9 +217,10 @@ namespace JtdxAutoCq
         readonly AppPreferences preferences;
         readonly AppPreferencesStore preferenceStore;
         readonly UpdateClient updateClient = new UpdateClient(ModuleVersion);
-        readonly Button updatesButton = new Button(), helpButton = new Button();
+        readonly Button updatesButton = new Button(), helpButton = new Button(), reportButton = new Button();
         readonly ToolTip updatesTip = new ToolTip();
         BackgroundWorker automaticUpdateWorker;
+        BugReportDialog reportDialog;
         AvailableUpdate availableUpdate;
         DateTime nextAutomaticUpdate = DateTime.UtcNow.AddSeconds(8);
         SettingsManager settings;
@@ -404,10 +406,14 @@ namespace JtdxAutoCq
             restore.Text = "Восстановить прежние настройки JTDX"; restore.SetBounds(26, 695, 360, 31);
             restore.Anchor = AnchorStyles.Left | AnchorStyles.Bottom; Controls.Add(restore);
             var website = BrandUi.Link(AppBrand.Author + " · " + AppBrand.WebsiteLabel, AppBrand.Website);
-            website.Font = new Font("Segoe UI Semibold", 10F); website.SetBounds(410, 691, 312, 24);
+            website.Font = new Font("Segoe UI Semibold", 10F); website.SetBounds(405, 691, 154, 24);
             website.Anchor = AnchorStyles.Right | AnchorStyles.Bottom; Controls.Add(website);
-            Label foot = new Label { Text = demo ? "ДЕМО: команды в радио не отправляются" : "Автор и разработчик AutoCQ", Font = new Font("Segoe UI",8F) };
-            foot.SetBounds(410, 716, 312, 18); foot.Anchor = AnchorStyles.Right | AnchorStyles.Bottom; foot.ForeColor = Slate; Controls.Add(foot);
+            Label foot = new Label { Text = demo ? "ДЕМО без передачи" : "", Font = new Font("Segoe UI",8F) };
+            foot.SetBounds(405, 716, 154, 18); foot.Anchor = AnchorStyles.Right | AnchorStyles.Bottom; foot.ForeColor = Slate; Controls.Add(foot);
+            reportButton.Text = "Сообщить об ошибке"; reportButton.SetBounds(566, 695, 170, 31);
+            reportButton.Anchor = AnchorStyles.Right | AnchorStyles.Bottom;
+            StyleButton(reportButton, Color.White, Ink, Color.FromArgb(201, 213, 224)); Controls.Add(reportButton);
+            reportButton.Click += delegate { Guard(ShowBugReport); };
             helpButton.Text = "Как пользоваться"; helpButton.SetBounds(744, 695, 190, 31);
             helpButton.Anchor = AnchorStyles.Right | AnchorStyles.Bottom;
             StyleButton(helpButton, Color.White, Ink, Color.FromArgb(201, 213, 224)); Controls.Add(helpButton);
@@ -434,6 +440,7 @@ namespace JtdxAutoCq
             ContextMenuStrip menu = new ContextMenuStrip();
             menu.Items.Add("Открыть", null, delegate { closeWhenDone = false; Show(); Activate(); });
             menu.Items.Add("О программе · " + AppBrand.Author, null, delegate { Guard(ShowAbout); });
+            menu.Items.Add("Сообщить об ошибке", null, delegate { Guard(ShowBugReport); });
             menu.Items.Add("СТОП — Halt TX", null, delegate { engine.Stop("Остановлено оператором.", true); });
             tray.ContextMenuStrip = menu;
             if (demo) { SetDemoStatus(false, false, ""); open.Enabled = restore.Enabled = false; SeedDemoCqs(); }
@@ -467,6 +474,65 @@ namespace JtdxAutoCq
             string target = File.Exists(local) ? local : UpdateClient.RepositoryUrl + "/blob/main/USER-GUIDE.md";
             Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
         }
+        void ShowBugReport()
+        {
+            if (reportDialog != null && !reportDialog.IsDisposed)
+            {
+                if (reportDialog.WindowState == FormWindowState.Minimized) reportDialog.WindowState = FormWindowState.Normal;
+                reportDialog.Activate();
+                return;
+            }
+            DateTimeOffset clickedAt = DateTimeOffset.UtcNow;
+            reportDialog = demo ? BugReportDialog.CreateDemo(ModuleVersion) :
+                new BugReportDialog(new BugReportCapture(clickedAt, ModuleVersion, clientVersion,
+                    ReportState(clickedAt.UtcDateTime), settings.StateDirectory, settings.Profile));
+            reportDialog.FormClosed += delegate { reportDialog = null; };
+            reportDialog.Show(this);
+        }
+
+        Dictionary<string, string> ReportState(DateTime now)
+        {
+            var options = engine.Options;
+            var values = new Dictionary<string, string> {
+                { "connected", (client != null && (now - lastSeen).TotalSeconds < 35).ToString() },
+                { "armed", engine.Armed.ToString() },
+                { "monitoring", engine.Monitoring.ToString() },
+                { "finishing", engine.Finishing.ToString() },
+                { "awaiting73", engine.Awaiting73.ToString() },
+                { "waitingCall", engine.WaitingCall ?? "" },
+                { "loggedQso", engine.LoggedCount.ToString(CultureInfo.InvariantCulture) },
+                { "wait73Periods", options.Wait73Periods.ToString(CultureInfo.InvariantCulture) },
+                { "callAttempts", options.CallAttempts.ToString(CultureInfo.InvariantCulture) },
+                { "runMinutes", options.RunMinutes.ToString(CultureInfo.InvariantCulture) },
+                { "queueMinutes", options.QueueMinutes.ToString(CultureInfo.InvariantCulture) },
+                { "cqAttemptsBeforeSearch", options.CqAttemptsBeforeSearch.ToString(CultureInfo.InvariantCulture) },
+                { "switchPeriodMinutes", options.SwitchPeriodMinutes.ToString(CultureInfo.InvariantCulture) },
+                { "searchEnabled", options.SearchEnabled.ToString() },
+                { "priorityAfter73", options.PriorityAfter73.ToString() },
+                { "excludedDxcc", String.Join(", ", options.ExcludedDxcc) },
+                { "priorityDxcc", String.Join(", ", options.PriorityDxcc) },
+                { "monitorDxcc", String.Join(", ", options.MonitorDxcc) },
+                { "monitorCalls", String.Join(", ", options.MonitorCalls) },
+                { "monitorMasks", String.Join(", ", options.MonitorMasks) },
+                { "queue", String.Join("\n", engine.Waiting.Rows.Take(80).Select(row => row.Call + " " + (row.PauseReason ?? ""))) },
+            };
+            if (engine.Status != null)
+            {
+                RadioStatus radioStatus = engine.Status;
+                values.Add("frequencyHz", radioStatus.Frequency.ToString(CultureInfo.InvariantCulture));
+                values.Add("mode", radioStatus.Mode ?? "");
+                values.Add("dxCall", radioStatus.DxCall ?? "");
+                values.Add("operatorCall", radioStatus.DeCall ?? "");
+                values.Add("txFirst", radioStatus.TxFirst.ToString());
+                values.Add("txEnabled", radioStatus.TxEnabled.ToString());
+                values.Add("transmitting", radioStatus.Transmitting.ToString());
+                values.Add("decoding", radioStatus.Decoding.ToString());
+            }
+            foreach (string key in values.Keys.ToArray())
+                if (values[key].Length > 4096) values[key] = values[key].Substring(0, 4096);
+            return values;
+        }
+
         void ShowUpdates()
         {
             string directory = demo ? Path.Combine(Path.GetTempPath(), "AutoCQ-demo-updates") : settings.StateDirectory;

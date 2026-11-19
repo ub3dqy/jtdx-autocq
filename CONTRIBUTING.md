@@ -1,6 +1,8 @@
 # Помочь AutoCQ / Contributing
 
-Нашли ошибку? [Создайте сообщение в Issues](https://github.com/ub3dqy/jtdx-autocq/issues/new/choose) и выберите форму на русском или английском. Напишите версию AutoCQ, настройки и последовательность действий. Если ошибка появилась в эфире, укажите время события и пояс часового времени. Небольшой фрагмент журнала и снимок экрана помогут разобраться.
+Нашли ошибку во время работы? Нажмите **«Сообщить об ошибке»** в AutoCQ. Диагностика за предыдущие 20 минут попадёт в закрытый кабинет. Проверьте и опубликуйте черновик Issue с описанием и номером отчёта. [Как отправить отчёт](USER-GUIDE.md)
+
+Можно также [создать Issue вручную](https://github.com/ub3dqy/jtdx-autocq/issues/new/choose). Напишите версию AutoCQ, настройки и последовательность действий. Для ошибки в эфире укажите время события и часовой пояс.
 
 Есть идея новой функции? Для конкретного предложения используйте форму **«Предложение»** в Issues. Если хотите сначала обсудить варианты или задать вопрос, откройте [Discussions](https://github.com/ub3dqy/jtdx-autocq/discussions).
 
@@ -10,7 +12,9 @@
 
 ## English
 
-Found a bug? [Open an issue](https://github.com/ub3dqy/jtdx-autocq/issues/new/choose) and choose the Russian or English form. Include your AutoCQ version, settings and the steps needed to reproduce it. For an on-air event, give its time and time zone. A short log excerpt and a screenshot can help.
+Found a bug while using AutoCQ? Click **«Сообщить об ошибке»** (Report a bug). The preceding 20 minutes of diagnostics go to the private staff area. Review and publish the draft issue with your description and the report number. [How to send a report](USER-GUIDE.en.md)
+
+You can also [create an issue manually](https://github.com/ub3dqy/jtdx-autocq/issues/new/choose). Include your AutoCQ version, settings and the steps needed to reproduce it. For an on-air event, give its time and time zone.
 
 For a specific feature idea, use the **Feature request** form in Issues. For questions, setup help or an open-ended discussion, use [Discussions](https://github.com/ub3dqy/jtdx-autocq/discussions).
 

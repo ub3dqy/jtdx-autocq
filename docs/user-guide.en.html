@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="author" content="UB3DQY"><title>Using AutoCQ · UB3DQY</title><link rel="icon" href="icon.png"><link rel="stylesheet" href="guide.css"></head><body><main><h1>Using AutoCQ</h1>
-<p>Guide for AutoCQ 0.9.12 · <strong>UB3DQY</strong> · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
+<p>Guide for AutoCQ 0.9.13 · <strong>UB3DQY</strong> · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
 <p>AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.</p>
 <p>Monitoring works differently: JTDX listens until a wanted country or callsign appears, calls that station, then returns to receive. The application interface is currently in Russian; this guide includes the labels you will see.</p>
 <h2>1. Downloads</h2>
@@ -92,8 +92,15 @@
 <p>AutoCQ is developed by amateur radio operator <strong>UB3DQY</strong>. Click <strong>UB3DQY</strong> at the top of the main window to open <strong>«О программе»</strong> (About) for version information and project links. You can also open it from the AutoCQ tray icon's menu beside the Windows clock.</p>
 <p><img loading="lazy" src="about-demo.png" alt="About AutoCQ: version, author UB3DQY and website"></p>
 <p>The <strong>«UB3DQY · ub3dqy.com»</strong> link at the bottom of the main window opens the <a href="https://ub3dqy.com/">author's website</a>. About also links to the <a href="https://ub3dqy.com/ru/read/5/">project description</a> and source code on GitHub.</p>
-<p><a href="https://github.com/ub3dqy/jtdx-autocq/issues/new/choose">Report a bug or suggest a feature</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/discussions">Questions and discussions</a> · <a href="https://ub3dqy.com/ru/read/5/">Project article</a></p>
-<p>Include both program versions, what you did, what you expected and what happened. The event time is useful for radio issues. Share only the relevant excerpt and remove personal information.</p>
+<h3>Sending a bug report</h3>
+<ol>
+<li>Click <strong>«Сообщить об ошибке»</strong> (Report a bug) at the bottom of the main window as soon as you notice the problem. AutoCQ freezes the preceding 20 minutes. You can do this while it is working.</li>
+<li>Give the report a short title and explain what happened and what you expected. <strong>«Посмотреть диагностику»</strong> (Preview diagnostics) shows the AutoCQ and JTDX events, program versions and queue state. Events may include callsigns, times and frequencies.</li>
+<li>Click <strong>«Отправить и открыть GitHub»</strong> (Send and open GitHub). The private staff area at ub3dqy.com receives the diagnostics. GitHub opens a draft with your description and a report number. Review the draft and publish it with your GitHub account.</li>
+</ol>
+<p><img loading="lazy" src="bug-report-demo.png" alt="Example of a filled-in bug report"></p>
+<p>If the site connection drops, retry in the same window to keep the original snapshot. For a long description, AutoCQ copies it with the report number. Paste that text into the GitHub draft with <strong>Ctrl+V</strong>.</p>
+<p><a href="https://github.com/ub3dqy/jtdx-autocq/issues/new/choose">Create an issue manually or suggest a feature</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/discussions">Questions and discussions</a> · <a href="https://ub3dqy.com/ru/read/5/">Project article</a></p>
 <h2>Advanced: restore the original JTDX executable</h2>
 <p>With JTDX closed, run from the AutoCQ folder:</p>
 <pre><code>.\JTDX-AutoCQ-Patch.exe --jtdx &quot;C:\JTDX64\160-32A-rc10\bin\jtdx.exe&quot; --restore</code></pre>
