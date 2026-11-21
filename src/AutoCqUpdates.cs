@@ -18,6 +18,9 @@ namespace JtdxAutoCq
         public bool AutomaticUpdates = true;
         public string JtdxPath = "", NotifiedVersion = "";
         public DateTime LastUpdateCheckUtc;
+        public string LogbookPath = "";
+        public List<OperatorProfile> Profiles = new List<OperatorProfile>();
+        public OperatingSession LastSession;
     }
     public sealed class AppPreferencesStore
     {

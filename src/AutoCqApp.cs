@@ -16,8 +16,8 @@ using System.Xml;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.14.0")]
-[assembly: AssemblyFileVersion("0.9.14.0")]
+[assembly: AssemblyVersion("0.9.15.0")]
+[assembly: AssemblyFileVersion("0.9.15.0")]
 [assembly: AssemblyTitle(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyProduct(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyCompany(JtdxAutoCq.AppBrand.Author)]
@@ -200,9 +200,9 @@ namespace JtdxAutoCq
         }
     }
 
-    public sealed class MainForm : Form
+    public sealed partial class MainForm : Form
     {
-        const string ModuleVersion = "0.9.14";
+        const string ModuleVersion = "0.9.15";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = JtdxPatcher.PatchedHash;
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -374,6 +374,7 @@ namespace JtdxAutoCq
             lists.SetBounds(26, 413, 908, 149); lists.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
             TabPage waitTab=new TabPage("Очередь станций"),cqTab=new TabPage("Станции из левого окна JTDX");
             lists.TabPages.Add(waitTab);lists.TabPages.Add(cqTab);lists.TabPages.Add(timeoutTab);Controls.Add(lists);lists.SelectedIndexChanged+=delegate{UpdateEditors();};
+            lists.SelectedIndex = 0;
             timeoutView.Dock=DockStyle.Fill;timeoutView.View=View.Details;timeoutView.FullRowSelect=true;timeoutView.GridLines=true;
             timeoutView.Columns.Add("Позывной",145);timeoutView.Columns.Add("Осталось",140);timeoutView.Columns.Add("Повтор после",175);timeoutView.Columns.Add("Причина",418);
             timeoutTab.Controls.Add(timeoutView);
@@ -398,6 +399,7 @@ namespace JtdxAutoCq
             QueueButton("Повторить",632,106,() => { foreach (string call in SelectedCalls()) engine.RetryQueuedCall(call); });
             callSelectedCq.Text="Позвать выбранную";callSelectedCq.SetBounds(26, 571, 205, 30);callSelectedCq.Click+=delegate{Guard(CallSelectedCq);};Controls.Add(callSelectedCq);
             retrySelectedCq.Text="Снять отметку попытки";retrySelectedCq.SetBounds(240, 571, 220, 30);retrySelectedCq.Click+=delegate{Guard(()=>engine.Cqs.Retry(SelectedCqCall()));};Controls.Add(retrySelectedCq);
+            InitializeOperatorTools();
             listHint.Font = new Font("Segoe UI", 9F); listHint.ForeColor = Slate;
             listHint.SetBounds(26, 607, 908, 21); Controls.Add(listHint);
             journal.Multiline = true; journal.ReadOnly = true; journal.ScrollBars = ScrollBars.Vertical;
@@ -426,13 +428,12 @@ namespace JtdxAutoCq
             engine.CanCall = CanCallCountry;
             engine.IsPriorityCall = IsPriorityCountry;
             engine.DxccForCall = call => { var country = dxcc == null ? null : dxcc.Find(call); return country == null ? null : country.Prefix; };
-            engine.WorkedCallsOnBand = (band, call) => demo ? new HashSet<string>()
-                : JtdxAdif.WorkedCalls(Path.Combine(settings.Profile, "wsjtx_log.adi"), band, call);
-            engine.WorkedCallsOnBandMode = (band, mode, call) => demo ? new HashSet<string>()
-                : JtdxAdif.WorkedCalls(Path.Combine(settings.Profile, "wsjtx_log.adi"), band, call, mode);
+            engine.WorkedCallsOnBand = (band, call) => startupHistory.WorkedCalls(band, call);
+            engine.WorkedCallsOnBandMode = (band, mode, call) => startupHistory.WorkedCalls(band, call, mode);
+            engine.SessionFinished = SaveSessionSummary;
             open.Click += delegate { Guard(PrepareConnection); };
             start.Click += delegate { Guard(StartAutomation); };
-            stop.Click += delegate { engine.Stop("Остановлено оператором.", true); UpdateUi(); };
+            stop.Click += delegate { HaltAutomation(); };
             restore.Click += delegate { Guard(Restore); };
             FormClosing += ClosingForm;
             tray.Icon = Icon ?? SystemIcons.Application; tray.Text = AppBrand.DisplayName;
@@ -441,7 +442,7 @@ namespace JtdxAutoCq
             menu.Items.Add("Открыть", null, delegate { closeWhenDone = false; Show(); Activate(); });
             menu.Items.Add("О программе · " + AppBrand.Author, null, delegate { Guard(ShowAbout); });
             menu.Items.Add("Сообщить об ошибке", null, delegate { Guard(ShowBugReport); });
-            menu.Items.Add("СТОП — Halt TX", null, delegate { engine.Stop("Остановлено оператором.", true); });
+            menu.Items.Add("СТОП — Halt TX", null, delegate { HaltAutomation(); });
             tray.ContextMenuStrip = menu;
             if (demo) { SetDemoStatus(false, false, ""); open.Enabled = restore.Enabled = false; SeedDemoCqs(); }
             else
@@ -594,6 +595,7 @@ namespace JtdxAutoCq
         DxccCountries CountryTable()
         {
             if (dxcc != null) return dxcc;
+            if (demo) return dxcc = DemoCountryTable();
             string profileTable = demo ? "" : Path.Combine(settings.Profile, "cty.dat");
             string installedTable = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(jtdxPath), "..", "share", "jtdx", "cty.dat"));
             string table = File.Exists(profileTable) ? profileTable : installedTable;
@@ -757,7 +759,7 @@ namespace JtdxAutoCq
         void UpdateEditors()
         {
             bool cq=lists.SelectedIndex==1;foreach(Control control in waitEditors)control.Visible=lists.SelectedIndex==0;
-            callSelectedCq.Visible=retrySelectedCq.Visible=cq;
+            callSelectedCq.Visible=retrySelectedCq.Visible=whyCq.Visible=cq;
             UpdateListHint();
         }
         void UpdateListHint()
@@ -798,6 +800,7 @@ namespace JtdxAutoCq
         void RemoveSelected() { foreach (string call in SelectedCalls()) engine.Waiting.Remove(call); }
         void ChangeOptions()
         {
+            if (applyingProfile) return;
             engine.Options.Wait73Periods = (int)waitPeriods.Value; engine.Options.CallAttempts = (int)callAttempts.Value;
             engine.Options.RunMinutes=(int)runMinutes.Value;engine.Options.CqAttemptsBeforeSearch=(int)cqAttempts.Value;engine.Options.SearchEnabled=searchEnabled.Checked;
             engine.Options.SwitchPeriodMinutes = (int)switchMinutes.Value;
@@ -953,7 +956,7 @@ namespace JtdxAutoCq
             replayRequested = nativeStatusSeen = false; engine.Waiting.Invalidate(); engine.Cqs.Invalidate();
             Log("Прежние настройки восстановлены. JTDX снова готов к запуску.");
         }
-        void StartAutomation()
+        void StartRadioSession()
         {
             if (engine.Options.ExcludedDxcc.Length > 0 || engine.HasPriorityCountries
                 || engine.Options.MonitorEnabled && engine.Options.MonitorDxcc.Length > 0) CountryTable();
@@ -1178,7 +1181,7 @@ namespace JtdxAutoCq
         }
         void UpdateUi()
         {
-            start.Enabled = !engine.Armed && (demo || (client != null && clientVersion == "2.2.160-32A-rc10"));
+            start.Enabled = !startingWithHistory && !engine.Armed && (demo || (client != null && clientVersion == "2.2.160-32A-rc10"));
             start.BackColor = start.Enabled ? Teal : Color.FromArgb(226, 235, 235);
             start.FlatAppearance.BorderColor = start.Enabled ? Teal : Color.FromArgb(199, 213, 215);
             waitPeriods.Enabled = callAttempts.Enabled = !engine.Armed && (demo || !jtdxPresent);

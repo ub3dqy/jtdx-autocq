@@ -27,6 +27,18 @@ namespace JtdxAutoCq
         public string[] MonitorDxcc = new string[0];
         public string[] MonitorCalls = new string[0];
         public string[] MonitorMasks = new string[0];
+
+        public AutoCqOptions Copy()
+        {
+            var copy = (AutoCqOptions)MemberwiseClone();
+            copy.ExcludedDxcc = ExcludedDxcc == null ? null : ExcludedDxcc.ToArray();
+            copy.PriorityDxcc = PriorityDxcc == null ? null : PriorityDxcc.ToArray();
+            copy.MonitorDxcc = MonitorDxcc == null ? null : MonitorDxcc.ToArray();
+            copy.MonitorCalls = MonitorCalls == null ? null : MonitorCalls.ToArray();
+            copy.MonitorMasks = MonitorMasks == null ? null : MonitorMasks.ToArray();
+            return copy;
+        }
+
         public void Validate()
         {
             if (ExcludedDxcc == null) ExcludedDxcc = new string[0];

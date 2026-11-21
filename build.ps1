@@ -23,6 +23,9 @@ $files = @(Get-ChildItem -LiteralPath $source -Filter '*.cs' -File | Sort-Object
 $references = @('/r:System.Drawing.dll','/r:System.Windows.Forms.dll','/r:System.Xml.dll','/r:System.Core.dll',
     '/r:System.Runtime.Serialization.dll','/r:System.IO.Compression.dll','/r:System.IO.Compression.FileSystem.dll')
 $helper = Join-Path $PSScriptRoot 'Update-AutoCQ.ps1'
+$logReader = Join-Path $build 'LogHxReader.exe'
+& $compiler /nologo /target:exe /platform:x86 /optimize+ /codepage:65001 "/out:$logReader" /r:System.Data.dll /r:System.Core.dll (Join-Path $PSScriptRoot 'tools/LogHxReader.cs')
+if ($LASTEXITCODE -ne 0) { throw 'LogHX reader compilation failed.' }
 $patcher = Join-Path $build 'JTDX-AutoCQ-Patch.exe'
 $patchVersion = Join-Path $build 'PatchVersionInfo.cs'
 $appVersion = [regex]::Match((Get-Content -LiteralPath (Join-Path $source 'AutoCqApp.cs') -Raw), 'AssemblyFileVersion\("([0-9.]+)"\)').Groups[1].Value
@@ -31,7 +34,7 @@ $versionSource += [Environment]::NewLine + '[assembly: System.Reflection.Assembl
 [IO.File]::WriteAllText($patchVersion,$versionSource,(New-Object Text.UTF8Encoding($false)))
 & $compiler /nologo /target:exe /platform:x64 /main:JtdxAutoCq.PatchProgram /optimize+ /codepage:65001 "/out:$patcher" "/resource:$stub,queue-reply.bin" /r:System.Core.dll (Join-Path $source 'JtdxPatcher.cs') (Join-Path $source 'AppBrand.cs') $patchVersion
 if ($LASTEXITCODE -ne 0) { throw 'Built-in JTDX patcher compilation failed.' }
-$resources = @("/resource:$icon,AutoCQ.ico", "/resource:$stub,queue-reply.bin", "/resource:$helper,Update-AutoCQ.ps1", "/resource:$patcher,JTDX-AutoCQ-Patch.exe")
+$resources = @("/resource:$icon,AutoCQ.ico", "/resource:$stub,queue-reply.bin", "/resource:$helper,Update-AutoCQ.ps1", "/resource:$patcher,JTDX-AutoCQ-Patch.exe", "/resource:$logReader,LogHxReader.exe")
 
 & $compiler /nologo /target:winexe /main:JtdxAutoCq.Program /optimize+ /codepage:65001 "/out:$program" "/win32icon:$icon" @resources @references @files
 if ($LASTEXITCODE -ne 0) { throw 'AutoCQ compilation failed.' }
@@ -50,7 +53,7 @@ if ($Screenshots) {
 
 if ($Test) {
     $managed = Join-Path $build 'AutoCqTests.exe'
-    & $compiler /nologo /target:exe /optimize+ /codepage:65001 /main:AutoCqTests "/out:$managed" @resources @references @files (Join-Path $tests 'AutoCqTests.cs') (Join-Path $tests 'UpdateTests.cs') (Join-Path $tests 'BugReportTests.cs')
+    & $compiler /nologo /target:exe /optimize+ /codepage:65001 /main:AutoCqTests "/out:$managed" @resources @references @files (Join-Path $tests 'AutoCqTests.cs') (Join-Path $tests 'UpdateTests.cs') (Join-Path $tests 'BugReportTests.cs') (Join-Path $tests 'OperatorToolsTests.cs')
     if ($LASTEXITCODE -ne 0) { throw 'Managed test compilation failed.' }
     Push-Location -LiteralPath $build
     try {

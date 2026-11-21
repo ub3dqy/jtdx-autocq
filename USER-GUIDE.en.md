@@ -1,6 +1,6 @@
 # Using AutoCQ
 
-Guide for AutoCQ 0.9.14 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
+Guide for AutoCQ 0.9.15 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
 
 AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.
 
@@ -121,7 +121,7 @@ This permits one contact attempt even for a non-target station, an already compl
 
 **«Одна связь на цель на диапазоне»** applies to the **target**, rather than to every individual station. With Japan selected, any completed Japanese contact on 20 m completes the Japan target on 20 m. Other Japanese stations on that band are then skipped; Japan on 40 m can still be available.
 
-An exact callsign target is checked for that callsign. A pattern target is completed by a matching contact. The JTDX log, including earlier sessions, is considered. Clear the checkbox to work several stations from the same entity on the same band.
+An exact callsign target is checked for that callsign. A pattern target is completed by a matching contact. AutoCQ uses the main logbook, including earlier sessions and contacts made in other programs. Clear the checkbox to work several stations from the same entity on the same band.
 
 ### Stations that did not answer
 
@@ -132,6 +132,28 @@ An exact callsign target is checked for that callsign. A pattern target is compl
 The pause lasts five minutes after the unsuccessful attempt. When it expires, the row disappears and a new fresh message can make that station eligible again. Expiry alone does not start a transmission. Use «Снять отметку попытки» in the left-pane tab to retry sooner.
 
 Stopping monitoring, including a timer stop, clears this list and its pauses. Clearing the monitoring-mode checkbox also resets them. Other entries and completed contacts are preserved.
+
+## Main logbook and profiles
+
+**«Журнал и профили»** (Logbook and profiles) sits next to the station list. Open **«Основной журнал»** (Main logbook) to see which history AutoCQ uses. When AutoCQ can identify the open LogHX logbook, it offers that file automatically. If the source is JTDX and the complete history lives elsewhere, click **«Выбрать файл»** (Choose file) and select your LogHX logbook (.lhx2) or an ADIF export (.adi, .adif). AutoCQ reads a copy of the LogHX database while the logger stays open.
+
+![Choosing the main logbook](docs/logbook-source-demo.png)
+
+Open **«Подбор целей DXCC»** (Find DXCC targets) and select a band. AutoCQ shows entities with no contact on that band in the selected logbook. It includes contacts in every mode. Tick the entities you want and click **«Добавить в цели»** (Add to targets). You can see the full list in the monitoring settings.
+
+![Finding entities to work on a band](docs/dxcc-targets-demo.png)
+
+In **«Профили настроек»** (Settings profiles), enter a name such as “40 m in the evening” and click **«Сохранить текущие»** (Save current settings). To use those settings again, stop automation, select the profile and click **«Применить»** (Apply). If the profile changes the final 73 wait or unanswered-call limit, close JTDX, click **«1. Подготовить»** (Prepare) again and restart JTDX as usual.
+
+![Two saved settings profiles](docs/profiles-demo.png)
+
+Select a callsign in **«Станции из левого окна JTDX»** and click **«Почему пропущена?»** (Why was this station skipped?). You can see when a retry pause ends, whether a DXCC exclusion applies, whether the target was completed or whether a fresh message is needed.
+
+![Why a station was skipped](docs/station-reason-demo.png)
+
+**«Итоги сеанса»** (Session results) shows JTDX log entries, final confirmations and the reason for stopping. AutoCQ checks the main logbook by callsign, band, mode and time. With an ADIF export, refresh the export file before checking recent contacts.
+
+![Session results compared with the LogHX logbook](docs/session-summary-demo.png)
 
 ## 8. Updates
 

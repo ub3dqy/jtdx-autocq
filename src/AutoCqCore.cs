@@ -169,6 +169,8 @@ namespace JtdxAutoCq
         public bool Awaiting73 { get { return waitingCall != null && !received73; } }
         public DateTime ConfirmationDeadline { get { return waitUntil; } }
         public Action<string> Notice = delegate { };
+        public Action<OperatingSession> SessionFinished = delegate { };
+        public OperatingSession Session { get; private set; }
         public Action RequestCq = delegate { };
         public Action RequestHalt = delegate { };
         public Action<DecodedMessage> RequestReply = delegate { };
@@ -230,6 +232,7 @@ namespace JtdxAutoCq
         string manualCq, activeSearchCall;
         bool finishing;
         MonitorTargets monitorTargets;
+        SessionContact sessionContact;
         string manualMonitorCall, incomingMonitorCall, unconfirmedMonitorCall;
         DateTime sessionStartedAt, monitorSelectionDeadline;
         static readonly Regex TxMessage = new Regex(@"\b(?:Transmitting|Retransmitting)\s+.*?\b(?:FT8|FT4):\s*(.+)$", RegexOptions.CultureInvariant);
@@ -278,6 +281,9 @@ namespace JtdxAutoCq
             Armed = true; pending = false; commandOutstanding = false; loggedCall = null; lastContact = Status.DxCall;
             everEnabled = Status.TxEnabled; Resumes = 0; LoggedCount = 0;
             ConfirmedCount = 0; Missing73Count = 0; ReplyCommands = 0; ResetContact();
+            Session = new OperatingSession {
+                StartedUtc = now, Band = callerBand, Mode = sessionMode, OwnCall = CleanCall(Status.DeCall), Monitoring = Options.MonitorEnabled,
+            };
             sentAcknowledgedReports.Clear();
             unexplainedStop = null;
             if (Monitoring)
@@ -296,6 +302,7 @@ namespace JtdxAutoCq
 
         public void Stop(string reason, bool halt)
         {
+            OperatingSession finished = Armed ? Session : null;
             if(Monitoring)Cqs.ClearMonitorTimeouts();
             Armed = false; pending = false; commandOutstanding = false; loggedCall = null;
             unexplainedStop = null;
@@ -306,6 +313,12 @@ namespace JtdxAutoCq
             sentAcknowledgedReports.Clear();
             Notice(reason);
             if (halt) RequestHalt();
+            if (finished != null)
+            {
+                finished.StoppedUtc = DateTime.UtcNow;
+                finished.StopReason = reason;
+                SessionFinished(finished);
+            }
         }
 
         public void OnStatus(RadioStatus status, DateTime now)
@@ -513,6 +526,7 @@ namespace JtdxAutoCq
                 {
                     sentAcknowledgedReports.Remove(CleanCall(call));
                     loggedCall = call; loggedAt = now; LoggedCount++;
+                    SessionRow(CleanCall(call)).LoggedUtc = RadioTime(line) ?? now;
                     completedCurrent = true;
                     if (waitingCall == null) BeginWaiting(CleanCall(call), now, RadioTime(line));
                     Notice("QSO в журнале: " + call + (Awaiting73 ? ". Ожидаю заключительное 73." : "."));
@@ -601,6 +615,7 @@ namespace JtdxAutoCq
         }
         void ResetContact()
         {
+            sessionContact = null;
             waitingCall = null; received73 = false; missing73Recorded = false; terminalRadioTime = null;
             receivedFinalAt = null;
             firstTerminalSlot = lastTerminalSlot = null; terminalHaltRequested = sentTerminalAcknowledgement = false;
@@ -838,10 +853,21 @@ namespace JtdxAutoCq
             firstTerminalSlot = slot;
             waitUntil = slot.AddTicks(2 * SlotDuration.Ticks * sessionWaitPeriods);
         }
-        void Confirm73(string reason)
+        SessionContact SessionRow(string call)
+        {
+            if (sessionContact == null || sessionContact.Call != call)
+            {
+                sessionContact = new SessionContact { Call = call };
+                Session.Contacts.Add(sessionContact);
+            }
+            return sessionContact;
+        }
+
+        void Confirm73(string reason, DateTime at)
         {
             if (received73) return;
             received73 = true; ConfirmedCount++;
+            SessionRow(waitingCall).ConfirmedUtc = at;
             Notice(reason);
         }
         void CompleteConfirmedContact()
@@ -905,7 +931,7 @@ namespace JtdxAutoCq
                     }
                     else if (previousTerminalSlot != lastTerminalSlot && !reverseNeedsReply)
                         repeatSentInSilentWindow = true;
-                    Confirm73(peer + " передал RR73; наше 73 завершает обмен.");
+                    Confirm73(peer + " передал RR73; наше 73 завершает обмен.", radioTime ?? now);
                 }
             }
             else if (callsignPair || Report.IsMatch(payload) || Grid.IsMatch(payload))
@@ -958,7 +984,7 @@ namespace JtdxAutoCq
                     else if (sentTerminalAcknowledgement)
                     {
                         receivedFinalAt = radioTime;
-                        Confirm73("Получено заключительное " + payload + " от " + peer + ".");
+                        Confirm73("Получено заключительное " + payload + " от " + peer + ".", radioTime ?? now);
                     }
                 }
             }
@@ -968,7 +994,7 @@ namespace JtdxAutoCq
                 receivedFinalAt = radioTime;
                 if (reverse73) reverseNeedsReply = false;
             }
-            Confirm73("Получено заключительное 73 от " + peer + ".");
+            Confirm73("Получено заключительное 73 от " + peer + ".", radioTime ?? now);
         }
 
         // JTDX still decodes the entire last RX slot with subsequent repeats disabled.
@@ -1033,10 +1059,50 @@ namespace JtdxAutoCq
 
         public bool IsMonitorCandidate(CqStation row, DateTime now)
         {
-            return Monitoring && now - row.HeardUtc <= SlotDuration + SlotDuration + TimeSpan.FromMilliseconds(500)
+            return Monitoring && IsMonitorMessage(row, now) && monitorTargets.CanTry(row.Call);
+        }
+
+        bool IsMonitorMessage(CqStation row, DateTime now)
+        {
+            return now - row.HeardUtc <= SlotDuration + SlotDuration + TimeSpan.FromMilliseconds(500)
                 && (row.Signoff == "73" || row.Signoff == "RRR" || row.Signoff == "RR73" || row.Signoff == null
-                    && !row.Decode.Message.TrimStart().StartsWith("QRZ ", StringComparison.OrdinalIgnoreCase))
-                && monitorTargets.CanTry(row.Call);
+                    && !row.Decode.Message.TrimStart().StartsWith("QRZ ", StringComparison.OrdinalIgnoreCase));
+        }
+
+        public string ExplainCq(string call, DateTime now)
+        {
+            CqStation row = Cqs.Find(call);
+            if (!CanCall(call)) return "Действует исключение DXCC.";
+            if (Status != null && CleanCall(Status.DxCall) == call && Status.TxEnabled)
+                return "Эта станция уже выбрана в JTDX.";
+            if (row == null) return "В списке ещё нет принятого CQ, 73, RRR или RR73 от этой станции.";
+            if (row.Busy) return String.IsNullOrEmpty(row.Activity) ? "Станция ведёт другой обмен." : row.Activity + ".";
+            if (now < row.NextTryUtc)
+                return "Пауза после вызова до " + row.NextTryUtc.ToLocalTime().ToString("HH:mm:ss") + ". Затем нужно свежее сообщение.";
+            if (!Cqs.Fresh(row, now)) return "Жду свежее сообщение от этой станции.";
+            if (!Armed) return "Автомат выключен. Сообщение можно выбрать для ручного вызова.";
+            if (finishing) return "Время сеанса вышло. AutoCQ заканчивает текущую связь и очередь.";
+            if (Monitoring)
+            {
+                MonitorEligibility eligible = monitorTargets.Eligibility(call);
+                if (eligible == MonitorEligibility.Outside) return "Станция не входит в цели мониторинга.";
+                if (eligible == MonitorEligibility.Worked) return "Цель уже выполнена на этом диапазоне. Включено ограничение «Одна связь на цель на диапазоне».";
+                if (!IsMonitorMessage(row, now)) return "Для мониторинга нужно свежее CQ, 73, RRR или RR73.";
+            }
+            else if (manualCq != call)
+            {
+                if (row.Worked) return "Связь с этой станцией уже завершена в текущем сеансе.";
+                if (!Waiting.CanUseCq(row)) return "Эта станция уже обрабатывается в очереди вызовов.";
+                bool priority = IsPriorityCall(call) && (row.Signoff == null || Options.PriorityAfter73);
+                if (row.Signoff != null && !priority) return "Для вызова после прощания нужен приоритет DXCC.";
+                if (!priority && !Options.SearchEnabled) return "Поиск станций из левого окна выключен.";
+                if (!priority && !hunting && !cqThreshold) return "Поиск начнётся после заданного числа CQ без ответа.";
+            }
+            if (Status != null && !String.IsNullOrEmpty(Status.DxCall) && (Status.TxEnabled || Awaiting73))
+                return "Сейчас идёт обмен с " + Status.DxCall + ". Выбор продолжится после связи.";
+            WaitingStation next = Status == null ? null : NextCaller(now);
+            if (next != null) return "Сначала AutoCQ ответит на входящий вызов " + next.Call + ".";
+            return "Станция подходит. AutoCQ проверит свежесть сообщения при следующем выборе.";
         }
 
         void ListenForTarget(DateTime now)
@@ -1319,6 +1385,7 @@ namespace JtdxAutoCq
         {
             if (!Awaiting73 || missing73Recorded) return;
             missing73Recorded = true; Missing73Count++;
+            SessionRow(waitingCall).MissingUtc = waitUntil;
             Notice("73 от " + waitingCall + " не получено за " + sessionWaitPeriods + " ответных периодов.");
         }
     }

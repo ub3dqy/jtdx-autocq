@@ -7,6 +7,8 @@ using System.Text.RegularExpressions;
 
 namespace JtdxAutoCq
 {
+    internal enum MonitorEligibility { Outside, Worked, Ready }
+
     public sealed class MonitorTargets
     {
         readonly HashSet<string> countries;
@@ -59,7 +61,18 @@ namespace JtdxAutoCq
         }
 
         public bool CanTry(string call)
-        { return Matching(call).Any(key => !onePerBand || !worked.Contains(key)); }
+        { return Eligibility(call) == MonitorEligibility.Ready; }
+
+        internal MonitorEligibility Eligibility(string call)
+        {
+            bool matched = false;
+            foreach (string key in Matching(call))
+            {
+                if (!onePerBand || !worked.Contains(key)) return MonitorEligibility.Ready;
+                matched = true;
+            }
+            return matched ? MonitorEligibility.Worked : MonitorEligibility.Outside;
+        }
 
         public void Complete(string call)
         {
@@ -82,6 +95,11 @@ namespace JtdxAutoCq
         };
         static readonly Regex Tag = new Regex(@"<([A-Z_][A-Z_0-9]*)(?::([0-9]+)(?::[A-Z])?)?>",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        static readonly HashSet<string> ContactFields = new HashSet<string> {
+            "CALL", "BAND", "FREQ", "STATION_CALLSIGN", "SWL", "MODE", "SUBMODE",
+            "QSO_DATE", "TIME_ON", "QSO_DATE_OFF", "TIME_OFF",
+        };
+        internal static readonly IList<string> BandNames = Array.AsReadOnly(Bands);
 
         public static string Band(double frequencyHz)
         {
@@ -92,17 +110,29 @@ namespace JtdxAutoCq
         }
 
         public static HashSet<string> WorkedCalls(string file, string band, string ownCall, string mode = null)
-        {
-            if (!File.Exists(file)) return new HashSet<string>();
-            using (var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-            using (var reader = new StreamReader(stream))
-                return WorkedCallsFromText(reader.ReadToEnd(), band, ownCall, mode);
-        }
+        { return String.IsNullOrEmpty(band) ? new HashSet<string>() : Worked(Contacts(file), band, ownCall, mode); }
 
         internal static HashSet<string> WorkedCallsFromText(string text, string band, string ownCall, string mode = null)
+        { return String.IsNullOrEmpty(band) ? new HashSet<string>() : Worked(ContactsFromText(text), band, ownCall, mode); }
+
+        static HashSet<string> Worked(IEnumerable<LogbookQso> contacts, string band, string ownCall, string mode)
         {
-            var worked = new HashSet<string>();
-            if (String.IsNullOrEmpty(band)) return worked;
+            return new HashSet<string>(contacts.Where(qso => (String.IsNullOrEmpty(qso.Station) || qso.Station == ownCall)
+                && String.Equals(qso.Band, band, StringComparison.OrdinalIgnoreCase)
+                && (mode == null || String.Equals(qso.Mode, mode, StringComparison.OrdinalIgnoreCase))).Select(qso => qso.Call));
+        }
+
+        internal static List<LogbookQso> Contacts(string file)
+        {
+            if (!File.Exists(file)) return new List<LogbookQso>();
+            using (var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            using (var reader = new StreamReader(stream))
+                return ContactsFromText(reader.ReadToEnd());
+        }
+
+        internal static List<LogbookQso> ContactsFromText(string text)
+        {
+            var contacts = new List<LogbookQso>();
             var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             for (Match tag = Tag.Match(text); tag.Success;)
             {
@@ -110,33 +140,45 @@ namespace JtdxAutoCq
                 int next = tag.Index + tag.Length;
                 if (name == "EOH" || name == "EOR")
                 {
-                    string call = Callsign.Parse(Read(fields, "CALL"));
-                    string station = Callsign.Clean(Read(fields, "STATION_CALLSIGN"));
-                    string recordBand = Read(fields, "BAND");
-                    string recordMode = Read(fields, "SUBMODE");
-                    if (recordMode.Length == 0) recordMode = Read(fields, "MODE");
-                    double mhz;
-                    if (recordBand.Length == 0 && Double.TryParse(Read(fields, "FREQ"), NumberStyles.Float,
-                        CultureInfo.InvariantCulture, out mhz)) recordBand = Band(mhz * 1000000);
-                    if (name == "EOR" && call != null && String.Equals(band, recordBand, StringComparison.OrdinalIgnoreCase)
-                        && (mode == null || String.Equals(mode, recordMode, StringComparison.OrdinalIgnoreCase))
-                        && (station.Length == 0 || station == ownCall)
-                        && !String.Equals(Read(fields, "SWL"), "Y", StringComparison.OrdinalIgnoreCase))
-                        worked.Add(call);
+                    if (name == "EOR")
+                    {
+                        LogbookQso contact = Contact(fields);
+                        if (contact != null) contacts.Add(contact);
+                    }
                     fields.Clear();
                 }
                 else if (tag.Groups[2].Success)
                 {
                     int count;
                     if (!Int32.TryParse(tag.Groups[2].Value, out count) || count > text.Length - next) break;
-                    if (name == "CALL" || name == "BAND" || name == "FREQ" || name == "STATION_CALLSIGN" || name == "SWL"
-                        || name == "MODE" || name == "SUBMODE")
+                    if (ContactFields.Contains(name))
                         fields[name] = text.Substring(next, count).Trim();
                     next += count;
                 }
                 tag = Tag.Match(text, next);
             }
-            return worked;
+            return contacts;
+        }
+
+        static LogbookQso Contact(Dictionary<string, string> fields)
+        {
+            string call = Callsign.Parse(Read(fields, "CALL"));
+            if (call == null || String.Equals(Read(fields, "SWL"), "Y", StringComparison.OrdinalIgnoreCase)) return null;
+            string band = Read(fields, "BAND");
+            double mhz;
+            if (band.Length == 0 && Double.TryParse(Read(fields, "FREQ"), NumberStyles.Float,
+                CultureInfo.InvariantCulture, out mhz)) band = Band(mhz * 1000000) ?? "";
+            if (band.Length == 0) return null;
+            string mode = Read(fields, "SUBMODE");
+            if (mode.Length == 0) mode = Read(fields, "MODE");
+            string date = Read(fields, "QSO_DATE");
+            string endDate = Read(fields, "QSO_DATE_OFF");
+            return new LogbookQso {
+                Call = call, Station = Callsign.Clean(Read(fields, "STATION_CALLSIGN")),
+                Band = band.ToLowerInvariant(), Mode = mode.ToUpperInvariant(),
+                StartedUtc = LogbookQso.ReadUtc(date, Read(fields, "TIME_ON")),
+                EndedUtc = LogbookQso.ReadUtc(endDate.Length == 0 ? date : endDate, Read(fields, "TIME_OFF")),
+            };
         }
 
         static string Read(Dictionary<string, string> fields, string key)

@@ -1,10 +1,13 @@
-# AutoCQ 0.9.14
+# AutoCQ 0.9.15
 
 ## Русский
 
-Сообщить об ошибке в AutoCQ теперь можно без аккаунта GitHub. Нажмите **«Сообщить об ошибке»**, опишите сбой и выберите **«Отправить в поддержку»**. Ваш текст и диагностика за 20 минут до нажатия попадут в закрытый кабинет на ub3dqy.com. Программа покажет номер отчёта.
+AutoCQ может учитывать всю историю из LogHX или экспорта ADIF. В меню **«Журнал и профили»** выберите основной журнал, чтобы учесть связи из разных программ и режимов. AutoCQ читает копию базы LogHX, пока журнал открыт.
 
-Если хотите опубликовать Issue, нажмите **«Отправить и открыть GitHub»**. Диагностика поступит в закрытый кабинет, а в браузере откроется черновик с вашим описанием и номером отчёта. Для публикации войдите в аккаунт GitHub.
+- **«Подбор целей DXCC»** помогает найти страны, с которыми ещё не было связи на выбранном диапазоне.
+- **«Профили настроек»** сохраняют таймеры, цели, приоритеты и исключения под вашим названием.
+- **«Итоги сеанса»** показывают финальные подтверждения, причину остановки и совпадения с основным журналом.
+- **«Почему пропущена?»** показывает, что мешает выбрать станцию из левого списка JTDX.
 
 **Как обновиться.** Откройте **«Обновления»**, скачайте выпуск и закройте JTDX перед установкой. Затем нажмите **«Обновить и перезапустить»**. При работе с LogHX запускайте JTDX значком в журнале.
 
@@ -12,9 +15,12 @@
 
 ## English
 
-You can now report a problem in AutoCQ without a GitHub account. Click **«Сообщить об ошибке»** (Report a bug), describe what happened, then click **«Отправить в поддержку»** (Send to support). Your message and the preceding 20 minutes of diagnostics go to the private staff area at ub3dqy.com. AutoCQ shows the report number.
+AutoCQ can use your full history from LogHX or an ADIF export. In **«Журнал и профили»** (Logbook and profiles), choose the main logbook for contacts made in different programs and modes. AutoCQ reads a copy of the LogHX database while the logger stays open.
 
-To publish an issue, click **«Отправить и открыть GitHub»** (Send and open GitHub). The diagnostics go to the private staff area, and your browser opens a draft with your description and report number. Sign in to GitHub to publish it.
+- **«Подбор целей DXCC»** (Find DXCC targets) shows the entities you still need on a band.
+- **«Профили настроек»** (Settings profiles) saves timers, targets, priorities and exclusions under a name.
+- **«Итоги сеанса»** (Session results) shows final confirmations, the reason for stopping and matches in your main logbook.
+- **«Почему пропущена?»** (Why was this station skipped?) explains why AutoCQ could pass over a station in the JTDX activity list.
 
 **Updating.** Open **«Обновления»** (Updates), download the release, and close JTDX before installation. Click **«Обновить и перезапустить»** (Update and restart). If you use LogHX, launch JTDX from its icon.
 

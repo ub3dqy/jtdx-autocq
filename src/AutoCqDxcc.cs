@@ -25,10 +25,13 @@ namespace JtdxAutoCq
         public IEnumerable<DxccCountry> Countries { get { return countries; } }
 
         public static DxccCountries Load(string path)
+        { return Parse(File.ReadLines(path)); }
+
+        internal static DxccCountries Parse(IEnumerable<string> lines)
         {
             var result = new DxccCountries();
             DxccCountry country = null;
-            foreach (string line in File.ReadLines(path))
+            foreach (string line in lines)
             {
                 if (String.IsNullOrWhiteSpace(line)) continue;
                 if (!Char.IsWhiteSpace(line[0]))

@@ -6,7 +6,7 @@
 
 You could let it work for an hour, answering callers and looking for another station when nobody replies. Or enable monitoring: AutoCQ watches for wanted countries and callsigns, and also answers stations that call you.
 
-![Sample settings and queue in AutoCQ 0.9.14 by UB3DQY. The app interface is in Russian.](docs/autocq-demo.png)
+![Sample settings and queue in AutoCQ 0.9.15 by UB3DQY. The app interface is in Russian.](docs/autocq-demo.png)
 
 ## What AutoCQ can do
 
@@ -58,6 +58,14 @@ If JTDX ends a call because the frequency is occupied or the other station answe
 Spotted an interesting station outside your targets? While monitoring is listening, double-click its message in JTDX. You can also select it in AutoCQ's **«Станции из левого окна JTDX»** tab and click **«Позвать выбранную»** (Call selected). After the contact or the unanswered-call limit, monitoring resumes with the original settings and time remaining. The manual choice applies once; DXCC exclusions still apply.
 
 ![Calling a station manually while monitoring remains active](docs/monitor-manual-demo.png)
+
+## Main logbook, profiles and session results
+
+Open **«Журнал и профили»** (Logbook and profiles) to select your LogHX logbook or an ADIF export from another program. AutoCQ uses that history, including voice and contacts made through other software. In **«Подбор целей DXCC»** (Find DXCC targets), select a band and tick the entities that you still need on that band.
+
+The same menu lets you save settings under a name and check **«Итоги сеанса»** (Session results). The results show final confirmations and which records were found in your main logbook. If a callsign remains in the left list, select it and click **«Почему пропущена?»** (Why was this station skipped?).
+
+![Finding DXCC targets using the main logbook](docs/dxcc-targets-demo.png)
 
 ## Updates
 

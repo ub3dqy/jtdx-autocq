@@ -10,7 +10,7 @@ using JtdxAutoCq;
 static class RenderScreenshots
 {
     static object Field(object value,string name){return value.GetType().GetField(name,BindingFlags.Instance|BindingFlags.NonPublic).GetValue(value);}
-    static void Invoke(object value,string name,params object[] arguments){value.GetType().GetMethod(name,BindingFlags.Instance|BindingFlags.NonPublic).Invoke(value,arguments);}
+    static object Invoke(object value,string name,params object[] arguments){return value.GetType().GetMethod(name,BindingFlags.Instance|BindingFlags.NonPublic).Invoke(value,arguments);}
     static void Save(Form form,string path)
     {
         form.StartPosition=FormStartPosition.Manual;form.Location=new Point(-32000,-32000);form.ShowInTaskbar=false;
@@ -92,6 +92,19 @@ static class RenderScreenshots
             Save(form,Path.Combine(directory,"updates-download-demo.png"));
         }
         using(var form=BugReportDialog.CreateDemo(version))Save(form,Path.Combine(directory,"bug-report-demo.png"));
-        Console.WriteLine("Rendered ten offline demo screenshots.");
+        using (var form = new MainForm(true))
+        {
+            ((Timer)Field(form,"timer")).Stop();
+            var screens = (Form[])Invoke(form,"OperatorToolsDemoForms");
+            string[] names = { "logbook-source-demo.png", "profiles-demo.png", "dxcc-targets-demo.png",
+                "station-reason-demo.png", "session-summary-demo.png" };
+            try
+            {
+                for (int index = 0; index < screens.Length; index++)
+                    Save(screens[index], Path.Combine(directory, names[index]));
+            }
+            finally { foreach (Form screen in screens) screen.Dispose(); }
+        }
+        Console.WriteLine("Rendered fifteen offline demo screenshots.");
     }
 }
