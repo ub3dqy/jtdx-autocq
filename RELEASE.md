@@ -1,13 +1,10 @@
-# AutoCQ 0.9.15
+# AutoCQ 0.9.16
 
 ## Русский
 
-AutoCQ может учитывать всю историю из LogHX или экспорта ADIF. В меню **«Журнал и профили»** выберите основной журнал, чтобы учесть связи из разных программ и режимов. AutoCQ читает копию базы LogHX, пока журнал открыт.
-
-- **«Подбор целей DXCC»** помогает найти страны, с которыми ещё не было связи на выбранном диапазоне.
-- **«Профили настроек»** сохраняют таймеры, цели, приоритеты и исключения под вашим названием.
-- **«Итоги сеанса»** показывают финальные подтверждения, причину остановки и совпадения с основным журналом.
-- **«Почему пропущена?»** показывает, что мешает выбрать станцию из левого списка JTDX.
+- При ручном вызове и после завершения автоматической попытки AutoCQ продолжает мониторинг, когда JTDX подтверждает выбранную станцию или возврат на приём. Запоздавший статус прежнего позывного отменяется новым.
+- Если 73, RRR или RR73 приходит до обмена рапортами, AutoCQ продолжает применять лимит вызовов. По исчерпании попыток модуль возвращается на приём или переходит к следующей станции.
+- В журнале различаются исчерпанный лимит, отсутствие декодирования и досрочное завершение вызова в JTDX.
 
 **Как обновиться.** Откройте **«Обновления»**, скачайте выпуск и закройте JTDX перед установкой. Затем нажмите **«Обновить и перезапустить»**. При работе с LogHX запускайте JTDX значком в журнале.
 
@@ -15,12 +12,9 @@ AutoCQ может учитывать всю историю из LogHX или э�
 
 ## English
 
-AutoCQ can use your full history from LogHX or an ADIF export. In **«Журнал и профили»** (Logbook and profiles), choose the main logbook for contacts made in different programs and modes. AutoCQ reads a copy of the LogHX database while the logger stays open.
-
-- **«Подбор целей DXCC»** (Find DXCC targets) shows the entities you still need on a band.
-- **«Профили настроек»** (Settings profiles) saves timers, targets, priorities and exclusions under a name.
-- **«Итоги сеанса»** (Session results) shows final confirmations, the reason for stopping and matches in your main logbook.
-- **«Почему пропущена?»** (Why was this station skipped?) explains why AutoCQ could pass over a station in the JTDX activity list.
+- Monitoring continues when JTDX confirms a manual selection or a return to receive after an automatic attempt. The fresh status supersedes any delayed status for the previous callsign.
+- The configured call limit still applies if 73, RRR or RR73 arrives before reports are exchanged. When the limit is reached, AutoCQ returns to receive or moves on to the next station.
+- The log distinguishes an exhausted attempt limit, a station that could not be decoded and a call that JTDX ended early.
 
 **Updating.** Open **«Обновления»** (Updates), download the release, and close JTDX before installation. Click **«Обновить и перезапустить»** (Update and restart). If you use LogHX, launch JTDX from its icon.
 

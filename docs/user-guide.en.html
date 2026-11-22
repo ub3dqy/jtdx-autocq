@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="author" content="UB3DQY"><title>Using AutoCQ · UB3DQY</title><link rel="icon" href="icon.png"><link rel="stylesheet" href="guide.css"></head><body><main><h1>Using AutoCQ</h1>
-<p>Guide for AutoCQ 0.9.15 · <strong>UB3DQY</strong> · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
+<p>Guide for AutoCQ 0.9.16 · <strong>UB3DQY</strong> · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
 <p>AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.</p>
 <p>Monitoring works differently: JTDX listens until a wanted country or callsign appears, calls that station, then returns to receive. The application interface is currently in Russian; this guide includes the labels you will see.</p>
 <h2>1. Downloads</h2>
@@ -48,6 +48,7 @@
 <p><img loading="lazy" src="monitor-demo.png" alt="The main window in monitoring mode, showing the number of selected targets"></p>
 <p>Separate callsigns with spaces, commas or new lines. In patterns, <strong>*</strong> matches any number of characters and <strong>?</strong> matches one: <code>9J*</code> matches calls beginning with 9J; <code>K?ABC</code> matches K1ABC or K2ABC.</p>
 <p>Save the targets, enable <strong>«Режим мониторинга»</strong>, then click <strong>«2. Включить мониторинг»</strong>. AutoCQ listens for recent CQ, 73, RRR and RR73 from matching stations. A sign-off selects its sender. After the QSO or attempt limit, the program returns to receive. It does not call CQ in this mode.</p>
+<p>If the other station sends 73, RRR or RR73 before reports are exchanged, the call limit still applies. AutoCQ resumes monitoring once the attempts are used up.</p>
 <h3>When a station calls you</h3>
 <p>Monitoring targets determine whom AutoCQ searches for and calls itself. A station addressing your callsign is answered even if its country, callsign or pattern is outside those targets. Incoming callers take priority over searching for a new target and over a saved selection made with the Call selected button.</p>
 <p><img loading="lazy" src="monitor-callers-demo.png" alt="AutoCQ answers DL1AAA outside the target list while another caller waits"></p>

@@ -2278,6 +2278,23 @@ class AutoCqTests
                             "The manual exception changed the configured targets");
                     }
                 });
+                Run("An old automatic status does not interrupt a confirmed manual monitoring call", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                    DateTime deadline = e.SessionDeadline;
+                    var target = CqD(At.AddSeconds(15), "JA2ZZB"); target.IsNew = false;
+                    e.OnDecode(target, At.AddSeconds(29)); e.Tick(At.AddSeconds(29.1), true);
+                    e.OnStatus(S(true, "JA2ZZB"), At.AddSeconds(29.2));
+                    e.OnLine(Tx(At.AddSeconds(30), "JA2ZZB", "-17"), At.AddSeconds(30));
+
+                    e.OnLine(ManualSelection(At.AddSeconds(46.9), "DL3ZZB"), At.AddSeconds(47));
+                    e.OnStatus(S(true, "JA2ZZB"), At.AddSeconds(47.02));
+                    RadioStatus manual = S(true, "DL3ZZB"); manual.TxFirst = false;
+                    e.OnStatus(manual, At.AddSeconds(47.15));
+                    e.Tick(At.AddSeconds(48.2), true);
+                    Assert(e.Monitoring && e.ManualMonitorCall == "DL3ZZB" && !e.CqTxFirst
+                        && e.SessionDeadline == deadline && commands.SequenceEqual(new[] { "REPLY CQ JA2ZZB FN20" }),
+                        "A superseded status halted the accepted manual call");
+                });
                 Run("A manually selected QSO returns to the original monitoring targets with or without a log record", () => {
                     foreach (bool logged in new[] { true, false })
                     {
@@ -2501,6 +2518,74 @@ class AutoCqTests
                     d = D(At.AddSeconds(90), "JA3ZZC", "RR73"); d.IsNew = false; d.Message = "W7ZZD JA3ZZC RR73";
                     e.OnDecode(d, At.AddSeconds(104)); e.Tick(At.AddSeconds(104.2), true);
                     Assert(commands.Last() == "REPLY W7ZZD JA3ZZC RR73", "Monitoring did not resume for the next RR73 target");
+                });
+                Run("Early terminal messages do not bypass the call limit before a report", () => {
+                    foreach (string response in new[] { "RR73", "RRR", "73", "R-08" })
+                    {
+                        List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                        var target = D(At.AddSeconds(15), "JA2ZZB", "RR73");
+                        target.IsNew = false; target.Message = "W7ZZD JA2ZZB RR73";
+                        e.OnDecode(target, At.AddSeconds(29)); e.Tick(At.AddSeconds(29.1), true);
+                        e.OnStatus(S(true, "JA2ZZB"), At.AddSeconds(29.2));
+                        e.OnLine(Tx(At.AddSeconds(30), "JA2ZZB", "-19"), At.AddSeconds(30));
+                        e.OnLine(Tx(At.AddSeconds(60), "JA2ZZB", "-18"), At.AddSeconds(60));
+                        e.OnLine(Rx(At.AddSeconds(75), "JA2ZZB", response), At.AddSeconds(89));
+                        e.OnLine(DecodeFinished(At.AddSeconds(89.1)), At.AddSeconds(89.1));
+                        e.Tick(At.AddSeconds(89.2), true);
+                        Assert(e.Monitoring && e.LoggedCount == 0 && e.ConfirmedCount == 0
+                            && commands.Count == (response == "R-08" ? 1 : 2)
+                            && (response == "R-08" || commands.Last() == "HALT"),
+                            "An early terminal message bypassed the limit, or a genuine report was interrupted: " + response);
+                    }
+                });
+                Run("A late TX status after an automatic retry does not stop a receiving monitor", () => {
+                    foreach (bool duplicateCounter in new[] { false, true })
+                    {
+                        List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                        var notices = new List<string>(); e.Notice = notices.Add;
+                        var target = CqD(At.AddSeconds(15), "JA2ZZB"); target.IsNew = false;
+                        e.OnDecode(target, At.AddSeconds(29)); e.Tick(At.AddSeconds(29.1), true);
+                        e.OnStatus(S(true, "JA2ZZB"), At.AddSeconds(29.2));
+                        e.OnLine(Tx(At.AddSeconds(30), "JA2ZZB", "-17"), At.AddSeconds(30));
+                        e.OnStatus(S(false, "JA2ZZB"), At.AddSeconds(59.1));
+                        e.OnLine("Halt Tx triggered at RX: Called station not decoded", At.AddSeconds(59.2));
+                        e.Tick(At.AddSeconds(59.3), true);
+                        DateTime retry = e.Cqs.Find("JA2ZZB").MonitorRetryUntilUtc;
+
+                        e.OnStatus(S(true, "JA2ZZB"), At.AddSeconds(88.9));
+                        if (duplicateCounter) e.OnLine("Halt Tx triggered at RX: AutoCQ, counter triggered", At.AddSeconds(89.1));
+                        e.OnStatus(S(false, duplicateCounter ? "JA2ZZB" : ""), At.AddSeconds(89.2));
+                        e.Tick(At.AddSeconds(90.1), true);
+                        Assert(e.Monitoring && !e.Status.TxEnabled && commands.Count == 1 && retry > At
+                            && e.Cqs.Find("JA2ZZB").MonitorRetryUntilUtc == retry
+                            && notices.Contains("JTDX не декодировал станцию JA2ZZB. Возвращаюсь на приём."),
+                            "The old status stopped monitoring or extended the failed target's cooldown");
+
+                        target = CqD(At.AddSeconds(105), "JA3ZZC"); target.IsNew = false;
+                        e.OnDecode(target, At.AddSeconds(119)); e.Tick(At.AddSeconds(119.1), true);
+                        Assert(commands.Last() == "REPLY CQ JA3ZZC FN20", "Monitoring failed to select a new target after an old status");
+                    }
+                });
+                Run("A native counter stop reports the attempt limit only when the calls reached it", () => {
+                    foreach (int attempts in new[] { 1, 2 })
+                    {
+                        List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                        var notices = new List<string>(); e.Notice = notices.Add;
+                        var target = CqD(At.AddSeconds(15), "JA2ZZB"); target.IsNew = false;
+                        e.OnDecode(target, At.AddSeconds(29)); e.Tick(At.AddSeconds(29.1), true);
+                        e.OnStatus(S(true, "JA2ZZB"), At.AddSeconds(29.2));
+                        e.OnLine(Tx(At.AddSeconds(30), "JA2ZZB", "-17"), At.AddSeconds(30));
+                        if (attempts == 2) e.OnLine(Tx(At.AddSeconds(60), "JA2ZZB", "-18"), At.AddSeconds(60));
+                        var other = D(At.AddSeconds(15 + attempts * 30), "JA2ZZB", "-10");
+                        other.Message = "OE1AAA JA2ZZB -10";
+                        DateTime end = At.AddSeconds(29 + attempts * 30);
+                        e.OnDecode(other, end); e.OnStatus(S(false, ""), end.AddSeconds(0.1));
+                        e.OnLine("Halt Tx triggered at RX: AutoCQ, counter triggered", end.AddSeconds(0.2));
+                        e.Tick(end.AddSeconds(0.3), true);
+                        string reason = attempts == 2 ? "Лимит попыток JA2ZZB исчерпан." : "JTDX завершил вызов JA2ZZB.";
+                        Assert(e.Monitoring && notices.Contains(reason + " Возвращаюсь на приём.") && commands.Count == 1,
+                            "The stop reason disagrees with the number of initial calls");
+                    }
                 });
                 Run("JTDX stopping one busy target keeps monitoring and its original timer", () => {
                     foreach (bool statusFirst in new[] { false, true })

@@ -325,8 +325,9 @@ namespace JtdxAutoCq
         {
             string previousCall = Status == null ? "" : CleanCall(Status.DxCall);
             string nextCall = CleanCall(status.DxCall);
-            bool wasEnabled = Status != null && Status.TxEnabled;
-            bool wasTransmitting = Status != null && Status.Transmitting;
+            bool previousTxConfirmed = unconfirmedMonitorCall == null;
+            bool wasEnabled = previousTxConfirmed && Status != null && Status.TxEnabled;
+            bool wasTransmitting = previousTxConfirmed && Status != null && Status.Transmitting;
             bool nativeIdleSelection = Status != null && String.IsNullOrEmpty(Status.DxCall) && !String.IsNullOrEmpty(status.DxCall)
                 && waitingCall == null && (!pending || UseNativeSelection && (replyDuringCq || cqListening || allowClearDx))
                 && !commandOutstanding && selectedQueuedCall == null && (!UseNativeSelection || status.TxEnabled);
@@ -345,21 +346,23 @@ namespace JtdxAutoCq
             { Stop("Изменены диапазон, режим или сработал сторожевой таймер: мониторинг выключен.", true); return; }
             bool outsideMonitorCall = Monitoring && nextCall.Length > 0
                 && nextCall != selectedQueuedCall && nextCall != pendingOwner;
-            if (outsideMonitorCall)
+            bool txActive = status.TxEnabled || status.Transmitting;
+            if (outsideMonitorCall && txActive)
             {
                 // JTDX sends status from its Enable Tx handler before writing
                 // the double-click log entry. Do not cancel a manual call while
                 // that entry is still in flight. Only the fresh log entry can
                 // authorize this one-off exception to the monitoring targets.
-                if (status.TxEnabled || status.Transmitting)
-                {
-                    if (!CanCall(nextCall))
-                    { Stop("JTDX выбрал станцию из исключений DXCC. Автомат выключен.", true); return; }
-                    if (unconfirmedMonitorCall != nextCall)
-                    { unconfirmedMonitorCall = nextCall; monitorSelectionDeadline = now.AddSeconds(1); }
-                }
+                if (!CanCall(nextCall))
+                { Stop("JTDX выбрал станцию из исключений DXCC. Автомат выключен.", true); return; }
+                if (unconfirmedMonitorCall != nextCall)
+                { unconfirmedMonitorCall = nextCall; monitorSelectionDeadline = now.AddSeconds(1); }
                 return;
             }
+            // A later status for the accepted call or for receive supersedes
+            // an unconfirmed TX status, including one for the previous target.
+            unconfirmedMonitorCall = null;
+            if (outsideMonitorCall) return;
             if (Monitoring && status.TxEnabled
                 && !pending && nextCall.Length == 0)
             { Stop("JTDX включил передачу вне цели мониторинга. Мониторинг выключен.", true); return; }
@@ -549,26 +552,30 @@ namespace JtdxAutoCq
                 && now >= receivedFinalAt.Value && now - receivedFinalAt.Value <= SlotDuration + SlotDuration;
             // The native decoder ends this attempt if the frequency is in use
             // or the DX replies elsewhere. JTDX has disabled TX for this call.
-            string monitoredContact = waitingCall ?? selectedQueuedCall ?? attemptCall ?? (pending ? pendingOwner : null);
-            bool busyTarget = Monitoring && monitoredContact != null && monitoredContact == lastContact && BusyTargetHalt.IsMatch(reason);
-            bool retryLimit = busyTarget || reason.IndexOf("m_houndMode", StringComparison.Ordinal) < 0
-                && (reason.IndexOf("counter triggered", StringComparison.Ordinal) >= 0
-                    || !String.IsNullOrEmpty(lastContact) && NoDecodeHalt.IsMatch(reason));
-            if ((everEnabled || busyTarget) && ((normalEnd && loggedRecently) || (finalStop && confirmedRecently) || retryLimit))
+            string monitoredContact = waitingCall ?? selectedQueuedCall ?? attemptCall;
+            bool busyStop = Monitoring && BusyTargetHalt.IsMatch(reason);
+            bool busyTarget = busyStop && monitoredContact != null && monitoredContact == lastContact;
+            bool noDecode = NoDecodeHalt.IsMatch(reason);
+            bool counter = reason.IndexOf("counter triggered", StringComparison.Ordinal) >= 0;
+            bool nativeRetryEnd = reason.IndexOf("m_houndMode", StringComparison.Ordinal) < 0 && (counter || noDecode);
+            // JTDX can report a second retry stop after the attempt was released.
+            if (Monitoring && monitoredContact == null && (busyStop || nativeRetryEnd)) return;
+            bool retryEnd = busyTarget || nativeRetryEnd && (counter || !String.IsNullOrEmpty(lastContact));
+            if ((everEnabled || busyTarget) && ((normalEnd && loggedRecently) || (finalStop && confirmedRecently) || retryEnd))
             {
-                if (retryLimit && !loggedRecently && waitingCall == null)
+                if (retryEnd && !loggedRecently && waitingCall == null)
                 {
                     // The module may already have asked for Halt on the same
                     // boundary. Consume that reply too if it is still in flight.
                     if (stoppingRetry != null) cqHaltExpected = true;
-                    ContinueAfterRetry(stoppingRetry ?? lastContact, now, busyTarget);
+                    ContinueAfterRetry(stoppingRetry ?? lastContact, now, busyTarget, noDecode);
                     return;
                 }
                 unexplainedStop = null;
                 allowClearDx = true; pendingOwner = waitingCall ?? lastContact;
                 Schedule(now, Awaiting73 ? "Ожидаю 73 от " + waitingCall + ": ответных периодов — " + sessionWaitPeriods + "."
                     : Monitoring ? "Обмен с целью завершён. Возвращаюсь на приём."
-                    : retryLimit ? "Лимит попыток исчерпан: следующая станция или CQ" : "Завершение подтверждено: следующая станция или CQ");
+                    : retryEnd ? "JTDX завершил вызов. Выбираю следующую станцию или CQ." : "Завершение подтверждено: следующая станция или CQ");
                 // FIN/counter is an explicit native acknowledgement. Tick still
                 // waits for RX, completed decoding and the final-73 condition.
                 due=now;
@@ -576,9 +583,16 @@ namespace JtdxAutoCq
             else Stop("JTDX остановлен. Автомат выключен: " + reason, false);
         }
 
-        void ContinueAfterRetry(string call, DateTime now, bool busyTarget = false)
+        void ContinueAfterRetry(string call, DateTime now, bool busyTarget = false, bool noDecode = false)
         {
-            bool callerTakesOver = yieldingToCaller;
+            string next = Monitoring ? "Возвращаюсь на приём." : "Выбираю следующую станцию или CQ.";
+            string station = String.IsNullOrEmpty(call) ? "" : " " + call;
+            string notice = "JTDX завершил вызов" + station + ". " + next;
+            if (busyTarget) notice = "JTDX прервал вызов " + call + ". Продолжаю мониторинг.";
+            else if (yieldingToCaller) notice = "Нет ответа от " + call + ". Отвечаю станции, которая зовёт нас сейчас.";
+            else if (noDecode) notice = "JTDX не декодировал станцию " + call + ". " + next;
+            else if (attemptCall == call && initialTransmissions >= sessionCallAttempts && !attemptAnswered)
+                notice = "Лимит попыток " + call + " исчерпан. " + next;
             Waiting.Pause(call, CallerQueue.NoAnswer, now);
             Cqs.Failed(call, now, Monitoring);
             ResetContact();
@@ -588,9 +602,7 @@ namespace JtdxAutoCq
             allowClearDx = true;
             pendingOwner = call;
             hunting = false;
-            Schedule(now, busyTarget ? "JTDX прервал вызов " + call + ". Продолжаю мониторинг."
-                : callerTakesOver ? "Нет ответа от " + call + ". Отвечаю станции, которая зовёт нас сейчас."
-                : "Лимит попыток " + call + " исчерпан. " + (Monitoring ? "Возвращаюсь на приём." : "Выбираю следующую станцию или CQ."));
+            Schedule(now, notice);
             due = now;
         }
 
@@ -966,7 +978,10 @@ namespace JtdxAutoCq
                 || waitingCall == peer && (payload == "73" || acknowledgement));
             if (response && (!radioTime.HasValue || now - radioTime.Value <= SlotDuration + SlotDuration))
                 lastResponseAt = now;
-            if (peer == attemptCall && (Report.IsMatch(payload) || acknowledgement)) attemptAnswered = true;
+            // An early RR73 or RRR cannot advance an exchange that still
+            // needs a report. A report or an outgoing acknowledged report
+            // already marks legitimate exchanges as answered.
+            if (peer == attemptCall && Report.IsMatch(payload)) attemptAnswered = true;
             if (peer == attemptCall && radioTime.HasValue && lastInitialSlot >= 0
                 && SlotNumber(radioTime.Value) > lastInitialSlot && response)
                 lastAttemptReplySlot = SlotNumber(radioTime.Value);
@@ -1164,7 +1179,7 @@ namespace JtdxAutoCq
             if (unconfirmedMonitorCall != null)
             {
                 if (now >= monitorSelectionDeadline)
-                    Stop("Нет подтверждения ручного выбора " + unconfirmedMonitorCall + " в JTDX. Мониторинг выключен.", true);
+                    Stop("JTDX включил передачу для " + unconfirmedMonitorCall + " без подтверждения выбора. Мониторинг выключен.", true);
                 return;
             }
             if (stoppingRetry != null)
