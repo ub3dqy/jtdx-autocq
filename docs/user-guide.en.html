@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="author" content="UB3DQY"><title>Using AutoCQ · UB3DQY</title><link rel="icon" href="icon.png"><link rel="stylesheet" href="guide.css"></head><body><main><h1>Using AutoCQ</h1>
-<p>Guide for AutoCQ 0.9.16 · <strong>UB3DQY</strong> · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
+<p>Guide for AutoCQ 0.9.17 · <strong>UB3DQY</strong> · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
 <p>AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.</p>
 <p>Monitoring works differently: JTDX listens until a wanted country or callsign appears, calls that station, then returns to receive. The application interface is currently in Russian; this guide includes the labels you will see.</p>
 <h2>1. Downloads</h2>
@@ -8,7 +8,7 @@
 <p>On GitHub, expand <strong>Assets</strong> and download <strong>JTDX-AutoCQ-…-win64.zip</strong>. The “Source code” archives are for developers. Install JTDX, configure your callsign, audio and radio, check normal operation and close it.</p>
 <p>Right-click the AutoCQ ZIP in File Explorer and choose <strong>Extract All</strong>. A separate AutoCQ folder under Documents is convenient. Keep the extracted files together.</p>
 <h2>2. Prepare and start</h2>
-<p>Open <strong>JTDX-AutoCQ.exe</strong> with JTDX closed. For a first check, choose 5 minutes, 2 call attempts and 2 receive periods for the sign-off. Click <strong>«1. Подготовить»</strong> (Prepare).</p>
+<p>Open <strong>JTDX-AutoCQ.exe</strong> with JTDX closed. For a first check, choose 5 minutes, 2 call attempts and 2 sign-off retries after no reply. Click <strong>«1. Подготовить»</strong> (Prepare).</p>
 <p>If the JTDX integration is missing, this window opens:</p>
 <p><img loading="lazy" src="setup-demo.png" alt="First-use JTDX preparation"></p>
 <p>Check the path to the installed <strong>jtdx.exe</strong>. Use <strong>«Выбрать файл»</strong> (Choose file) if needed; it is usually in the JTDX <strong>bin</strong> folder. The supported build is <strong>2.2.160-32A-rc10, 64-bit</strong>. Click <strong>«Подготовить JTDX»</strong> (Prepare JTDX), wait for success, then click <strong>«Продолжить»</strong> (Continue). Approve Windows permission if requested.</p>
@@ -25,14 +25,18 @@
 <h2>4. Main settings</h2>
 <div class="table-scroll"><table><thead><tr><th>Russian label</th><th>Meaning</th></tr></thead><tbody>
 <tr><td>Время автомата, мин</td><td>Session duration in minutes. An active contact is finished before stopping.</td></tr>
-<tr><td>Ожидать 73, ответных периодов</td><td>Receive opportunities allowed for a final confirmation. In FT8, the same station can reply every 30 seconds.</td></tr>
+<tr><td>Повторов 73 без ответа</td><td>How many times to repeat the sign-off if the other station stops replying.</td></tr>
 <tr><td>Вызовов без ответа</td><td>Call attempts allowed without a reply.</td></tr>
 <tr><td>CQ без ответа до поиска</td><td>Unanswered CQs before searching the left pane, when search is enabled.</td></tr>
 <tr><td>Смена периода без ответа, мин</td><td>Time without CQ replies before trying the other TX period.</td></tr>
 <tr><td>Хранить позывной в очереди, мин</td><td>Time before stale queue entries expire.</td></tr>
 </tbody></table></div>
 <p><strong>«Поиск станций CQ»</strong> enables searching received CQs after the selected threshold. After an unsuccessful call, AutoCQ returns to CQ: CQ → station → CQ.</p>
-<p>Change the call and sign-off limits before Prepare, with JTDX closed, because its counters must match. The hint below the settings explains when changes apply.</p>
+<p>Set the call limit and sign-off retries before clicking Prepare, with JTDX closed.</p>
+<h3>When the other station repeats its report</h3>
+<p>Say you send RR73 and the other station sends its report again. AutoCQ sends another RR73. Each new report resets the retry counter. With the setting at 2, the first quiet receive period is followed by up to two extra retries, with a chance to reply after each.</p>
+<p>A final 73, RR73 or RRR completes the exchange and the session continues. If another report arrives after the last retry, AutoCQ sends another sign-off and starts counting again.</p>
+<p><img loading="lazy" src="signoff-retry-demo.png" alt="DL1AAA sends another report and the unanswered retry count returns to zero"></p>
 <h2>5. The station queue</h2>
 <p>Incoming callers are queued automatically. Among stations calling in the same period, those not yet worked on the current band and mode come first. DXCC priorities and queue order then apply.</p>
 <p>If a station just selected for calling does not reply, but another station calls you in that receive period, AutoCQ answers the caller. An established report exchange is not interrupted.</p>
@@ -76,7 +80,7 @@
 <p><img loading="lazy" src="logbook-source-demo.png" alt="Choosing the main logbook"></p>
 <p>Open <strong>«Подбор целей DXCC»</strong> (Find DXCC targets) and select a band. AutoCQ shows entities with no contact on that band in the selected logbook. It includes contacts in every mode. Tick the entities you want and click <strong>«Добавить в цели»</strong> (Add to targets). You can see the full list in the monitoring settings.</p>
 <p><img loading="lazy" src="dxcc-targets-demo.png" alt="Finding entities to work on a band"></p>
-<p>In <strong>«Профили настроек»</strong> (Settings profiles), enter a name such as “40 m in the evening” and click <strong>«Сохранить текущие»</strong> (Save current settings). To use those settings again, stop automation, select the profile and click <strong>«Применить»</strong> (Apply). If the profile changes the final 73 wait or unanswered-call limit, close JTDX, click <strong>«1. Подготовить»</strong> (Prepare) again and restart JTDX as usual.</p>
+<p>In <strong>«Профили настроек»</strong> (Settings profiles), enter a name such as “40 m in the evening” and click <strong>«Сохранить текущие»</strong> (Save current settings). To use those settings again, stop automation, select the profile and click <strong>«Применить»</strong> (Apply). If the profile changes the sign-off retries or unanswered-call limit, close JTDX, click <strong>«1. Подготовить»</strong> (Prepare) again and restart JTDX as usual.</p>
 <p><img loading="lazy" src="profiles-demo.png" alt="Two saved settings profiles"></p>
 <p>Select a callsign in <strong>«Станции из левого окна JTDX»</strong> and click <strong>«Почему пропущена?»</strong> (Why was this station skipped?). You can see when a retry pause ends, whether a DXCC exclusion applies, whether the target was completed or whether a fresh message is needed.</p>
 <p><img loading="lazy" src="station-reason-demo.png" alt="Why a station was skipped"></p>

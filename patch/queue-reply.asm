@@ -663,8 +663,8 @@ defer_ptt:
     cmp word [rax+4], '4'
     jne .start
 .digital:
-    ; After our own 73, key only when the companion saw another addressed
-    ; RR73. While waiting for its packet, keep the slot available.
+    ; During a managed sign-off, key only when the companion permits
+    ; a repeat. While waiting for its packet, keep the slot available.
     test byte [rel lease_flags], 8
     jz .busy
     cmp byte [rbx+0x68b], 0

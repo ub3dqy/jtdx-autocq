@@ -6,11 +6,12 @@
 
 You could let it work for an hour, answering callers and looking for another station when nobody replies. Or enable monitoring: AutoCQ watches for wanted countries and callsigns, and also answers stations that call you.
 
-![Sample settings and queue in AutoCQ 0.9.15 by UB3DQY. The app interface is in Russian.](docs/autocq-demo.png)
+![Sample settings and queue in AutoCQ by UB3DQY. The app interface is in Russian.](docs/autocq-demo.png)
 
 ## What AutoCQ can do
 
 - **Continue after each QSO.** Answer callers, return to CQ and alternate CQ with calling another station.
+- **Finish the exchange.** AutoCQ repeats the sign-off each time the current station sends another report. When the station goes quiet, it sends the configured number of retries and listens for a reply after each.
 - **Work to a timer.** Finish the current contact and handle available queued callers when time runs out.
 - **Follow your preferences.** Prioritize selected DXCC entities, skip excluded entities and answer new stations first when several call together.
 - **Keep a queue.** Remember callers while you are busy. Manually added callsigns are called directly after the current contact and available incoming callers.
@@ -35,7 +36,7 @@ You can use a SunSDR or another radio that already works with JTDX. The built-in
 3. In File Explorer, right-click the ZIP and choose **Extract All**. Put AutoCQ in its own folder, for example under Documents. Run it from the extracted folder.
 4. Open **JTDX-AutoCQ.exe** and click **«1. Подготовить»** (Prepare). On first use, check the path to `jtdx.exe`, click **«Подготовить JTDX»** (Prepare JTDX), then **«Продолжить»** (Continue). Approve a Windows permission prompt if needed.
 5. Start JTDX as usual, **through LogHX** if that is your logger. Choose a band and FT8 or FT4. Wait for the frequency to appear in AutoCQ.
-6. Set a duration and click **«2. Включить автомат»** (Enable automatic operation). For a first check, try 5 minutes, 2 call attempts and 2 receive periods for the final sign-off.
+6. Set a duration and click **«2. Включить автомат»** (Enable automatic operation). For a first check, try 5 minutes, 2 call attempts and 2 sign-off retries after no reply.
 
 Setup installs the JTDX integration and keeps the original executable beside it. Ordinary installation no longer needs Node.js or commands. See the [user guide](USER-GUIDE.en.md) for screenshots and common questions. **«Как пользоваться»** opens the Russian offline guide; the English guide is in the same folder.
 

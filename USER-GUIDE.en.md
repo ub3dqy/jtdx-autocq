@@ -1,6 +1,6 @@
 # Using AutoCQ
 
-Guide for AutoCQ 0.9.16 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
+Guide for AutoCQ 0.9.17 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
 
 AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.
 
@@ -16,7 +16,7 @@ Right-click the AutoCQ ZIP in File Explorer and choose **Extract All**. A separa
 
 ## 2. Prepare and start
 
-Open **JTDX-AutoCQ.exe** with JTDX closed. For a first check, choose 5 minutes, 2 call attempts and 2 receive periods for the sign-off. Click **«1. Подготовить»** (Prepare).
+Open **JTDX-AutoCQ.exe** with JTDX closed. For a first check, choose 5 minutes, 2 call attempts and 2 sign-off retries after no reply. Click **«1. Подготовить»** (Prepare).
 
 If the JTDX integration is missing, this window opens:
 
@@ -49,7 +49,7 @@ When time runs out, **«Завершаю QSO / очередь»** means the sess
 | Russian label | Meaning |
 | --- | --- |
 | Время автомата, мин | Session duration in minutes. An active contact is finished before stopping. |
-| Ожидать 73, ответных периодов | Receive opportunities allowed for a final confirmation. In FT8, the same station can reply every 30 seconds. |
+| Повторов 73 без ответа | How many times to repeat the sign-off if the other station stops replying. |
 | Вызовов без ответа | Call attempts allowed without a reply. |
 | CQ без ответа до поиска | Unanswered CQs before searching the left pane, when search is enabled. |
 | Смена периода без ответа, мин | Time without CQ replies before trying the other TX period. |
@@ -57,7 +57,15 @@ When time runs out, **«Завершаю QSO / очередь»** means the sess
 
 **«Поиск станций CQ»** enables searching received CQs after the selected threshold. After an unsuccessful call, AutoCQ returns to CQ: CQ → station → CQ.
 
-Change the call and sign-off limits before Prepare, with JTDX closed, because its counters must match. The hint below the settings explains when changes apply.
+Set the call limit and sign-off retries before clicking Prepare, with JTDX closed.
+
+### When the other station repeats its report
+
+Say you send RR73 and the other station sends its report again. AutoCQ sends another RR73. Each new report resets the retry counter. With the setting at 2, the first quiet receive period is followed by up to two extra retries, with a chance to reply after each.
+
+A final 73, RR73 or RRR completes the exchange and the session continues. If another report arrives after the last retry, AutoCQ sends another sign-off and starts counting again.
+
+![DL1AAA sends another report and the unanswered retry count returns to zero](docs/signoff-retry-demo.png)
 
 ## 5. The station queue
 
@@ -145,7 +153,7 @@ Open **«Подбор целей DXCC»** (Find DXCC targets) and select a band.
 
 ![Finding entities to work on a band](docs/dxcc-targets-demo.png)
 
-In **«Профили настроек»** (Settings profiles), enter a name such as “40 m in the evening” and click **«Сохранить текущие»** (Save current settings). To use those settings again, stop automation, select the profile and click **«Применить»** (Apply). If the profile changes the final 73 wait or unanswered-call limit, close JTDX, click **«1. Подготовить»** (Prepare) again and restart JTDX as usual.
+In **«Профили настроек»** (Settings profiles), enter a name such as “40 m in the evening” and click **«Сохранить текущие»** (Save current settings). To use those settings again, stop automation, select the profile and click **«Применить»** (Apply). If the profile changes the sign-off retries or unanswered-call limit, close JTDX, click **«1. Подготовить»** (Prepare) again and restart JTDX as usual.
 
 ![Two saved settings profiles](docs/profiles-demo.png)
 

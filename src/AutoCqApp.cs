@@ -16,8 +16,8 @@ using System.Xml;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.16.0")]
-[assembly: AssemblyFileVersion("0.9.16.0")]
+[assembly: AssemblyVersion("0.9.17.0")]
+[assembly: AssemblyFileVersion("0.9.17.0")]
 [assembly: AssemblyTitle(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyProduct(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyCompany(JtdxAutoCq.AppBrand.Author)]
@@ -202,7 +202,7 @@ namespace JtdxAutoCq
 
     public sealed partial class MainForm : Form
     {
-        const string ModuleVersion = "0.9.16";
+        const string ModuleVersion = "0.9.17";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = JtdxPatcher.PatchedHash;
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -335,7 +335,7 @@ namespace JtdxAutoCq
             AddNumber(runMinutes, "Время автомата, мин", 14, 9, 193, 1440, engine.Options.RunMinutes);
             AddNumber(switchMinutes, "Смена периода без ответа, мин", 305, 9, 238, 1440, engine.Options.SwitchPeriodMinutes);
             AddNumber(queueMinutes, "Хранить позывной в очереди, мин", 605, 9, 231, 1440, engine.Options.QueueMinutes);
-            AddNumber(waitPeriods, "Ожидать 73, ответных периодов", 14, 42, 222, 20, engine.Options.Wait73Periods);
+            AddNumber(waitPeriods, "Повторов 73 без ответа", 14, 42, 222, 20, engine.Options.Wait73Periods);
             AddNumber(callAttempts, "Вызовов без ответа", 305, 42, 238, 5, engine.Options.CallAttempts);
             AddNumber(cqAttempts, "CQ без ответа до поиска", 605, 42, 231, 20, engine.Options.CqAttemptsBeforeSearch);
             searchEnabled.SetBounds(14, 75, 225, 25); searchEnabled.Text = "Поиск станций CQ";
@@ -1199,11 +1199,12 @@ namespace JtdxAutoCq
                 : "Приоритетные DXCC  ·  " + engine.Options.PriorityDxcc.Length;
             if (!demo) { open.Enabled = !jtdxPresent && !engine.Armed; restore.Enabled = !jtdxPresent && !engine.Armed; }
             optionsHint.Text = engine.Armed ? "Параметры сеанса можно изменить после его завершения."
-                : !demo && jtdxPresent ? "Для изменения ожидания 73 и числа вызовов закройте JTDX. Остальные поля доступны."
-                : "Настройте ожидание 73 и число вызовов перед подготовкой JTDX.";
+                : !demo && jtdxPresent ? "Для изменения числа повторов 73 и вызовов закройте JTDX. Остальные поля доступны."
+                : "Задайте число повторов 73 и вызовов перед подготовкой JTDX.";
             status.ForeColor = engine.Armed ? Teal : Slate;
             if (engine.Awaiting73)
-                status.Text = "Ожидаю 73 от " + engine.WaitingCall + ". Ответных периодов: " + engine.Options.Wait73Periods + "; срок до " + engine.ConfirmationDeadline.ToLocalTime().ToString("HH:mm:ss") + ".";
+                status.Text = "Ожидаю 73 от " + engine.WaitingCall + ". Повторов без ответа — "
+                    + engine.SilentTerminalRepeats + " из " + engine.Options.Wait73Periods + ".";
             bool connected = demo || client != null && (DateTime.UtcNow - lastSeen).TotalSeconds < 35;
             if (connected && engine.Status != null)
             {

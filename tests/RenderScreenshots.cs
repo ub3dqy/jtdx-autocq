@@ -32,6 +32,25 @@ static class RenderScreenshots
             Invoke(form,"UpdateUi");
             Save(form,Path.Combine(directory,"autocq-demo.png"));
         }
+        using (var form = new MainForm(true))
+        {
+            ((Timer)Field(form, "timer")).Stop();
+            var engine = (AutoCqEngine)Field(form, "engine");
+            DateTime now = DateTime.UtcNow;
+            DateTime tx = now.Date.AddSeconds(Math.Floor(now.TimeOfDay.TotalSeconds / 30) * 30 - 30);
+            DateTime rx = tx.AddSeconds(15);
+            DateTime decoded = tx.AddSeconds(29.5);
+            Invoke(form, "SetDemoStatus", true, false, "DL1AAA", true);
+            engine.Start(tx);
+            engine.OnLine(tx.ToString("yyyyMMdd_HHmmss") + ".000(0) Transmitting 14.074 MHz + 1500Hz FT8: DL1AAA K1ABC RR73", tx);
+            engine.OnLine(rx.ToString("yyyyMMdd_HHmmss") + " -15 0.1 1500 ~ K1ABC DL1AAA R+00", decoded);
+            engine.OnLine(decoded.ToString("yyyyMMdd_HHmmss.fff") + "(0)  Decoding finished", decoded);
+            engine.Tick(decoded, true);
+            if (!engine.RepeatFinal73 || engine.SilentTerminalRepeats != 0)
+                throw new Exception("The new report did not leave the quiet-retry count at zero.");
+            Invoke(form, "UpdateUi");
+            Save(form, Path.Combine(directory, "signoff-retry-demo.png"));
+        }
         using(var form=new MainForm(true))
         {
             ((Timer)Field(form,"timer")).Stop();
@@ -105,6 +124,6 @@ static class RenderScreenshots
             }
             finally { foreach (Form screen in screens) screen.Dispose(); }
         }
-        Console.WriteLine("Rendered fifteen offline demo screenshots.");
+        Console.WriteLine("Rendered sixteen offline demo screenshots.");
     }
 }

@@ -167,6 +167,7 @@ namespace JtdxAutoCq
         public string SelectedCqCall { get { return manualCq ?? ""; } }
         public string WaitingCall { get { return waitingCall ?? ""; } }
         public bool Awaiting73 { get { return waitingCall != null && !received73; } }
+        public int SilentTerminalRepeats { get { return silentTerminalRepeats; } }
         public DateTime ConfirmationDeadline { get { return waitUntil; } }
         public Action<string> Notice = delegate { };
         public Action<OperatingSession> SessionFinished = delegate { };
@@ -185,8 +186,8 @@ namespace JtdxAutoCq
         public DateTime WaitForVisibleCqsUntil { private get; set; }
         bool CountryExclusionsActive { get { return Options.ExcludedDxcc != null && Options.ExcludedDxcc.Length > 0; } }
         bool CallerRulesActive { get { return CountryExclusionsActive || HasPriorityCountries || workedCallers.Count > 0; } }
-        public bool RepeatFinal73 { get { return Armed && reverseNeedsReply; } }
-        public bool ListenAfterFinal73 { get { return Armed && reverse73; } }
+        public bool RepeatFinal73 { get { return Armed && (reverseNeedsReply || terminalRepeatSlot.HasValue); } }
+        public bool ListenAfterFinal73 { get { return Armed && lastTerminalSlot.HasValue; } }
         public bool HoldNativeSelection
         {
             get
@@ -206,8 +207,10 @@ namespace JtdxAutoCq
         bool received73, missing73Recorded, allowClearDx, attemptAnswered;
         int initialTransmissions;
         DateTime waitUntil, lastRemoteFinalAt;
-        DateTime? terminalRadioTime, firstTerminalSlot, lastTerminalSlot, receivedFinalAt;
+        DateTime? terminalRadioTime, firstTerminalSlot, lastTerminalSlot, receivedFinalAt, terminalRepeatSlot;
         bool terminalHaltRequested, sentTerminalAcknowledgement;
+        bool terminalReportReceived;
+        int silentTerminalRepeats;
         bool reverse73, reverseNeedsReply, repeatSentInSilentWindow;
         bool ReverseExchangePending
         {
@@ -572,8 +575,17 @@ namespace JtdxAutoCq
                     return;
                 }
                 unexplainedStop = null;
+                terminalRepeatSlot = null;
+                if (Awaiting73 && lastTerminalSlot.HasValue)
+                {
+                    // The radio already halted. Keep the original receive
+                    // opportunities and finish listening to the last frame.
+                    DateTime lastReply = lastTerminalSlot.Value.AddTicks(2 * SlotDuration.Ticks);
+                    DateTime nativeWait = firstTerminalSlot.Value.AddTicks(2 * SlotDuration.Ticks * sessionWaitPeriods);
+                    waitUntil = lastReply > nativeWait ? lastReply : nativeWait;
+                }
                 allowClearDx = true; pendingOwner = waitingCall ?? lastContact;
-                Schedule(now, Awaiting73 ? "Ожидаю 73 от " + waitingCall + ": ответных периодов — " + sessionWaitPeriods + "."
+                Schedule(now, Awaiting73 ? "Дослушиваю заключительное 73 от " + waitingCall + "."
                     : Monitoring ? "Обмен с целью завершён. Возвращаюсь на приём."
                     : retryEnd ? "JTDX завершил вызов. Выбираю следующую станцию или CQ." : "Завершение подтверждено: следующая станция или CQ");
                 // FIN/counter is an explicit native acknowledgement. Tick still
@@ -631,6 +643,7 @@ namespace JtdxAutoCq
             waitingCall = null; received73 = false; missing73Recorded = false; terminalRadioTime = null;
             receivedFinalAt = null;
             firstTerminalSlot = lastTerminalSlot = null; terminalHaltRequested = sentTerminalAcknowledgement = false;
+            terminalRepeatSlot = null; terminalReportReceived = false; silentTerminalRepeats = 0;
             reverse73 = reverseNeedsReply = repeatSentInSilentWindow = false;
             allowClearDx = false; pendingOwner = null; attemptCall = null; initialTransmissions = 0;
             attemptAnswered = false; lastRemoteFinalCall = null;
@@ -842,11 +855,11 @@ namespace JtdxAutoCq
         { return Cqs.Next(now, CanCallWithPriority, Options.PriorityAfter73, Waiting.CanUseCq); }
         void BeginWaiting(string peer, DateTime now, DateTime? radioTime)
         {
-            if (waitingCall == peer) return; // Repeated RR73 must not restart an unlimited timer.
+            if (waitingCall == peer) return;
             waitingCall = peer; received73 = false; missing73Recorded = false; terminalRadioTime = radioTime;
             // Count reply opportunities of the OTHER station: every second slot.
             waitUntil = now.AddSeconds((sessionMode == "FT4" ? 7.5 : 15.0) * 2 * sessionWaitPeriods);
-            Notice("Жду 73 от " + peer + ": ответных периодов — " + sessionWaitPeriods + ".");
+            Notice("Жду 73 от " + peer + ". Повторов без ответа — " + sessionWaitPeriods + ".");
         }
 
         void TerminalTransmitted(string peer, DateTime now, DateTime? radioTime, bool acknowledgement)
@@ -854,16 +867,27 @@ namespace JtdxAutoCq
             if (waitingCall != peer)
             {
                 firstTerminalSlot = lastTerminalSlot = null;
-                receivedFinalAt = null;
+                receivedFinalAt = terminalRepeatSlot = null;
+                terminalReportReceived = false; silentTerminalRepeats = 0;
                 terminalHaltRequested = reverse73 = reverseNeedsReply = repeatSentInSilentWindow = false;
             }
             BeginWaiting(peer, now, radioTime);
-            sentTerminalAcknowledgement = acknowledgement;
             DateTime slot = SlotStart(SlotNumber(radioTime ?? now));
+            if (lastTerminalSlot.HasValue && slot < lastTerminalSlot.Value) return;
+            sentTerminalAcknowledgement = acknowledgement;
+            if (lastTerminalSlot == slot) return;
+            bool repeat = lastTerminalSlot.HasValue;
             lastTerminalSlot = slot;
-            if (firstTerminalSlot.HasValue) return;
-            firstTerminalSlot = slot;
-            waitUntil = slot.AddTicks(2 * SlotDuration.Ticks * sessionWaitPeriods);
+            terminalRepeatSlot = null;
+            if (!firstTerminalSlot.HasValue) firstTerminalSlot = slot;
+            if (reverse73 || received73) return;
+
+            // The original sign-off and a response to a new report do not use
+            // up a retry. Count only subsequent transmissions after silence.
+            if (repeat && !terminalReportReceived) silentTerminalRepeats++;
+            terminalReportReceived = false;
+            int remaining = Math.Max(0, sessionWaitPeriods - silentTerminalRepeats);
+            waitUntil = slot.AddTicks(2 * SlotDuration.Ticks * (remaining + 1));
         }
         SessionContact SessionRow(string call)
         {
@@ -987,13 +1011,21 @@ namespace JtdxAutoCq
                 lastAttemptReplySlot = SlotNumber(radioTime.Value);
             if((payload=="73" || acknowledgement) && waitingCall==peer && terminalRadioTime.HasValue && radioTime.HasValue && radioTime.Value<terminalRadioTime.Value)return;
             // Round FT4 decodes logged at a whole second back to their 7.5-second slot.
-            bool freshFinal = peer == waitingCall && lastTerminalSlot.HasValue && radioTime.HasValue
+            bool freshReply = peer == waitingCall && lastTerminalSlot.HasValue && radioTime.HasValue
                 && SlotNumber(radioTime.Value) > SlotNumber(lastTerminalSlot.Value)
                 && radioTime.Value <= now.AddSeconds(2) && now - radioTime.Value <= SlotDuration + SlotDuration;
+            if (freshReply && Awaiting73 && Report.IsMatch(payload) && !terminalReportReceived)
+            {
+                terminalReportReceived = true;
+                silentTerminalRepeats = 0;
+                DateTime nextTx = SlotStart(SlotNumber(radioTime.Value) + 1);
+                waitUntil = nextTx.AddTicks(2 * SlotDuration.Ticks * (sessionWaitPeriods + 1));
+                Notice("Повторный рапорт от " + peer + ". Повторяю завершающее сообщение.");
+            }
             if(acknowledgement)
             {
                 lastRemoteFinalCall=peer;lastRemoteFinalAt=now;
-                if (freshFinal)
+                if (freshReply)
                 {
                     if (reverse73) reverseNeedsReply = true;
                     else if (sentTerminalAcknowledgement)
@@ -1004,7 +1036,7 @@ namespace JtdxAutoCq
                 }
             }
             if(payload!="73" || waitingCall!=peer) return;
-            if (freshFinal)
+            if (freshReply)
             {
                 receivedFinalAt = radioTime;
                 if (reverse73) reverseNeedsReply = false;
@@ -1012,23 +1044,33 @@ namespace JtdxAutoCq
             Confirm73("Получено заключительное 73 от " + peer + ".", radioTime ?? now);
         }
 
-        // JTDX still decodes the entire last RX slot with subsequent repeats disabled.
+        // Each permitted repeat follows a complete reply window. Keep TX gated
+        // even in the last window, where a new report can restart the count.
         bool FinishTerminal(DateTime now)
         {
             if (waitingCall == null || pending || commandOutstanding || Status == null || cqHaltExpected
                 || unexplainedStop.HasValue) return false;
             string call = CleanCall(Status.DxCall);
             if (call.Length > 0 && call != waitingCall) return false;
-            bool lastReceiveSlot = firstTerminalSlot.HasValue && now >= waitUntil.Subtract(SlotDuration);
             bool exchangeDone = received73 && (!firstTerminalSlot.HasValue || now >= firstTerminalSlot.Value.Add(SlotDuration))
                 && (!reverse73 || (!reverseNeedsReply && ReplyWindowComplete(waitUntil, now)));
-            bool timedOut = Awaiting73 && ReplyWindowComplete(waitUntil, now);
-            bool overrun = timedOut && lastTerminalSlot.HasValue && lastTerminalSlot.Value >= waitUntil;
+            bool canManageRepeat = lastTerminalSlot.HasValue && !reverse73 && Status.TxEnabled && call == waitingCall;
+            DateTime nextTx = canManageRepeat ? lastTerminalSlot.Value.AddTicks(2 * SlotDuration.Ticks) : waitUntil;
+            bool replyComplete = ReplyWindowComplete(nextTx, now) && !Status.Decoding;
+            bool overrun = canManageRepeat && silentTerminalRepeats > sessionWaitPeriods && !terminalReportReceived;
+            bool timedOut = Awaiting73 && (overrun || replyComplete && (!canManageRepeat
+                || silentTerminalRepeats >= sessionWaitPeriods && !terminalReportReceived));
             bool completed = (exchangeDone || timedOut) && !Status.Decoding
                 && (!Status.Transmitting || overrun || repeatSentInSilentWindow);
-            bool preventRepeat = Awaiting73 && lastReceiveSlot && !Status.Transmitting;
-            if (!completed && !preventRepeat) return false;
+            if (!completed)
+            {
+                if (canManageRepeat && Awaiting73 && replyComplete && !Status.Transmitting && !terminalRepeatSlot.HasValue)
+                    terminalRepeatSlot = nextTx;
+                return false;
+            }
 
+            terminalRepeatSlot = null;
+            if (timedOut) waitUntil = overrun ? lastTerminalSlot.Value : nextTx;
             pendingOwner = waitingCall;
             allowClearDx = true;
             Schedule(now, Awaiting73 ? "Дослушиваю заключительное 73 от " + waitingCall + "."
@@ -1196,6 +1238,9 @@ namespace JtdxAutoCq
             }
             if (reverseNeedsReply && now >= waitUntil.Add(SlotDuration) && Status != null && !Status.Decoding)
             { Stop("JTDX не подтвердил повтор 73 для " + waitingCall + ". Автомат выключен.", true); return; }
+            if (terminalRepeatSlot.HasValue && Awaiting73 && now >= terminalRepeatSlot.Value.Add(SlotDuration)
+                && Status != null && !Status.Decoding && !Status.Transmitting)
+            { Stop("JTDX не подтвердил завершающую передачу для " + waitingCall + ". Автомат выключен.", true); return; }
             if (callLimitExceeded && (attemptAnswered || attemptCall != CleanCall(Status == null ? null : Status.DxCall)
                 || waitingCall != null || pending && allowClearDx))
                 callLimitExceeded = false;
@@ -1401,7 +1446,7 @@ namespace JtdxAutoCq
             if (!Awaiting73 || missing73Recorded) return;
             missing73Recorded = true; Missing73Count++;
             SessionRow(waitingCall).MissingUtc = waitUntil;
-            Notice("73 от " + waitingCall + " не получено за " + sessionWaitPeriods + " ответных периодов.");
+            Notice("73 от " + waitingCall + " не получено. Повторов без ответа — " + silentTerminalRepeats + ".");
         }
     }
 

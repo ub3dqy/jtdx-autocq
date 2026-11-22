@@ -1366,7 +1366,7 @@ class AutoCqTests
                     e.Tick(At.AddSeconds(120),true);
                     Assert(c.SequenceEqual(new[]{"HALT","REPLY IK4LZH","CQ","HALT","REPLY RQ3P"}) && e.Armed,"Older CQ requests delayed the fresh station");
                 });
-                Run("Timeout after RR73 disables repeats during RX and gives the final decode a chance", () => {
+                Run("Two silent RR73 retries leave the final receive opportunity open", () => {
                     foreach (string final in new[] { null, "73", "RR73" })
                     {
                         List<string> c; AutoCqEngine e = Active(out c);
@@ -1374,29 +1374,91 @@ class AutoCqTests
                         e.RequestCallerReply = d => c.Add(d.Message.Split(' ')[1]);
                         e.OnLine(Tx(At,"W1AW","RR73").Replace(".000", ".912"),At.AddSeconds(1));
                         e.OnLine("QSO logged: W1AW",At.AddSeconds(1));
-                        e.OnLine(DecodeFinished(At.AddSeconds(29.5)),At.AddSeconds(29.5));
-                        e.Tick(At.AddSeconds(29.5),true);
-                        Assert(c.Count == 0 && e.Awaiting73 && !e.Pending, "First silent RX stopped before the allowed second RR73");
-                        e.OnLine(Tx(At.AddSeconds(30),"W1AW","RR73"),At.AddSeconds(30.1));
-                        e.OnDecode(D(At.AddSeconds(15), "W2ABC", "FN20"), At.AddSeconds(29));
-                        RadioStatus tx = S(true,"W1AW"); tx.Transmitting = true;
-                        e.OnStatus(tx, At.AddSeconds(44)); e.Tick(At.AddSeconds(45),true);
-                        Assert(c.Count == 0 && e.Awaiting73, "Cut off the second RR73 frame");
-                        e.OnStatus(S(true,"W1AW"),At.AddSeconds(45.1)); e.Tick(At.AddSeconds(45.1),true);
-                        Assert(c.SequenceEqual(new[]{"HALT"}) && e.HoldNativeSelection, "Third RR73 was still enabled");
-                        e.OnLine("Halt Tx triggered at RX: UDP request ",At.AddSeconds(45.2));
-                        var decoding = S(false,"W1AW"); decoding.Decoding = true;
-                        e.OnStatus(decoding,At.AddSeconds(45.2)); e.Tick(At.AddSeconds(59),true);
-                        Assert(c.Count == 1, "Skipped the final reception opportunity");
+                        for (int repeat = 1; repeat <= 2; repeat++)
+                        {
+                            DateTime next = At.AddSeconds(30 * repeat);
+                            DateTime decoded = next.AddMilliseconds(-500);
+                            e.OnLine(DecodeFinished(decoded), decoded);
+                            e.Tick(decoded, true);
+                            Assert(c.Count == 0 && e.Awaiting73 && e.RepeatFinal73, "Stopped before a configured silent retry");
+                            e.OnLine(Tx(next, "W1AW", "RR73"), next);
+                            Assert(!e.RepeatFinal73 && e.SilentTerminalRepeats == repeat, "Repeat permission outlived the transmitted frame");
+                        }
+                        var decoding = S(true,"W1AW"); decoding.Decoding = true;
+                        e.OnStatus(decoding, At.AddSeconds(75.2)); e.Tick(At.AddSeconds(89), true);
+                        Assert(c.Count == 0 && e.ListenAfterFinal73 && !e.RepeatFinal73, "The final RX window was cut short or an excess repeat was enabled");
+                        e.OnDecode(D(At.AddSeconds(75), "W2ABC", "FN20"), At.AddSeconds(89.2));
                         if (final != null)
-                            e.OnDecode(D(At.AddSeconds(45),"W1AW",final),At.AddSeconds(59.3));
-                        e.OnLine(DecodeFinished(At.AddSeconds(59.5)),At.AddSeconds(59.5));
-                        e.Tick(At.AddSeconds(59.5),true);
-                        Assert(c.Count == 1, "Started TX before decoding became idle");
-                        e.OnStatus(S(false,"W1AW"),At.AddSeconds(59.6)); e.Tick(At.AddSeconds(59.6),true);
+                            e.OnDecode(D(At.AddSeconds(75),"W1AW",final),At.AddSeconds(89.3));
+                        e.OnLine(DecodeFinished(At.AddSeconds(89.5)),At.AddSeconds(89.5));
+                        e.Tick(At.AddSeconds(89.5),true);
+                        Assert(c.Count == 0, "Finished before decoding became idle");
+                        e.OnStatus(S(true,"W1AW"),At.AddSeconds(89.6)); e.Tick(At.AddSeconds(89.6),true);
+                        Assert(c.SequenceEqual(new[]{"HALT"}) && e.HoldNativeSelection && !e.RepeatFinal73, "The sequence did not stop at its limit");
+                        e.OnLine("Halt Tx triggered at RX: UDP request ",At.AddSeconds(89.7));
+                        e.OnStatus(S(false,"W1AW"),At.AddSeconds(89.7)); e.Tick(At.AddSeconds(89.7),true);
                         Assert(c.SequenceEqual(new[]{"HALT","W2ABC"}) && e.Armed
                             && e.ConfirmedCount == (final != null ? 1 : 0) && e.Missing73Count == (final != null ? 0 : 1),
                             "Queue missed the first TX opportunity after final RX");
+                    }
+                });
+                Run("Repeated reports get another sign-off and restart the selected number of silent retries", () => {
+                    foreach (string mode in new[] { "FT8", "FT4" })
+                    foreach (int limit in new[] { 1, 2, 4, 20 })
+                    {
+                        const string peer = "W1AW";
+                        var commands = new List<string>();
+                        var engine = new AutoCqEngine { UseNativeSelection = true };
+                        engine.Options.Wait73Periods = limit;
+                        engine.CanCall = call => call != "W2ABC";
+                        engine.RequestHalt = () => commands.Add("HALT");
+                        engine.RequestCq = () => commands.Add("CQ");
+                        RadioStatus radio = S(true, peer); radio.Mode = mode;
+                        engine.OnStatus(radio, At); engine.Start(At);
+                        double slot = mode == "FT4" ? 7.5 : 15;
+                        string signoff = mode == "FT4" ? "RRR" : "RR73";
+                        string receiveMode = mode == "FT4" ? ":" : "~";
+                        DateTime tx = At;
+                        engine.OnLine(Tx(tx, peer, signoff).Replace("FT8:", mode + ":"), tx);
+                        Action<string, string> receive = (call, payload) => {
+                            DateTime ready = tx.AddSeconds(2 * slot - 0.6);
+                            if (payload != null)
+                            {
+                                DecodedMessage decode = D(tx.AddSeconds(slot), call, payload); decode.Mode = receiveMode;
+                                engine.OnDecode(decode, ready.AddMilliseconds(-50));
+                                engine.OnDecode(decode, ready.AddMilliseconds(-25));
+                            }
+                            engine.OnLine(DecodeFinished(ready), ready); engine.Tick(ready, true);
+                        };
+                        Action sendRepeat = () => {
+                            Assert(engine.Awaiting73 && engine.RepeatFinal73 && commands.Count == 0, "A valid sign-off retry was blocked");
+                            tx = tx.AddSeconds(2 * slot);
+                            string line = Tx(tx, peer, signoff).Replace("FT8:", mode + ":");
+                            engine.OnLine(line, tx); engine.OnLine(line.Replace("Transmitting", "Retransmitting"), tx.AddMilliseconds(100));
+                        };
+                        for (int reports = 0; reports < 3; reports++)
+                        {
+                            receive(peer, "R+00"); sendRepeat();
+                            Assert(engine.SilentTerminalRepeats == 0, "A reply to a report used a retry");
+                        }
+                        for (int pass = 0; pass < 2; pass++)
+                        {
+                            for (int repeat = 1; repeat <= limit; repeat++)
+                            {
+                                receive("W2ABC", "R-08"); sendRepeat();
+                                Assert(engine.SilentTerminalRepeats == repeat, "An unrelated report or duplicate TX changed the count");
+                            }
+                            if (pass == 0) { receive(peer, "R+00"); sendRepeat(); }
+                        }
+                        receive(peer, null);
+                        Assert(commands.SequenceEqual(new[] { "HALT" }) && !engine.RepeatFinal73,
+                            "The final silent period did not stop at the configured count");
+                        DateTime readyToContinue = tx.AddSeconds(2 * slot - 0.4);
+                        engine.OnLine("Halt Tx triggered at RX: UDP request", readyToContinue);
+                        RadioStatus idle = S(false, peer); idle.Mode = mode;
+                        engine.OnStatus(idle, readyToContinue); engine.Tick(readyToContinue, true);
+                        Assert(commands.SequenceEqual(new[] { "HALT", "CQ" }) && engine.Missing73Count == 1,
+                            "AutoCQ missed the next TX period after the unanswered retries");
                     }
                 });
                 Run("Repeated addressed RR73 permits another 73 until a quiet reply period", () => {

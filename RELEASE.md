@@ -1,10 +1,9 @@
-# AutoCQ 0.9.16
+# AutoCQ 0.9.17
 
 ## Русский
 
-- При ручном вызове и после завершения автоматической попытки AutoCQ продолжает мониторинг, когда JTDX подтверждает выбранную станцию или возврат на приём. Запоздавший статус прежнего позывного отменяется новым.
-- Если 73, RRR или RR73 приходит до обмена рапортами, AutoCQ продолжает применять лимит вызовов. По исчерпании попыток модуль возвращается на приём или переходит к следующей станции.
-- В журнале различаются исчерпанный лимит, отсутствие декодирования и досрочное завершение вызова в JTDX.
+- Если после RR73 корреспондент снова присылает рапорт, AutoCQ повторяет завершающее сообщение ему. Счётчик повторов без ответа каждый раз начинается с нуля.
+- Поле **«Повторов 73 без ответа»** задаёт число дополнительных передач после того, как корреспондент перестал отвечать. После каждого повтора модуль прослушивает весь ответный период. Заключительное 73, RR73 или RRR завершает ожидание.
 
 **Как обновиться.** Откройте **«Обновления»**, скачайте выпуск и закройте JTDX перед установкой. Затем нажмите **«Обновить и перезапустить»**. При работе с LogHX запускайте JTDX значком в журнале.
 
@@ -12,9 +11,8 @@
 
 ## English
 
-- Monitoring continues when JTDX confirms a manual selection or a return to receive after an automatic attempt. The fresh status supersedes any delayed status for the previous callsign.
-- The configured call limit still applies if 73, RRR or RR73 arrives before reports are exchanged. When the limit is reached, AutoCQ returns to receive or moves on to the next station.
-- The log distinguishes an exhausted attempt limit, a station that could not be decoded and a call that JTDX ended early.
+- If the current station sends another report after RR73, AutoCQ sends the sign-off again and resets the unanswered retry counter.
+- **«Повторов 73 без ответа»** (Sign-off retries with no reply) sets the number of extra transmissions once the other station goes quiet. AutoCQ listens through the full reply period after each retry. A final 73, RR73 or RRR ends the wait.
 
 **Updating.** Open **«Обновления»** (Updates), download the release, and close JTDX before installation. Click **«Обновить и перезапустить»** (Update and restart). If you use LogHX, launch JTDX from its icon.
 

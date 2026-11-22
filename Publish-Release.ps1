@@ -112,6 +112,7 @@ $entries = [ordered]@{
     'CONTRIBUTING.md' = 'CONTRIBUTING.md'
     'Patch-JTDX.ps1' = 'Patch-JTDX.ps1'
     'docs/autocq-demo.png' = 'docs/autocq-demo.png'
+    'docs/signoff-retry-demo.png' = 'docs/signoff-retry-demo.png'
     'docs/setup-demo.png' = 'docs/setup-demo.png'
     'docs/updates-demo.png' = 'docs/updates-demo.png'
     'docs/monitor-demo.png' = 'docs/monitor-demo.png'

@@ -47,7 +47,7 @@ namespace JtdxAutoCq
             MonitorCalls = MonitorTargets.NormalizeCalls(MonitorCalls);
             MonitorMasks = MonitorTargets.NormalizeMasks(MonitorMasks);
             if (Wait73Periods < 1 || Wait73Periods > 20 || CallAttempts < 1 || CallAttempts > 5)
-                throw new InvalidOperationException("Ожидание 73: от 1 до 20 ответных периодов; вызовов без ответа: от 1 до 5.");
+                throw new InvalidOperationException("Повторов 73 без ответа — от 1 до 20. Вызовов без ответа — от 1 до 5.");
             if (RunMinutes < 1 || RunMinutes > 1440 || CqAttemptsBeforeSearch < 1 || CqAttemptsBeforeSearch > 20)
                 throw new InvalidOperationException("Время автомата: 1–1440 минут; CQ до поиска: 1–20.");
             if (SwitchPeriodMinutes < 1 || SwitchPeriodMinutes > 1440 || QueueMinutes < 1 || QueueMinutes > 1440)
