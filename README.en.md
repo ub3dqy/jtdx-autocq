@@ -23,6 +23,8 @@ You could let it work for an hour, answering callers and looking for another sta
 
 Audio, radio control, filters and left-pane clearing remain JTDX settings. The current interface is in Russian; the guide translates the button labels.
 
+If retuning stops a session, AutoCQ shows the old and new frequencies and the difference in hertz. The reason appears in the main window and the log.
+
 ## What you need
 
 **64-bit Windows**, .NET Framework 4.x and **JTDX 2.2.160-32A-rc10 Win64**. Check both `32A` and `64-bit` in the build name. Other rc10 variants are not compatible.

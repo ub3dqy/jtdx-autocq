@@ -16,7 +16,7 @@ static class TestPackage
             if(prepared.JtdxSha256!=JtdxPatcher.PatchedHash)throw new Exception("Native patch version does not match the updater manifest.");
             string directory=Path.Combine(destination,"package");
             if(!File.Exists(Path.Combine(directory,"docs/bug-report-demo.png")))throw new Exception("Missing bug report screenshot.");
-            foreach (string image in new[] { "signoff-retry-demo.png", "logbook-source-demo.png", "profiles-demo.png", "dxcc-targets-demo.png",
+            foreach (string image in new[] { "frequency-stop-demo.png", "signoff-retry-demo.png", "logbook-source-demo.png", "profiles-demo.png", "dxcc-targets-demo.png",
                 "station-reason-demo.png", "session-summary-demo.png" })
                 if (!File.Exists(Path.Combine(directory, "docs", image))) throw new Exception("Missing " + image);
             if (JtdxPatcher.Resource("LogHxReader.exe").Length == 0) throw new Exception("Missing embedded LogHX reader.");

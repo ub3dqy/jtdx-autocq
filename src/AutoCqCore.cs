@@ -14,6 +14,13 @@ namespace JtdxAutoCq
         public ulong Frequency;
         public string Mode, DxCall, DeCall;
         public bool TxEnabled, Transmitting, Decoding, Watchdog, TxFirst;
+
+        internal static string FormatTxPeriod(string mode, bool txFirst)
+        {
+            if (mode == "FT8") return txFirst ? "00/30" : "15/45";
+            if (mode == "FT4") return txFirst ? "0/15/30/45" : "7,5/22,5/37,5/52,5";
+            return "—";
+        }
     }
 
     public sealed class QtPacket
@@ -345,8 +352,14 @@ namespace JtdxAutoCq
             Waiting.SetContext(status);
             Cqs.SetContext(status);
             if (!Armed) return;
-            if (Monitoring && (status.Frequency != sessionFrequency || status.Mode != sessionMode || status.Watchdog))
-            { Stop("Изменены диапазон, режим или сработал сторожевой таймер: мониторинг выключен.", true); return; }
+            bool radioChanged = status.Frequency != sessionFrequency || status.Mode != sessionMode;
+            bool adoptNativeSelection = !radioChanged
+                && (nativeHandoff || nativeIdleSelection && !Monitoring && !CallerRulesActive);
+            bool permittedPeriod = adoptNativeSelection || status.TxFirst == sessionPeriod
+                || commandOutstanding && (expectedPeriod.HasValue && status.TxFirst == expectedPeriod.Value
+                    || !expectedPeriod.HasValue && nextCall == manualMonitorCall);
+            if (Monitoring && (radioChanged || status.Watchdog))
+            { StopForRadioStatus(status, !permittedPeriod); return; }
             bool outsideMonitorCall = Monitoring && nextCall.Length > 0
                 && nextCall != selectedQueuedCall && nextCall != pendingOwner;
             bool txActive = status.TxEnabled || status.Transmitting;
@@ -377,11 +390,8 @@ namespace JtdxAutoCq
                 if (!pending || UseNativeSelection && cqListening && !cqHaltExpected && !cqHaltAcknowledged)
                     unexplainedStop = now.AddMilliseconds(900);
             }
-            if (status.Watchdog) { Stop("Сторожевой таймер JTDX: автомат выключен.", true); return; }
-            bool permittedPeriod = status.TxFirst == sessionPeriod
-                || commandOutstanding && (expectedPeriod.HasValue && status.TxFirst == expectedPeriod.Value
-                    || !expectedPeriod.HasValue && nextCall == manualMonitorCall);
-            if ((nativeHandoff || nativeIdleSelection && !Monitoring && !CallerRulesActive) && status.Frequency == sessionFrequency && status.Mode == sessionMode)
+            if (status.Watchdog) { StopForRadioStatus(status, !permittedPeriod); return; }
+            if (adoptNativeSelection)
             {
                 if (nativeHandoff)
                 {
@@ -392,12 +402,11 @@ namespace JtdxAutoCq
                     Notice("Автовыбор JTDX: " + nextCall + ".");
                 }
                 SetSessionPeriod(status.TxFirst, now);
-                permittedPeriod = true;
                 pending = replyDuringCq = false;
                 ResetCqRound(keepPendingHalt: cqListening);
             }
-            if (status.Frequency != sessionFrequency || status.Mode != sessionMode || !permittedPeriod)
-            { Stop("Изменены диапазон, режим или период TX: автомат выключен.", true); return; }
+            if (radioChanged || !permittedPeriod)
+            { StopForRadioStatus(status, !permittedPeriod); return; }
             if (Awaiting73 && (now < waitUntil || status.Decoding) && !String.IsNullOrEmpty(status.DxCall) && CleanCall(status.DxCall) != waitingCall)
             { Stop("JTDX выбрал другую станцию до окончания ожидания 73. Автомат выключен.", true); return; }
             if (ReverseExchangePending && nextCall.Length > 0 && nextCall != waitingCall)
@@ -449,6 +458,26 @@ namespace JtdxAutoCq
                 if (status.Transmitting) cqTxSeen = true;
                 if (wasTransmitting && !status.Transmitting && cqTxSeen) cqTxEnded = true;
             }
+        }
+
+        void StopForRadioStatus(RadioStatus status, bool unexpectedPeriod)
+        {
+            var details = new List<string> { Monitoring ? "Мониторинг остановлен." : "Автомат остановлен." };
+            if (status.Frequency != sessionFrequency)
+            {
+                decimal differenceHz = (decimal)status.Frequency - sessionFrequency;
+                details.Add(String.Format(CultureInfo.GetCultureInfo("ru-RU"),
+                    "Частота изменилась с {0:F6} до {1:F6} МГц ({2:+0;-0;0} Гц).",
+                    sessionFrequency / 1000000m, status.Frequency / 1000000m, differenceHz));
+            }
+            if (status.Mode != sessionMode)
+                details.Add("Режим изменился с " + sessionMode + " на " + (String.IsNullOrEmpty(status.Mode) ? "неизвестный" : status.Mode) + ".");
+            if (unexpectedPeriod)
+                details.Add("Период TX изменился с " + RadioStatus.FormatTxPeriod(sessionMode, sessionPeriod)
+                    + " на " + RadioStatus.FormatTxPeriod(status.Mode, status.TxFirst) + ".");
+            if (status.Watchdog)
+                details.Add("Сработал сторожевой таймер JTDX.");
+            Stop(String.Join(" ", details), true);
         }
 
         // Native selection sees an addressed decode before JTDX's DecodeFinished

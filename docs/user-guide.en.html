@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="author" content="UB3DQY"><title>Using AutoCQ · UB3DQY</title><link rel="icon" href="icon.png"><link rel="stylesheet" href="guide.css"></head><body><main><h1>Using AutoCQ</h1>
-<p>Guide for AutoCQ 0.9.17 · <strong>UB3DQY</strong> · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
+<p>Guide for AutoCQ 0.9.18 · <strong>UB3DQY</strong> · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
 <p>AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.</p>
 <p>Monitoring works differently: JTDX listens until a wanted country or callsign appears, calls that station, then returns to receive. The application interface is currently in Russian; this guide includes the labels you will see.</p>
 <h2>1. Downloads</h2>
@@ -21,6 +21,8 @@
 <p>The header shows the connection, frequency, mode, selected station and remaining time. Below it are the current state, settings, start/stop buttons, station queue, received-station list and action log.</p>
 <p><strong>«СТОП — Halt TX»</strong> stops automation and sends an immediate Halt TX command to JTDX. Use the timer for a planned end.</p>
 <p>When time runs out, <strong>«Завершаю QSO / очередь»</strong> means the session is still finishing. AutoCQ completes the current exchange and handles available queued callers. Entries marked <strong>«Нет ответа»</strong> (No answer) do not keep the session running. Controls become available once it finishes.</p>
+<p>If a frequency, mode or TX period change stops the session, AutoCQ tells you what changed. For a frequency change, it shows both frequencies and the difference in hertz. The reason also appears in the log and session results.</p>
+<p><img loading="lazy" src="frequency-stop-demo.png" alt="AutoCQ shows a 40 Hz retune in the status message and log"></p>
 <p><strong>«Как пользоваться»</strong> opens the Russian offline guide. The English offline guide is <strong>docs/user-guide.en.html</strong>. <strong>«Обновления»</strong> opens Updates.</p>
 <h2>4. Main settings</h2>
 <div class="table-scroll"><table><thead><tr><th>Russian label</th><th>Meaning</th></tr></thead><tbody>

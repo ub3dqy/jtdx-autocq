@@ -302,12 +302,44 @@ class AutoCqTests
                     Assert(!e.Armed && c.Contains("HALT"), "Watchdog ignored");
                     e = Active(out c); e.Tick(At, false); Assert(!e.Armed && c.Contains("HALT"), "Connection loss ignored");
                 });
-                Run("Frequency, mode and TX-period changes stop automation", () => {
-                    foreach (int change in new[] {0,1,2})
+                Run("Radio changes stop automation and monitoring with the exact reason", () => {
+                    var changes = new[] {
+                        new { Frequency = 14074040UL, Mode = "FT8", TxFirst = true, Watchdog = false,
+                            Reason = "Частота изменилась с 14,074000 до 14,074040 МГц (+40 Гц)." },
+                        new { Frequency = 14073960UL, Mode = "FT8", TxFirst = true, Watchdog = false,
+                            Reason = "Частота изменилась с 14,074000 до 14,073960 МГц (-40 Гц)." },
+                        new { Frequency = 7074000UL, Mode = "FT8", TxFirst = true, Watchdog = false,
+                            Reason = "Частота изменилась с 14,074000 до 7,074000 МГц (-7000000 Гц)." },
+                        new { Frequency = 14074000UL, Mode = "FT4", TxFirst = true, Watchdog = false,
+                            Reason = "Режим изменился с FT8 на FT4." },
+                        new { Frequency = 14074000UL, Mode = "FT8", TxFirst = false, Watchdog = false,
+                            Reason = "Период TX изменился с 00/30 на 15/45." },
+                        new { Frequency = 14074000UL, Mode = "FT8", TxFirst = true, Watchdog = true,
+                            Reason = "Сработал сторожевой таймер JTDX." },
+                        new { Frequency = 14074040UL, Mode = "FT4", TxFirst = false, Watchdog = true,
+                            Reason = "Частота изменилась с 14,074000 до 14,074040 МГц (+40 Гц). Режим изменился с FT8 на FT4. "
+                                + "Период TX изменился с 00/30 на 7,5/22,5/37,5/52,5. Сработал сторожевой таймер JTDX." },
+                    };
+                    foreach (bool monitoring in new[] { false, true })
+                    foreach (var change in changes)
                     {
-                        List<string> c; AutoCqEngine e = Active(out c); RadioStatus s = S(true, "W1AW");
-                        if (change == 0) s.Frequency = 7074000; if (change == 1) s.Mode = "FT4"; if (change == 2) s.TxFirst = false;
-                        e.OnStatus(s, At); Assert(!e.Armed && c.Contains("HALT"), "Changed session continued");
+                        List<string> commands;
+                        AutoCqEngine engine = monitoring ? MonitorActive(out commands) : Active(out commands);
+                        var notices = new List<string>();
+                        OperatingSession finished = null;
+                        engine.Notice = notices.Add;
+                        engine.SessionFinished = session => finished = session;
+                        RadioStatus changed = S(!monitoring, monitoring ? "" : "W1AW");
+                        changed.Frequency = change.Frequency;
+                        changed.Mode = change.Mode;
+                        changed.TxFirst = change.TxFirst;
+                        changed.Watchdog = change.Watchdog;
+                        engine.OnStatus(changed, At.AddSeconds(1));
+                        engine.OnStatus(changed, At.AddSeconds(2));
+                        string expected = (monitoring ? "Мониторинг остановлен. " : "Автомат остановлен. ") + change.Reason;
+                        Assert(!engine.Armed && commands.SequenceEqual(new[] { "HALT" }), "Radio change did not send a single halt");
+                        Assert(notices.SequenceEqual(new[] { expected }), "Wrong notice: " + String.Join(" | ", notices));
+                        Assert(finished != null && finished.StopReason == expected, "Session summary lost the exact stop reason");
                     }
                 });
                 Run("Missing acknowledgement causes a halt instead of repeated commands", () => {

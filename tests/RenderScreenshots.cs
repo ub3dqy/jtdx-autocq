@@ -37,6 +37,23 @@ static class RenderScreenshots
             ((Timer)Field(form, "timer")).Stop();
             var engine = (AutoCqEngine)Field(form, "engine");
             DateTime now = DateTime.UtcNow;
+            engine.Start(now);
+            var retuned = new RadioStatus {
+                Frequency = 14074040, Mode = "FT8", DeCall = "K1ABC", TxFirst = engine.Status.TxFirst
+            };
+            engine.OnStatus(retuned, now.AddSeconds(1));
+            engine.OnStatus(retuned, now.AddSeconds(2));
+            Invoke(form, "UpdateUi");
+            string reason = "Автомат остановлен. Частота изменилась с 14,074000 до 14,074040 МГц (+40 Гц).";
+            if (((Label)Field(form, "status")).Text != reason || !((TextBox)Field(form, "journal")).Text.Contains(reason))
+                throw new Exception("The frequency stop reason is missing from the status or journal.");
+            Save(form, Path.Combine(directory, "frequency-stop-demo.png"));
+        }
+        using (var form = new MainForm(true))
+        {
+            ((Timer)Field(form, "timer")).Stop();
+            var engine = (AutoCqEngine)Field(form, "engine");
+            DateTime now = DateTime.UtcNow;
             DateTime tx = now.Date.AddSeconds(Math.Floor(now.TimeOfDay.TotalSeconds / 30) * 30 - 30);
             DateTime rx = tx.AddSeconds(15);
             DateTime decoded = tx.AddSeconds(29.5);
@@ -124,6 +141,6 @@ static class RenderScreenshots
             }
             finally { foreach (Form screen in screens) screen.Dispose(); }
         }
-        Console.WriteLine("Rendered sixteen offline demo screenshots.");
+        Console.WriteLine("Rendered seventeen offline demo screenshots.");
     }
 }

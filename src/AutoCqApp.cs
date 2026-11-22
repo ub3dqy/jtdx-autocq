@@ -16,8 +16,8 @@ using System.Xml;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.17.0")]
-[assembly: AssemblyFileVersion("0.9.17.0")]
+[assembly: AssemblyVersion("0.9.18.0")]
+[assembly: AssemblyFileVersion("0.9.18.0")]
 [assembly: AssemblyTitle(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyProduct(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyCompany(JtdxAutoCq.AppBrand.Author)]
@@ -202,7 +202,7 @@ namespace JtdxAutoCq
 
     public sealed partial class MainForm : Form
     {
-        const string ModuleVersion = "0.9.17";
+        const string ModuleVersion = "0.9.18";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = JtdxPatcher.PatchedHash;
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -1211,8 +1211,7 @@ namespace JtdxAutoCq
                 RadioStatus s = engine.Status;
                 string state = s.Transmitting ? "передача" : s.TxEnabled ? "TX разрешён" : "приём";
                 string independent = !engine.Armed && (s.TxEnabled || s.Transmitting) ? " (самостоятельно)" : "";
-                string period = s.Mode == "FT8" ? (s.TxFirst ? "00/30" : "15/45")
-                    : s.Mode == "FT4" ? (s.TxFirst ? "0/15/30/45" : "7,5/22,5/37,5/52,5") : "—";
+                string period = RadioStatus.FormatTxPeriod(s.Mode, s.TxFirst);
                 radio.Text = String.Format("{2} МГц    {3}    TX {5}    ·    {0}{1}    ·    {4}", state, independent,
                     (s.Frequency / 1000000.0).ToString("F6"), s.Mode,
                     String.IsNullOrEmpty(s.DxCall) ? "DX —" : "DX " + s.DxCall, period);
