@@ -12,13 +12,14 @@ namespace JtdxAutoCq
     public static class JtdxPatcher
     {
         public const string OriginalHash = "6B6718432EDB55B3E3C8A5B884522BDC5EF5E466BF074E9DAC09CC0B64CE399C";
-        public const string PatchedHash = "2A41CB063463ED67C4BA30E06283661D57FF6A9BBEDA2118F0377ABF6726B6B0";
-        const string StubHash = "EC45BC177962774B8B1C154C347327DBB27913590C61A0CD313DB75CE1855D93";
+        public const string PatchedHash = "523B3BE7FB893B0166808C3169D059F53CB849E16BFA804B5C30E255469E8326";
+        const string StubHash = "4962A162267F80D54B4829742A99BAA03BC3F7F18BD9C663173F902B81FC1F84";
         static readonly string[] Prior = {
             "0ABBA5EA8429CE4158DF0D2822D9A3108DD629A7C17E8332A8D40736ED6A413A",
             "EB846375E60FB972467246B8A3C1061A8B2B32984BBF838EAA47571F9814C5A9",
             "B615BFBDC23291A7CA297FE1EAE4EB7D2AF0E8966C962D4FB0EA620C6FF6B12F",
-            "7F96272A867CA7050A7149A7A3A22106B5295BF3A89D66829E0F2CEF6208B89B"
+            "7F96272A867CA7050A7149A7A3A22106B5295BF3A89D66829E0F2CEF6208B89B",
+            "2A41CB063463ED67C4BA30E06283661D57FF6A9BBEDA2118F0377ABF6726B6B0"
         };
         sealed class Section { public int Address, Size, Raw; }
         sealed class Hook
@@ -81,11 +82,12 @@ namespace JtdxAutoCq
                 new Hook(0x110de1,"84c00f85e3e6ffff",35,0x10d440),
                 new Hook(0x0e8edc,"e89f2f0400",38,0x0e8cc0),
                 new Hook(0x110754,"e91ae1ffff",41,0x10d440),
-                new Hook(0x1104d0,"e99ee3ffff",42,0x10d440)
+                new Hook(0x1104d0,"e99ee3ffff",42,0x10d440),
+                new Hook(0x12a241,"443bac24700100000f83c1010000",43,0x129740)
             };
             int packet=raw(0x21e86a);
             Check(original[packet]==51 && original[packet-2]==0x83 && original[packet-1]==0xf8,"Неизвестный обработчик сети JTDX.");
-            int[] offsets=Enumerable.Range(0,43).Select(i=>U32(stub,i*4)).ToArray();
+            int[] offsets=Enumerable.Range(0,45).Select(i=>U32(stub,i*4)).ToArray();
             Check(offsets[14]==stub.Length && stub.Length<sectionAlign,"Неизвестная карта патча.");
             Action<int,byte[]> verify=(rva,bytes)=>{int at=raw(rva);for(int i=0;i<bytes.Length;i++)Check(original[at+i]==bytes[i],"Проверка инструкций JTDX не пройдена.");};
             foreach(Hook h in hooks){verify(h.Address,h.Bytes);Check(offsets[h.Index]>=offsets.Length*4 && offsets[h.Index]<stub.Length,"Неизвестная точка патча.");}

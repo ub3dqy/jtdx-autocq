@@ -5,8 +5,8 @@ const { createHash } = require('node:crypto');
 const path = require('node:path');
 
 const expectedSha = '6b6718432edb55b3e3c8a5b884522bdc5ef5e466bf074e9dac09cc0b64ce399c';
-const expectedStubSha = 'ec45bc177962774b8b1c154c347327dbb27913590c61a0cd313db75ce1855d93';
-const expectedOutputSha = '2a41cb063463ed67c4ba30e06283661d57ff6a9bbeda2118f0377abf6726b6b0';
+const expectedStubSha = '4962a162267f80d54b4829742a99baa03bc3f7f18bd9c663173f902b81fc1f84';
+const expectedOutputSha = '523b3be7fb893b0166808c3169d059f53cb849e16bfa804b5c30e255469e8326';
 const [originalPath, stubPath, outputPath] = process.argv.slice(2);
 const sha = data => createHash('sha256').update(data).digest('hex');
 const align = (n, a) => Math.ceil(n / a) * a;
@@ -69,11 +69,12 @@ const hooks = [
     [0x0e8edc, 'e89f2f0400', 38, 0x0e8cc0],
     [0x110754, 'e91ae1ffff', 41, 0x10d440],
     [0x1104d0, 'e99ee3ffff', 42, 0x10d440],
+    [0x12a241, '443bac24700100000f83c1010000', 43, 0x129740],
 ];
 const lastPacketType = raw(0x21e86a);
 assert(original[lastPacketType] === 51 && original.subarray(lastPacketType - 2, lastPacketType).toString('hex') === '83f8',
     'Unexpected network reader type limit.');
-const offsets = Array.from({ length: 43 }, (_, i) => stub.readUInt32LE(i * 4));
+const offsets = Array.from({ length: 45 }, (_, i) => stub.readUInt32LE(i * 4));
 assert(offsets[14] === stub.length && stub.length < sectionAlignment, 'Invalid stub map or code size.');
 for (const [rva, hex, index] of hooks) {
     assert(original.subarray(raw(rva), raw(rva) + hex.length / 2).toString('hex') === hex,

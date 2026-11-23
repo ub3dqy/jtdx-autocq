@@ -40,6 +40,7 @@ static class TestNativeQueue
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int SignoffLogGate(int callIndex);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int RecentCallLogGate(IntPtr mainWindow, IntPtr stringEquals);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int ReportLog(IntPtr mainWindow, IntPtr sentReport, int historyStatus, IntPtr startSeconds);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int HistoryUpdate(int incomingTime, int savedTime, int incomingStatus, int savedStatus, IntPtr history);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void DirectCall(IntPtr window, IntPtr call, int marker);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void UiAction(IntPtr receiver);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void UiText(IntPtr receiver, IntPtr value);
@@ -452,6 +453,71 @@ static class TestNativeQueue
         }
     }
 
+    static void TestHistoryMidnight(IntPtr image)
+    {
+        const int codeRva = 0x2d17000, pageSize = 0x1000;
+        const int comparison = 0x12a241, reject = 0x12a26e, accept = 0x12a410, reportException = 0x12b3c0;
+        const int entry = 0x1000, historyData = 0x2000, radioClock = 0x1595b0;
+        const int call = 4, report = 6, sentReport = 7, rogerReport = 8, finished = 16;
+        const long midnight = 20000L * 86400000;
+        IntPtr fixture = VirtualAlloc(IntPtr.Zero, (UIntPtr)(codeRva + pageSize), 0x3000, 0x04);
+        if (fixture == IntPtr.Zero) throw new Exception("Cannot allocate the history comparison fixture");
+        try
+        {
+            CopyImageCode(image, fixture, codeRva, Marshal.ReadInt32(image, codeRva + 14 * 4));
+            CopyImageCode(image, fixture, comparison, reject - comparison);
+            byte[] frame = {
+                0x53, 0x56, 0x41, 0x55,                   // save rbx, rsi and r13
+                0x48, 0x81, 0xec, 0x80, 0x01, 0, 0,       // provide the native locals and outgoing argument area
+                0x41, 0x89, 0xcd,                         // r13d = incoming time
+                0x44, 0x89, 0xc6,                         // esi = incoming status
+                0x89, 0x94, 0x24, 0x70, 0x01, 0, 0,       // [rsp+170h] = saved time
+                0x44, 0x89, 0x8c, 0x24, 0x58, 0x01, 0, 0, // [rsp+158h] = saved status
+                0x48, 0x8b, 0x9c, 0x24, 0xc0, 0x01, 0, 0  // rbx = fifth argument (QsoHistory fixture)
+            };
+            WriteCode(fixture, entry, frame);
+            WriteJump(fixture, entry + frame.Length, comparison);
+            byte[] result = { 0xb8, 0, 0, 0, 0, 0x48, 0x81, 0xc4, 0x80, 0x01, 0, 0, 0x41, 0x5d, 0x5e, 0x5b, 0xc3 };
+            WriteCode(fixture, reject, result);
+            result[1] = 1; WriteCode(fixture, accept, result);
+            result[1] = 2; WriteCode(fixture, reportException, result);
+            WriteCode(fixture, radioClock, new byte[] { 0x48, 0x8b, 0x01, 0xc3 }); // return the simulated clock value
+            uint prior;
+            foreach (int page in new[] { entry, 0x12a000, 0x12b000, 0x159000, codeRva })
+                if (!VirtualProtect(IntPtr.Add(fixture, page), (UIntPtr)pageSize, 0x20, out prior))
+                    throw new Exception("Cannot protect the history comparison fixture");
+
+            IntPtr history = IntPtr.Add(fixture, historyData);
+            IntPtr clock = IntPtr.Add(history, 8);
+            Marshal.WriteIntPtr(history, clock);
+            HistoryUpdate update = Function<HistoryUpdate>(IntPtr.Add(fixture, entry));
+            Marshal.WriteInt64(clock, midnight + 1320000);
+            Check(update(1305, 84090, call, finished, history) == 1,
+                "A fresh addressed call after UTC midnight replaces the previous day's FIN");
+            Check(update(1305, 21600, call, finished, history) == 1,
+                "The UTC rollover also works with a saved QSO from earlier on the previous day");
+            Check(update(1320, 1305, sentReport, call, history) == 1
+                && update(1335, 1320, rogerReport, sentReport, history) == 1,
+                "The new exchange accepts both the outgoing report and the R-report for RR73");
+
+            Marshal.WriteInt64(clock, midnight + 14500);
+            Check(update(0, 86385, rogerReport, sentReport, history) == 1,
+                "An active QSO accepts its next report at exactly midnight");
+            Check(update(86370, 86385, call, finished, history) == 0,
+                "An older decode from before midnight cannot replace a later history entry from that day");
+
+            Marshal.WriteInt64(clock, midnight + 3829000);
+            Check(update(3800, 3815, call, finished, history) == 0
+                && update(3800, 3815, report, finished, history) == 2
+                && update(3800, 86400, call, finished, history) == 0,
+                "Same-day ordering, the received-report exception and invalid time handling are preserved");
+            Marshal.WriteIntPtr(history, IntPtr.Zero);
+            Check(update(1305, 84090, call, finished, history) == 0,
+                "An unavailable radio clock leaves the native ordering in effect");
+        }
+        finally { VirtualFree(fixture, UIntPtr.Zero, 0x8000); }
+    }
+
     static void TestPeMapping(string path, string dllDirectory)
     {
         const uint noImportsOrEntryPoint = 1;
@@ -473,6 +539,11 @@ static class TestNativeQueue
             TestSignoffLogging(image, dllDirectory);
             TestRepeatLogging(image, dllDirectory);
             TestSentReportLogging(image, dllDirectory);
+            TestHistoryMidnight(image);
+            int historyEntry = Marshal.ReadInt32(image, 0x2d17000 + 43 * 4);
+            unwind = RtlLookupFunctionEntry(pc + (uint)historyEntry, out imageBase, IntPtr.Zero);
+            Check(unwind != IntPtr.Zero && imageBase == unchecked((ulong)image.ToInt64()),
+                "Windows recognizes the QSO history hook's unwind table");
         }
         finally { FreeLibrary(image); }
     }

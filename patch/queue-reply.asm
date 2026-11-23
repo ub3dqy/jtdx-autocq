@@ -106,6 +106,8 @@ entry track_report
 entry track_report_end
 entry remember_report
 entry remember_roger_report
+entry qso_message_time
+entry qso_message_time_end
 
 ; Mutable state is placed in a separate non-executable section.
 select_until equ 0x142d18000
@@ -1092,6 +1094,36 @@ track_report:
     add rsp, 0x68
     ret
 track_report_end:
+
+; QsoHistory compares times without a date. A decoded slot at or before the
+; radio clock can supersede a stored time later than that clock after midnight.
+qso_message_time:
+    cmp r13d, [rsp+0x170]
+    jae .accept
+    cmp dword [rsp+0x170], 86400
+    jae .original
+    mov rcx, [rbx]             ; QsoHistory's JTDXDateTime
+    test rcx, rcx
+    jz .original
+    call radio_time_ms
+    test rax, rax
+    jle .original
+    xor edx, edx
+    mov ecx, 86400000
+    div rcx
+    mov eax, edx
+    xor edx, edx
+    mov ecx, 1000
+    div ecx
+    cmp r13d, eax
+    ja .original
+    cmp dword [rsp+0x170], eax
+    ja .accept
+.original:
+    jmp 0x14012a24f             ; native status and report exceptions
+.accept:
+    jmp 0x14012a410
+qso_message_time_end:
 
 network_dll: db 'Qt5Network.dll', 0
 ipv4_export: db '_ZNK12QHostAddress13toIPv4AddressEPb', 0
