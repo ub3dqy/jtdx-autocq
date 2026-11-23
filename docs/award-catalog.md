@@ -32,4 +32,8 @@ AutoCQ reads a UTF-8 JSON file through **«Журнал и дипломы → Д
 - Leave `band` and `mode` blank to accept any recorded band or mode. For an explicit mode, use `FT8` or `FT4`. Automatic searches run in the band and digital mode currently selected in JTDX.
 - Date-only bounds use UTC and include the final day. An exact timestamp ending in `Z` can be used for either bound. An exact end timestamp is exclusive.
 
-The application computes progress from the main logbook and presents HAMLOG issuance separately. It stores imported catalogs locally. The operator chooses which programs to use for monitoring.
+AutoCQ computes manual goals from the main logbook and presents HAMLOG issuance separately. For the two built-in templates, a catalog row with the matching page URL and empty goals uses the published dates and built-in rules. Existing manually entered goals take precedence. A **Check HAMLOG** result belongs to the local operator profile and is preserved when the matching catalog entry is refreshed.
+
+Murom Falcon uses 85 credited points. A new local contact is worth 6 or 10 points before multipliers. The calculation uses the public club roster checked on 2026-11-23. Same-day repeats are grouped by member, band and mode group. Confirmed contacts come from the public callsign search. Local contacts awaiting credit are shown separately. [Award rules](https://hamlog.online/club/nebo/dc4b742d6f1c2c631f11703d0565cacf/rules/) · [Club roster](https://www.skyham.ru/spisok-kluba.htm)
+
+The Tula 875 template shows credit for the historical September 2021 period. [Award rules](https://hamlog.online/global/russia/r3p/a8052398c5047a367fe59da599b1818f/rules/)

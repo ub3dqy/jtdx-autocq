@@ -1,6 +1,6 @@
 # Using AutoCQ
 
-Guide for AutoCQ 0.9.21 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
+Guide for AutoCQ 0.9.22 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
 
 AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.
 
@@ -171,9 +171,19 @@ Select a callsign in **«Станции из левого окна JTDX»** and 
 
 ### Search for HAMLOG award contacts
 
-Open **«Журнал и дипломы → Дипломы HAMLOG»** (Logbook and awards → HAMLOG awards). If your HAMLOG browser extension build supports export, click **«Проверить дипломы»** (Check awards), then **«Скачать каталог для AutoCQ»** (Download catalog for AutoCQ). Open the JSON file with **«Импорт»**. The catalog lists programs and issuance. Enter award targets in AutoCQ or import them in a prepared file.
+Open **«Журнал и дипломы → Дипломы HAMLOG»** (Logbook and awards → HAMLOG awards). For Murom Falcon, choose **«Готовые дипломы»** (Ready-to-use awards), select the award and click **«Сверить с HAMLOG»** (Check HAMLOG). AutoCQ requests credit for the callsign set in JTDX and reads the main logbook on your computer.
 
-![Selecting two awards and comparing their goals with the main logbook](docs/awards-demo.png)
+![HAMLOG credit and potential points from contacts already in LogHX](docs/awards-demo.png)
+
+The credit column shows points HAMLOG has accepted. **«Вне зачёта»** (Awaiting credit) shows possible points from your log. Open **«Связи из журнала…»** (Logbook contacts) to see the calls, dates and bands. AutoCQ waits for credit when these contacts cover the remaining points. Click **«Сверить с HAMLOG»** again after the contacts are confirmed.
+
+![Logbook contacts awaiting HAMLOG credit](docs/award-points-journal-demo.png)
+
+If you need new contacts, tick the award and click **«Начать поиск»** (Start search) while JTDX is connected and receiving. AutoCQ looks for eligible club members on the current band. It counts repeats by UTC date, band and mode group. FT4 and FT8 both count as digital. A new logged QSO updates the potential points. The Tula 875 award can be checked for contacts from September 2021. Use **«Показать завершённые и истёкшие»** (Show completed and expired) to see it.
+
+#### Other awards
+
+If your HAMLOG browser extension supports export, click **«Проверить дипломы»** (Check awards), then **«Скачать каталог для AutoCQ»** (Download catalog for AutoCQ). Open the JSON file with **«Импорт»**. Enter the rules for other awards in the app or import prepared targets.
 
 Select an award and click **«Условия»** (Requirements), or use **«Добавить»** (Add). You can use exact callsigns, DXCC prefixes and patterns such as `JA*`. Each target can specify a band and FT8 or FT4. For a country or pattern, you can specify a count of distinct callsigns. Enter UTC dates for time-limited awards. Check the targets against the published award rules.
 
@@ -181,7 +191,7 @@ Select an award and click **«Условия»** (Requirements), or use **«До
 
 Tick the awards you want and click **«Начать поиск»** (Start search) while JTDX is connected and receiving. AutoCQ selects stations on your current band. Stations that contribute to several awards get priority. To answer other incoming callers as well, tick **«Отвечать всем входящим»** (Answer all incoming callers).
 
-Progress comes from the main logbook and advances during a session when a QSO is logged. HAMLOG confirms credit and issues the award. Importing a fresh catalog keeps the rules you entered. You can show completed programs with the checkbox. To try for another level in a program with an issued award, open its requirements and select the option for another level. [Import file format](docs/award-catalog.md)
+A new logbook record advances progress during the session. Importing a fresh catalog keeps your rules and the latest HAMLOG check. For another level in an award with manually entered rules, open the requirements and select the option for another level. [Import file format](docs/award-catalog.md)
 
 ## 8. Updates
 

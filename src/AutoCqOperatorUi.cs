@@ -118,11 +118,19 @@ namespace JtdxAutoCq
         {
             if (startingWithHistory || engine.Armed) return;
             string file = PrimaryLogbook();
+            bool needsPrimary = awards && preferences.Awards.Programs.Any(program => program.Selected && program.UsesPointRules);
             int request = ++historyStartRequest;
             startingWithHistory = true;
             UpdateUi();
             ReadLogbook(file, (history, failure) => {
                 if (request != historyStartRequest) return;
+                if (failure != null && needsPrimary)
+                {
+                    startingWithHistory = false;
+                    UpdateUi();
+                    Guard(() => { throw new InvalidOperationException("Не удалось открыть основной журнал для расчёта очков. Проверьте его в меню «Основной журнал»."); });
+                    return;
+                }
                 if (failure != null && !String.Equals(file, NativeLogbook, StringComparison.OrdinalIgnoreCase))
                 {
                     Log("Основной журнал недоступен. Проверяю локальный журнал JTDX.");
@@ -350,13 +358,29 @@ namespace JtdxAutoCq
             var stations = new AwardProgram { Title = "Две японские станции", Selected = true, Goals = new List<AwardGoal> {
                 new AwardGoal { Kind = "mask", Value = "JA*", Band = "20m", Count = 2 },
             } };
-            var example = new AwardCatalog { Programs = new List<AwardProgram> { diploma, stations } };
+            var falcon = HamlogAward.Murom.Create();
+            var tula = HamlogAward.Tula.Create();
+            DateTime october = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
+            falcon.Hamlog = new HamlogStanding {
+                Callsign = "K1ABC", Points = 78, Required = 85, CheckedUtc = october.AddDays(14).AddHours(11),
+                Credits = Enumerable.Range(0, 13).Select(day => new HamlogCredit {
+                    Call = "RA3RPW", Band = "20m", Mode = "FT8", DayUtc = october.AddDays(day), Points = 6
+                }).ToList()
+            };
+            tula.Hamlog = new HamlogStanding { Callsign = "K1ABC", Required = 50, CheckedUtc = falcon.Hamlog.CheckedUtc };
+            var awardHistory = new LogbookHistory(history.Path, history.Records.Concat(falcon.Hamlog.Credits.Take(12).Select(credit =>
+                new LogbookQso { Call = credit.Call, Band = credit.Band, Mode = credit.Mode, StartedUtc = credit.DayUtc }))
+                .Concat(new[] {
+                    new LogbookQso { Call = "R5AV", Band = "40m", Mode = "FT8", StartedUtc = october.AddDays(14) },
+                    new LogbookQso { Call = "R4CQ", Band = "160m", Mode = "FT8", StartedUtc = october.AddDays(13) },
+                }).ToList());
+            var example = new AwardCatalog { Programs = new List<AwardProgram> { diploma, stations, falcon, tula } };
             foreach (AwardProgram program in example.Programs) program.Validate();
-            var awards = new AwardsDialog(example, history, "K1ABC", call => {
+            var awards = new AwardsDialog(example, awardHistory, "K1ABC", call => {
                 DxccCountry country = table.Find(call);
                 return country == null ? null : country.Prefix;
             }, true);
-            awards.SelectDemoProgram(diploma);
+            awards.SelectDemoProgram(falcon);
             return new Form[] {
                 new LogbookSourceDialog("", history.Path, "LogHX"),
                 new ProfilesDialog(profiles, profiles[0].Options, true),
@@ -367,6 +391,7 @@ namespace JtdxAutoCq
                 summary,
                 awards,
                 new AwardGoalsDialog(diploma),
+                new HamlogJournalDialog(falcon.Title, new HamlogPointProgress(falcon, awardHistory, "K1ABC")),
             };
         }
     }

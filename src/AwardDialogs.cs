@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
@@ -16,38 +17,43 @@ namespace JtdxAutoCq
         readonly Func<string, string> dxcc;
         readonly bool canStart;
         readonly TextBox filter = new TextBox();
-        readonly CheckBox archive = new CheckBox { Text = "Показать завершённые", AutoSize = true };
+        readonly CheckBox archive = new CheckBox { Text = "Показать завершённые и истёкшие", AutoSize = true };
         readonly CheckBox answerAll = new CheckBox { Text = "Отвечать всем входящим", AutoSize = true };
         readonly ListView list = new ListView { View = View.Details, FullRowSelect = true, MultiSelect = false, CheckBoxes = true, HideSelection = false };
         readonly Label details;
-        readonly Button open, edit, start;
+        readonly Button open, edit, sync, journal, save, start;
         readonly Dictionary<AwardProgram, AwardProgress> progress = new Dictionary<AwardProgram, AwardProgress>();
-        bool refreshing;
+        bool refreshing, synchronizing;
 
         internal AwardCatalog Catalog { get { return catalog; } }
         internal bool StartRequested { get; private set; }
 
         internal AwardsDialog(AwardCatalog catalog, LogbookHistory history, string own, Func<string, string> dxcc, bool canStart)
-            : base("Дипломы HAMLOG", 820, 526)
+            : base("Дипломы HAMLOG", 920, 558)
         {
             this.catalog = catalog.Copy(); this.history = history; this.own = own; this.dxcc = dxcc; this.canStart = canStart;
             LabelAt("Поиск по названию", 20, 61, 175, 24);
-            Place(filter, 197, 57, 341, 27);
-            Place(archive, 558, 59, 235, 26);
-            Place(list, 20, 97, 780, 280);
-            list.Columns.Add("Диплом", 412);
-            list.Columns.Add("По журналу", 125);
-            list.Columns.Add("Состояние", 213);
-            details = LabelAt("", 23, 389, 773, 45);
+            Place(filter, 197, 57, 402, 27);
+            Place(archive, 620, 59, 280, 26);
+            Place(list, 20, 97, 880, 277);
+            list.Columns.Add("Диплом", 335);
+            list.Columns.Add("Зачёт или цели", 148);
+            list.Columns.Add("Вне зачёта", 128);
+            list.Columns.Add("Состояние", 240);
+            details = LabelAt("", 23, 387, 873, 58);
 
-            ButtonAt("Импорт…", 20, 437, 112, Import);
-            ButtonAt("Добавить…", 141, 437, 127, () => Edit(null));
-            edit = ButtonAt("Условия…", 277, 437, 125, () => Edit(Selected));
-            open = ButtonAt("Открыть на HAMLOG", 413, 437, 205, ShowPage);
+            ButtonAt("Импорт…", 20, 451, 101, Import);
+            Button templates = null;
+            templates = ButtonAt("Готовые дипломы", 131, 451, 149, () => ShowTemplates(templates));
+            ButtonAt("Добавить…", 290, 451, 105, () => Edit(null));
+            edit = ButtonAt("Условия…", 405, 451, 110, () => Edit(Selected));
+            open = ButtonAt("На HAMLOG", 525, 451, 166, ShowPage);
+            sync = ButtonAt("Сверить с HAMLOG", 704, 451, 196, Synchronize);
             answerAll.Checked = catalog.AnswerOtherCallers;
-            Place(answerAll, 20, 485, 276, 25);
-            ButtonAt("Сохранить", 476, 481, 133, () => Accept(false));
-            start = ButtonAt("Начать поиск", 621, 481, 179, () => Accept(true), true);
+            Place(answerAll, 20, 517, 253, 25);
+            journal = ButtonAt("Связи из журнала…", 290, 511, 196, ShowJournal);
+            save = ButtonAt("Сохранить", 573, 511, 133, () => Accept(false));
+            start = ButtonAt("Начать поиск", 718, 511, 182, () => Accept(true), true);
 
             filter.TextChanged += delegate { RefreshList(); };
             archive.CheckedChanged += delegate { RefreshList(); };
@@ -74,12 +80,40 @@ namespace JtdxAutoCq
         }
 
         bool Done(AwardProgram item)
-        {
-            return item.ClosedByIssuance || item.Goals.Count > 0 && Progress(item).CompletedGoals == item.Goals.Count;
-        }
+        { return Progress(item).Complete; }
+
+        static bool Expired(AwardProgram item)
+        { return item.Until.HasValue && DateTime.UtcNow >= item.Until.Value; }
 
         bool CanSelectProgram(AwardProgram item)
-        { return item.Goals.Count > 0 && !Done(item) && (!item.Until.HasValue || DateTime.UtcNow < item.Until.Value); }
+        {
+            AwardProgress status = Progress(item);
+            return !status.Complete && !Expired(item) && (status.Points == null ? item.Goals.Count > 0 : status.Points.CanSearch);
+        }
+
+        static string Points(decimal points) { return points.ToString("0.##", CultureInfo.CurrentCulture); }
+
+        string ProgressText(AwardProgress status)
+        {
+            if (status.Points != null)
+                return status.Points.Standing == null ? "—" : Points(status.Points.Standing.Points) + " из " + status.Points.Required;
+            return status.GoalsCount == 0 || status.Program.ClosedByIssuance ? "—" : status.CompletedGoals + " из " + status.GoalsCount;
+        }
+
+        string StateText(AwardProgress status)
+        {
+            AwardProgram program = status.Program;
+            if (program.ClosedByIssuance) return "Диплом выдан";
+            if (Expired(program)) return "Срок истёк";
+            HamlogPointProgress points = status.Points;
+            if (points == null) return status.GoalsCount == 0 ? "Добавьте условия"
+                : status.Complete ? "Готово по журналу" : status.CompletedGoals > 0 ? "Часть целей выполнена" : "Открыты все цели";
+            if (points.IsMember) return "Условия для активаторов";
+            if (points.Standing == null) return "Сверьте с HAMLOG";
+            if (points.ConfirmedComplete) return "Условия выполнены";
+            if (points.PendingEnough) return "Есть связи для зачёта";
+            return "Не хватает " + Points(points.NeedOnline) + " очк.";
+        }
 
         void RefreshList(AwardProgram select = null)
         {
@@ -91,17 +125,14 @@ namespace JtdxAutoCq
                 list.Items.Clear();
                 foreach (AwardProgram program in catalog.Programs.OrderBy(item => item.Title, StringComparer.CurrentCultureIgnoreCase))
                 {
-                    if (!archive.Checked && Done(program)) continue;
+                    if (!archive.Checked && (Done(program) || Expired(program))) continue;
                     if (program.Title.IndexOf(filter.Text.Trim(), StringComparison.CurrentCultureIgnoreCase) < 0) continue;
                     AwardProgress status = Progress(program);
                     var row = new ListViewItem(program.Title) { Tag = program };
-                    row.SubItems.Add(status.GoalsCount == 0 || program.ClosedByIssuance ? "—"
-                        : status.CompletedGoals + " из " + status.GoalsCount);
-                    row.SubItems.Add(program.ClosedByIssuance ? "Есть выданный диплом"
-                        : status.GoalsCount == 0 ? "Добавьте условия"
-                        : Done(program) ? "Готово по журналу"
-                        : program.Until.HasValue && DateTime.UtcNow >= program.Until.Value ? "Срок истёк"
-                        : status.CompletedGoals > 0 ? "Часть целей выполнена" : "Открыты все цели");
+                    row.SubItems.Add(ProgressText(status));
+                    row.SubItems.Add(status.Points != null && status.Points.Pending.Count > 0
+                        ? "+" + Points(status.Points.PendingPoints) + " очк." : "—");
+                    row.SubItems.Add(StateText(status));
                     list.Items.Add(row);
                     row.Checked = program.Selected && CanSelectProgram(program);
                     if (program == select) { row.Selected = true; row.Focused = true; }
@@ -116,15 +147,19 @@ namespace JtdxAutoCq
             AwardProgram program = Selected;
             edit.Enabled = program != null;
             open.Enabled = program != null && !String.IsNullOrEmpty(program.Url);
-            start.Enabled = canStart && catalog.Programs.Any(item => item.Selected && CanSelectProgram(item));
+            sync.Enabled = !synchronizing && program != null && program.UsesTemplate && Callsign.Parse(own) != null;
+            save.Enabled = !synchronizing;
+            start.Enabled = !synchronizing && canStart && catalog.Programs.Any(item => item.Selected && CanSelectProgram(item));
+            AwardProgress value = program == null ? null : Progress(program);
+            journal.Enabled = value != null && value.Points != null && value.Points.Pending.Count > 0;
             if (program == null)
             {
-                details.Text = catalog.Programs.Count == 0 ? "Импортируйте каталог из расширения HAMLOG или добавьте диплом вручную."
+                details.Text = catalog.Programs.Count == 0 ? "Выберите готовый диплом, импортируйте каталог или добавьте условия вручную."
                     : "Отметьте дипломы с заданными условиями. AutoCQ проверит цели по основному журналу.";
                 return;
             }
+            if (value.Points != null) { details.Text = PointDetails(value.Points); return; }
             if (program.Goals.Count == 0) { details.Text = "Откройте положение на HAMLOG и добавьте известные цели."; return; }
-            AwardProgress value = Progress(program);
             string[] remains = program.Goals.Select((goal, index) => new { Goal = goal, Left = goal.Required - value.LoggedFor(index) })
                 .Where(item => item.Left > 0).Take(4).Select(item => item.Goal.Value + (item.Goal.Band.Length == 0 ? "" : " · " + item.Goal.Band)
                     + (item.Goal.Mode.Length == 0 ? "" : " · " + item.Goal.Mode) + (item.Left == 1 ? "" : " × " + item.Left)).ToArray();
@@ -134,8 +169,89 @@ namespace JtdxAutoCq
                     + (value.GoalsCount - value.CompletedGoals > remains.Length ? " и ещё " + (value.GoalsCount - value.CompletedGoals - remains.Length) : "") + ".";
         }
 
+        string PointDetails(HamlogPointProgress points)
+        {
+            if (points.IsMember && !points.Closed) return "Для членов клуба действуют условия активатора. Откройте положение.";
+            if (points.Standing == null) return Callsign.Parse(own) == null
+                ? "Подключите JTDX с вашим позывным, чтобы получить зачёт HAMLOG."
+                : "Нажмите «Сверить с HAMLOG», чтобы получить зачтённые связи для вашего позывного.";
+            string snapshot = "Сверено " + points.Standing.CheckedUtc.ToLocalTime().ToString("dd.MM в HH:mm") + ". ";
+            if (points.Closed) return snapshot + "К зачёту подходят связи с 1 по 30 сентября 2021 года.";
+            if (history.Path == null) return snapshot + "Выберите доступный основной журнал для сверки связей.";
+            if (points.ConfirmedComplete) return snapshot + "Диплом можно получить на HAMLOG.";
+            string summary = points.Pending.Count == 0 ? "Все найденные в журнале связи уже в зачёте."
+                : "В журнале есть связи ещё на " + Points(points.PendingPoints) + " очк. "
+                    + (points.PendingEnough ? "При зачёте их хватит на диплом." : "Откройте список, чтобы проверить их.");
+            if (points.ConfirmedMissingFromLogbook > 0)
+                summary += " Зачтённых QSO вне основного журнала — " + points.ConfirmedMissingFromLogbook + ".";
+            return snapshot + summary;
+        }
+
+        void ShowTemplates(Control anchor)
+        {
+            if (synchronizing) return;
+            var menu = new ContextMenuStrip();
+            foreach (HamlogAward model in HamlogAward.Templates)
+            {
+                HamlogAward template = model;
+                menu.Items.Add(template.Title, null, delegate {
+                    AwardProgram program = catalog.Programs.FirstOrDefault(item => item.Url == template.Url);
+                    if (program == null)
+                    {
+                        program = template.Create();
+                        catalog.Programs.Add(program);
+                    }
+                    if (Expired(program) || Done(program)) archive.Checked = true;
+                    filter.Clear();
+                    RefreshList(program);
+                });
+            }
+            menu.Closed += delegate { menu.Dispose(); };
+            menu.Show(anchor, new Point(0, anchor.Height));
+        }
+
+        void Synchronize()
+        {
+            AwardProgram program = Selected;
+            if (!sync.Enabled || program == null) return;
+            synchronizing = true;
+            sync.Text = "Проверяю HAMLOG…";
+            UpdateDetails();
+            var worker = new BackgroundWorker();
+            worker.DoWork += (sender, args) => args.Result = HamlogStandingClient.Read(program.Template, own);
+            worker.RunWorkerCompleted += delegate(object sender, RunWorkerCompletedEventArgs args) {
+                worker.Dispose();
+                if (IsDisposed || Disposing) return;
+                synchronizing = false;
+                sync.Text = "Сверить с HAMLOG";
+                if (args.Error == null)
+                {
+                    program.Hamlog = (HamlogStanding)args.Result;
+                    progress.Remove(program);
+                    if (!CanSelectProgram(program)) program.Selected = false;
+                    if (Done(program)) archive.Checked = true;
+                    RefreshList(program);
+                }
+                else
+                {
+                    UpdateDetails();
+                    MessageBox.Show(this, "Не удалось сверить зачёт. " + args.Error.Message,
+                        "HAMLOG", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            };
+            worker.RunWorkerAsync();
+        }
+
+        void ShowJournal()
+        {
+            AwardProgram program = Selected;
+            if (program == null) return;
+            using (var dialog = new HamlogJournalDialog(program.Title, Progress(program).Points)) dialog.ShowDialog(this);
+        }
+
         void Import()
         {
+            if (synchronizing) return;
             using (var file = new OpenFileDialog { Title = "Открыть каталог дипломов", Filter = "Каталог AutoCQ (*.json)|*.json", CheckFileExists = true })
             {
                 if (file.ShowDialog(this) != DialogResult.OK) return;
@@ -146,6 +262,8 @@ namespace JtdxAutoCq
 
         void Edit(AwardProgram program)
         {
+            if (synchronizing) return;
+            if (program != null && program.UsesTemplate) { OpenPage(program, "rules/"); return; }
             using (var editor = new AwardGoalsDialog(program))
             {
                 if (editor.ShowDialog(this) != DialogResult.OK) return;
@@ -168,16 +286,22 @@ namespace JtdxAutoCq
         {
             AwardProgram program = Selected;
             if (program == null || String.IsNullOrEmpty(program.Url)) return;
+            OpenPage(program, "");
+        }
+
+        void OpenPage(AwardProgram program, string suffix)
+        {
             try
             {
                 program.Validate();
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(program.Url) { UseShellExecute = true });
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(program.Url + suffix) { UseShellExecute = true });
             }
             catch (Exception error) { MessageBox.Show(this, error.Message, "Страница диплома", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         }
 
         void Accept(bool run)
         {
+            if (synchronizing) return;
             catalog.AnswerOtherCallers = answerAll.Checked;
             foreach (AwardProgram program in catalog.Programs)
                 if (program.Selected && !CanSelectProgram(program)) program.Selected = false;
@@ -187,7 +311,32 @@ namespace JtdxAutoCq
         }
 
         internal void SelectDemoProgram(AwardProgram program)
-        { RefreshList(catalog.Programs.FirstOrDefault(item => item.Id == program.Id)); }
+        {
+            archive.Checked = true;
+            RefreshList(catalog.Programs.FirstOrDefault(item => item.Id == program.Id));
+        }
+    }
+
+    internal sealed class HamlogJournalDialog : OperatorDialog
+    {
+        internal HamlogJournalDialog(string title, HamlogPointProgress points) : base("Связи вне зачёта", 670, 416)
+        {
+            LabelAt(title + " · " + points.Pending.Count + " QSO на " + points.PendingPoints.ToString("0.##") + " очк.",
+                20, 60, 630, 25);
+            var rows = new ListView { View = View.Details, FullRowSelect = true, HideSelection = false };
+            rows.Columns.Add("Позывной", 144);
+            rows.Columns.Add("Дата UTC", 124);
+            rows.Columns.Add("Диапазон", 110);
+            rows.Columns.Add("Вид работы", 130);
+            rows.Columns.Add("Очки", 100);
+            foreach (HamlogCredit credit in points.Pending.OrderByDescending(row => row.DayUtc).ThenBy(row => row.Call))
+                rows.Items.Add(new ListViewItem(new[] {
+                    credit.Call, credit.DayUtc.ToString("dd.MM.yyyy"), credit.Band, credit.Mode, "+" + credit.Points.ToString("0.##")
+                }));
+            Place(rows, 20, 101, 630, 211);
+            LabelAt("Эти связи есть в основном журнале. Для диплома их должен зачесть HAMLOG.", 20, 325, 630, 32);
+            ButtonAt("Закрыть", 516, 369, 134, Close, true);
+        }
     }
 
     internal sealed class AwardGoalsDialog : OperatorDialog

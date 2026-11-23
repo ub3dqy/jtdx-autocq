@@ -17,7 +17,7 @@ You could let it work for an hour, answering callers and looking for another sta
 - **Keep a queue.** Remember callers while you are busy. Manually added callsigns are called directly after the current contact and available incoming callers.
 - **Make a manual call while monitoring.** Choose an interesting station outside the target list. After that contact, AutoCQ resumes monitoring with the same settings and time remaining.
 - **Watch for wanted stations.** Match DXCC entities, callsigns and patterns against fresh CQ, 73, RRR or RR73. Return to receive after the contact or attempt limit.
-- **Look for contacts for HAMLOG awards.** Select multiple awards, compare their targets with the main logbook and call stations that contribute to them. Enter the targets in the app or import a prepared file.
+- **Look for contacts for HAMLOG awards.** For Murom Falcon, AutoCQ checks credited points with HAMLOG, shows eligible contacts from LogHX and looks for stations when you need more points. For other programs, enter targets in the app or import them from a file.
 - **Answer callers while monitoring.** Stations calling you take priority over searching for another target, even when they are outside your target list.
 - **Update from the application.** Notify you about new releases and show download percentage, transferred size, speed and estimated time remaining. Install when you choose.
 - **Show monitoring retry pauses.** List unanswered stations with a countdown to their next eligible attempt. Stopping monitoring clears the list.

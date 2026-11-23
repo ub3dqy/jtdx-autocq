@@ -9,6 +9,19 @@ static class OperatorToolsTests
     static void Check(bool condition, string message)
     { if (!condition) throw new Exception(message); }
 
+    static string HamlogPage(string call, string points, params string[] rows)
+    {
+        return "<p>Results of " + call + "</p>" + points
+            + "<table class='award-results-table'><tbody>" + String.Join("", rows) + "</tbody></table>";
+    }
+
+    static string HamlogRow(string call, string date, string band, string mode, string points, bool accepted = true)
+    {
+        return "<tr><td><strong>" + call + "</strong></td><td>" + date + "</td><td>" + band + "</td><td>" + mode
+            + "</td><td></td><td></td><td>" + points + "</td><td><i class='fas fa-"
+            + (accepted ? "check" : "times") + "'></i></td></tr>";
+    }
+
     internal static void RunAll(Action<string, Action> run)
     {
         run("Full ADIF history counts contacts from other programs on the selected band", () => {
@@ -143,5 +156,184 @@ static class OperatorToolsTests
             Check(search.Available(at.AddSeconds(16)) == 0 && search.Score("JA3ZZ", at.AddSeconds(16)) == 0,
                 "The logged QSO did not retire both goals.");
         });
+
+        run("HAMLOG counts only accepted rows for the requested callsign, including fractional and empty results", () => {
+            DateTime at = new DateTime(2026, 10, 5, 12, 0, 0, DateTimeKind.Utc);
+            string total = "<span class='award-dashboard-value'>13.5 / 85</span>";
+            string accepted = HamlogRow("R5AV", "5 Oct 2026", "160M", "SSB", "+13.5");
+            string unaccepted = HamlogRow("R4CQ", "5 Oct 2026", "20M", "FT8", "+10", false);
+            string page = HamlogPage("K1ABC", total, accepted, unaccepted);
+            HamlogStanding result = HamlogStandingClient.Parse(page, HamlogAward.Murom, "K1ABC", at);
+            Check(result.CheckedUtc == at && result.Points == 13.5m && result.Credits.Count == 1
+                && result.Credits.Single().DayUtc == at.Date, "Wrong points, date or accepted QSO");
+            Check(HamlogStandingClient.Parse(HamlogPage("K1ABC", ""), HamlogAward.Murom, "K1ABC", at).Points == 0,
+                "A valid empty HAMLOG log was rejected");
+            foreach (string bad in new[] {page.Replace("K1ABC", "K1ABD"), page.Replace("+13.5", "+12"), page.Replace(" / 85", " / 75")})
+            {
+                try { HamlogStandingClient.Parse(bad, HamlogAward.Murom, "K1ABC", at); }
+                catch (InvalidDataException) { continue; }
+                throw new Exception("A mismatched remote result was accepted");
+            }
+        });
+
+        run("Award points preserve remote credit and count only eligible extra LogHX contacts", () => {
+            DateTime at = new DateTime(2026, 10, 5, 12, 0, 0, DateTimeKind.Utc);
+            var award = HamlogAward.Murom.Create();
+            award.Hamlog = new HamlogStanding { Callsign = "K1ABC", CheckedUtc = at, Points = 45, Required = 85,
+                Credits = new List<HamlogCredit> {
+                    new HamlogCredit { Call = "LZ1ZF", DayUtc = at.Date, Band = "40m", Mode = "FT8", Points = 10 },
+                    new HamlogCredit { Call = "RW9CC", DayUtc = at.Date, Band = "20m", Mode = "SSB", Points = 15 },
+                    new HamlogCredit { Call = "R4CQ", DayUtc = at.Date, Band = "80m", Mode = "CW", Points = 20 }
+                }
+            };
+            Func<string, string, string, DateTime, string, LogbookQso> row = (call, band, mode, day, own) =>
+                new LogbookQso { Call = call, Band = band, Mode = mode, StartedUtc = day, Station = own };
+            var history = new LogbookHistory("example.lhx2", new List<LogbookQso> {
+                row("AC1ZF", "40m", "FT4", at, "K1ABC"), // same member, UTC day, band and digital group
+                row("RW9CC", "20m", "USB", at, "K1ABC"),
+                row("R4CQ", "80m", "CW", at, "K1ABC"),
+                row("R5AV", "160m", "USB", at.AddMinutes(-60), "K1ABC"),
+                row("R5AV", "160m", "SSB", at, "K1ABC"),
+                row("EW1D", "20m", "FT8", at, "K1ABC"),
+                row("R4CQ", "40m", "FT8", at, "K1ABD"),
+                row("UA9CES", "40m", "FT8", at.AddMonths(-1), "K1ABC"),
+                row("K2BBB", "40m", "FT8", at, "K1ABC"),
+            });
+            var progress = new HamlogPointProgress(award, history, "K1ABC");
+            Check(progress.Standing.Points == 45m && progress.ConfirmedMissingFromLogbook == 1
+                && progress.Pending.Count == 2 && progress.PendingPoints == 19.5m,
+                "Official results were replaced by local counts, or the multipliers and duplicates were wrong");
+            Check(progress.CandidatePoints("LZ1ZF", "40m", "FT4", at) == 0
+                && progress.CandidatePoints("LZ1ZF", "40m", "FT4", at.Date.AddDays(1)) == 10m
+                && progress.CandidatePoints("LZ1ZF", "20m", "FT4", at) == 10m
+                && progress.CandidatePoints("LZ1ZF", "40m", "CW", at) == 20m,
+                "The band, UTC day or mode-group rule is wrong");
+            progress.Record("U4MIR", "160m", "CW", at);
+            Check(progress.PendingEnough && !progress.ConfirmedComplete && !progress.Available("40m", "FT8", at)
+                && progress.Standing.Points == 45m, "Pending contacts did not pause calls or were marked officially confirmed");
+            Check(!new HamlogPointProgress(award, history, "K1ABD").CanSearch, "Used another operator's HAMLOG snapshot");
+        });
+
+        run("Award monitoring uses an open point target and stops calling after a logged QSO covers the deficit", () => {
+            DateTime at = new DateTime(2026, 10, 5, 12, 0, 0, DateTimeKind.Utc);
+            var murom = HamlogAward.Murom.Create();
+            murom.Selected = true;
+            murom.Hamlog = new HamlogStanding { Callsign = "K1ABC", CheckedUtc = at, Points = 79, Required = 85 };
+            var tula = HamlogAward.Tula.Create();
+            tula.Selected = true;
+            tula.Hamlog = new HamlogStanding { Callsign = "K1ABC", CheckedUtc = at, Points = 1, Required = 50 };
+            var catalog = new AwardCatalog { Programs = new List<AwardProgram> { murom, tula } };
+            var history = new LogbookHistory("example.lhx2", new List<LogbookQso>());
+            var engine = new AutoCqEngine();
+            var search = new AwardSearch(catalog, history, "K1ABC", "20m", "FT8", call => null);
+            Check(search.Available(at) == 1 && search.Score("R875TULA", at) == 0, "The expired program supplied a target");
+            var status = new RadioStatus { Frequency = 14074000, Mode = "FT8", DeCall = "K1ABC", DxCall = "" };
+            engine.OnStatus(status, at);
+            var requests = new List<string>();
+            engine.RequestCq = () => requests.Add("CQ");
+            engine.RequestReply = decode => requests.Add(decode.Message);
+            engine.Start(at, search);
+            foreach (string message in new[] { "CQ R875TULA KO84", "CQ R5AV KO85" })
+                engine.OnDecode(new DecodedMessage { IsNew = true, Mode = "~", Message = message,
+                    Milliseconds = (uint)at.TimeOfDay.TotalMilliseconds }, at.AddSeconds(14));
+            engine.Tick(at.AddSeconds(14), true);
+            Check(requests.SequenceEqual(new[] { "CQ R5AV KO85" }), "The point target did not reach the normal monitoring selector");
+            status.DxCall = "R5AV"; status.TxEnabled = true;
+            engine.OnStatus(status, at.AddSeconds(15));
+            engine.OnLine("20261005_120015.100(0) Transmitting 14.074 MHz + 1500Hz FT8: R5AV K1ABC RR73", at.AddSeconds(15));
+            Check(search.Available(at.AddSeconds(16)) == 1, "A transmission alone advanced the award");
+            engine.OnLine("20261005_120015.200(0) QSO logged: R5AV", at.AddSeconds(15.2));
+            Check(search.Available(at.AddSeconds(16)) == 1, "An undated log event advanced the points");
+            engine.OnLoggedContact(QtPacket.Parse(LoggedQsoPacket("FT8", at, at.AddSeconds(15), 3)).LoggedContact);
+            Check(search.Available(at.AddSeconds(16)) == 0 && murom.Hamlog.Points == 79,
+                "The monitor kept new targets open or advanced HAMLOG credit without a refresh");
+        });
+
+        run("A contact logged after midnight advances the award on its recorded UTC start day", () => {
+            DateTime midnight = new DateTime(2026, 10, 6, 0, 0, 0, DateTimeKind.Utc);
+            var program = HamlogAward.Murom.Create();
+            program.Selected = true;
+            program.Hamlog = new HamlogStanding { Callsign = "K1ABC", CheckedUtc = midnight.AddHours(-1), Points = 20, Required = 85 };
+            var history = new LogbookHistory("example.lhx2", new List<LogbookQso>());
+            var search = new AwardSearch(new AwardCatalog { Programs = new List<AwardProgram> { program } },
+                history, "K1ABC", "20m", "FT4", call => null);
+            DateTime started = midnight.AddSeconds(-15), ended = midnight.AddSeconds(7);
+            LogbookQso logged = QtPacket.Parse(LoggedQsoPacket("FT4", started, ended, 2, 3 * 3600)).LoggedContact;
+            Check(logged != null && logged.Call == "R5AV" && logged.Station == "K1ABC" && logged.Band == "20m"
+                && logged.Mode == "FT4" && logged.StartedUtc == started && logged.EndedUtc == ended
+                && logged.StartedUtc.Value.Kind == DateTimeKind.Utc,
+                "The QSO Logged packet lost the station, band, mode or UTC dates");
+            search.Record(logged);
+            Check(search.Score("R5AV", midnight.AddSeconds(-1)) == 0
+                && search.Score("R5AV", midnight.AddSeconds(20)) == 1, "The prior day's QSO consumed today's award credit");
+            using (var packet = new QtWriter(12, "JTDX", 2))
+            {
+                packet.Text("<CALL:4>R5AV<BAND:3>20m<MODE:4>MFSK<SUBMODE:3>FT4<STATION_CALLSIGN:5>K1ABC"
+                    + "<QSO_DATE:8>20261005<TIME_ON:6>235945<QSO_DATE_OFF:8>20261006<TIME_OFF:6>000007<EOR>");
+                LogbookQso adif = QtPacket.Parse(packet.Bytes()).LoggedContact;
+                Check(adif != null && adif.Mode == "FT4" && adif.StartedUtc == started,
+                    "The native ADIF packet lost mode or QSO date");
+            }
+            foreach (uint type in new[] { 5u, 12u })
+                using (var empty = new QtWriter(type, "JTDX", 2))
+                {
+                    QtPacket parsed = QtPacket.Parse(empty.Bytes());
+                    Check(parsed.Type == type && parsed.LoggedContact == null, "The bridge can no longer relay a legacy log packet");
+                }
+        });
+
+        run("A catalog refresh keeps the local award snapshot and the installed account can reopen it", () => {
+            string dir = Path.Combine(Path.GetTempPath(), "AutoCQ-points-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            string file = Path.Combine(dir, "catalog.json"), prefs = Path.Combine(dir, "preferences.xml");
+            try
+            {
+                var program = HamlogAward.Murom.Create();
+                program.Selected = true;
+                program.Hamlog = new HamlogStanding { Callsign = "K1ABC", CheckedUtc = new DateTime(2026, 10, 5, 0, 0, 0, DateTimeKind.Utc), Points = 6, Required = 85,
+                    Credits = new List<HamlogCredit> { new HamlogCredit { Call = "R5AV", Band = "20m", Mode = "FT8", Points = 6 } } };
+                var app = new AppPreferences { Awards = new AwardCatalog { Programs = new List<AwardProgram> { program } } };
+                File.WriteAllText(file, "{\"version\":1,\"programs\":[{\"url\":\"" + program.Url + "\",\"title\":\"Murom Falcon\"}]}");
+                app.Awards.Import(file, "K1ABC");
+                var store = new AppPreferencesStore(dir);
+                store.Save(app);
+                AwardProgram loaded = store.Load().Awards.Programs.Single();
+                Check(loaded.UsesPointRules && loaded.Selected && loaded.Hamlog.Credits.Single().Call == "R5AV"
+                    && loaded.Hamlog.Points == 6 && loaded.From.Value.Year == 2026, "Catalog refresh or persistence lost the standing");
+            }
+            finally
+            {
+                File.Delete(file);
+                File.Delete(prefs);
+                Directory.Delete(dir);
+            }
+        });
+    }
+
+    static byte[] LoggedQsoPacket(string mode, DateTime started, DateTime ended, uint schema, int offset = 0)
+    {
+        using (var packet = new QtWriter(5, "JTDX", schema))
+        {
+            WriteQtDateTime(packet, ended, offset);
+            packet.Text("R5AV");
+            packet.Text("KO85");
+            packet.U64(14074000);
+            packet.Text(mode);
+            foreach (string field in new[] { "-10", "-11", "", "", "" }) packet.Text(field);
+            WriteQtDateTime(packet, started, offset);
+            packet.Text("K1ABD");
+            packet.Text("K1ABC");
+            packet.Text("FN31");
+            return packet.Bytes();
+        }
+    }
+
+    static void WriteQtDateTime(QtWriter packet, DateTime utc, int offset)
+    {
+        DateTime time = utc.AddSeconds(offset);
+        packet.U64((ulong)(2440588 + (time.Date - new DateTime(1970, 1, 1)).Days));
+        packet.U32((uint)time.TimeOfDay.TotalMilliseconds);
+        packet.Byte(offset == 0 ? (byte)1 : (byte)2);
+        if (offset != 0) packet.U32(unchecked((uint)offset));
     }
 }
