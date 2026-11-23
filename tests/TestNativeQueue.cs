@@ -8,6 +8,7 @@ using System.Text;
 // only the Qt DLL used for QString, with no JTDX process or radio connection.
 static class TestNativeQueue
 {
+    const int StubCodeBytes = 0x2000;
     [DllImport("kernel32.dll", SetLastError = true)]
     static extern IntPtr VirtualAlloc(IntPtr address, UIntPtr size, uint type, uint protect);
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -40,7 +41,7 @@ static class TestNativeQueue
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int SignoffLogGate(int callIndex);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int RecentCallLogGate(IntPtr mainWindow, IntPtr stringEquals);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int ReportLog(IntPtr mainWindow, IntPtr sentReport, int historyStatus, IntPtr startSeconds);
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int HistoryUpdate(int incomingTime, int savedTime, int incomingStatus, int savedStatus, IntPtr history);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int HistoryUpdate(int incomingTime, int savedTime, int incomingStatus, int savedStatus, IntPtr history, IntPtr currentDx, IntPtr peer);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void DirectCall(IntPtr window, IntPtr call, int marker);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void UiAction(IntPtr receiver);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void UiText(IntPtr receiver, IntPtr value);
@@ -169,13 +170,13 @@ static class TestNativeQueue
 
     static void TestRepeatLogging(IntPtr image, string dllDirectory)
     {
-        const int codeRva = 0x2d17000, codeSize = 0x1000;
+        const int codeRva = 0x2d17000;
         const int firstGate = 0x10f4a0, reject = 0x10f4cc, secondGate = 0x110dd0, signoff = 0x110de9;
         const int exchangeStart = 0x2b58, lastLogged = 0x760, history = 0x2b70;
         const long day = 86400000L;
         const long utcMidnight = 20000L * day;
         IntPtr qt = LoadLibraryEx(Path.Combine(dllDirectory, "Qt5Core.dll"), IntPtr.Zero, 8);
-        IntPtr fixture = VirtualAlloc(IntPtr.Zero, (UIntPtr)(codeRva + codeSize), 0x3000, 0x04);
+        IntPtr fixture = VirtualAlloc(IntPtr.Zero, (UIntPtr)(codeRva + StubCodeBytes), 0x3000, 0x04);
         IntPtr window = VirtualAlloc(IntPtr.Zero, (UIntPtr)0x4000, 0x3000, 0x04);
         try
         {
@@ -211,7 +212,7 @@ static class TestNativeQueue
             Marshal.WriteIntPtr(fixture, 0x2c1e378, IntPtr.Add(fixture, 0x1100));
             Marshal.WriteIntPtr(fixture, 0x2c1c8c0, Find(qt, "_ZN10QArrayData11shared_nullE"));
             uint prior;
-            if (!VirtualProtect(fixture, (UIntPtr)(codeRva + codeSize), 0x20, out prior))
+            if (!VirtualProtect(fixture, (UIntPtr)(codeRva + StubCodeBytes), 0x20, out prior))
                 throw new Exception("Cannot protect the repeat logging fixture");
 
             IntPtr dx = IntPtr.Add(window, 0x3000), other = IntPtr.Add(window, 0x3080), mode = IntPtr.Add(window, 0x3100);
@@ -271,7 +272,7 @@ static class TestNativeQueue
 
     static void TestSentReportLogging(IntPtr image, string dllDirectory)
     {
-        const int codeRva = 0x2d17000, stateRva = 0x2d18000;
+        const int codeRva = 0x2d17000, stateRva = codeRva + StubCodeBytes;
         const int entry = 0x1000, logCall = 0x0e8edc, logReturn = 0x0e8ee1;
         const int reportEntry = 0x1100, rogerEntry = 0x1140, reportReturn = 0x10e873;
         const int reportSite = 0x110754, rogerSite = 0x1104d0;
@@ -453,69 +454,145 @@ static class TestNativeQueue
         }
     }
 
-    static void TestHistoryMidnight(IntPtr image)
+    static void TestHistoryUpdates(IntPtr image, string dllDirectory)
     {
-        const int codeRva = 0x2d17000, pageSize = 0x1000;
-        const int comparison = 0x12a241, reject = 0x12a26e, accept = 0x12a410, reportException = 0x12b3c0;
+        const int codeRva = 0x2d17000, stateRva = codeRva + StubCodeBytes, pageSize = 0x1000;
+        const int prepare = 0x12a1c1, reject = 0x12a26e, accept = 0x12a410, reportException = 0x12b3c0;
         const int entry = 0x1000, historyData = 0x2000, radioClock = 0x1595b0;
         const int call = 4, report = 6, sentReport = 7, rogerReport = 8, finished = 16;
+        const int reopened = 3;
         const long midnight = 20000L * 86400000;
-        IntPtr fixture = VirtualAlloc(IntPtr.Zero, (UIntPtr)(codeRva + pageSize), 0x3000, 0x04);
-        if (fixture == IntPtr.Zero) throw new Exception("Cannot allocate the history comparison fixture");
+        IntPtr qt = LoadLibraryEx(Path.Combine(dllDirectory, "Qt5Core.dll"), IntPtr.Zero, 8);
+        if (qt == IntPtr.Zero) throw new Exception("Cannot load Qt for the history fixture");
+        IntPtr fixture = IntPtr.Zero;
         try
         {
+            fixture = VirtualAlloc(IntPtr.Zero, (UIntPtr)(stateRva + pageSize), 0x3000, 0x04);
+            if (fixture == IntPtr.Zero) throw new Exception("Cannot allocate the history comparison fixture");
             CopyImageCode(image, fixture, codeRva, Marshal.ReadInt32(image, codeRva + 14 * 4));
-            CopyImageCode(image, fixture, comparison, reject - comparison);
+            CopyImageCode(image, fixture, prepare, reject - prepare);
             byte[] frame = {
-                0x53, 0x56, 0x41, 0x55,                   // save rbx, rsi and r13
-                0x48, 0x81, 0xec, 0x80, 0x01, 0, 0,       // provide the native locals and outgoing argument area
+                0x53, 0x56, 0x41, 0x55, 0x41, 0x56,       // save rbx, rsi, r13 and r14
+                0x48, 0x81, 0xec, 0x68, 0x04, 0, 0,       // provide the history and display frames
                 0x41, 0x89, 0xcd,                         // r13d = incoming time
                 0x44, 0x89, 0xc6,                         // esi = incoming status
                 0x89, 0x94, 0x24, 0x70, 0x01, 0, 0,       // [rsp+170h] = saved time
                 0x44, 0x89, 0x8c, 0x24, 0x58, 0x01, 0, 0, // [rsp+158h] = saved status
-                0x48, 0x8b, 0x9c, 0x24, 0xc0, 0x01, 0, 0  // rbx = fifth argument (QsoHistory fixture)
+                0xc7, 0x84, 0x24, 0x64, 0x01, 0, 0, 15, 0, 0, 0, // saved TX was 73
+                0x48, 0x8b, 0x9c, 0x24, 0xb0, 0x04, 0, 0, // rbx = fifth argument (QsoHistory fixture)
+                0x4c, 0x8b, 0x73, 0x18,                   // r14 = mode QString
+                0x48, 0x8b, 0x43, 0x10,
+                0x48, 0x89, 0x84, 0x24, 0x58, 0x02, 0, 0, // display's return address
+                0x48, 0x8b, 0x84, 0x24, 0xb8, 0x04, 0, 0,
+                0x48, 0x89, 0x84, 0x24, 0x50, 0x04, 0, 0, // display's current DX
+                0x48, 0x8b, 0x84, 0x24, 0xc0, 0x04, 0, 0,
+                0x48, 0x8b, 0x00,
+                0x48, 0x89, 0x84, 0x24, 0x00, 0x01, 0, 0,
+                0x48, 0x89, 0x84, 0x24, 0x08, 0x01, 0, 0  // the report's normalized call QString and original copy
             };
             WriteCode(fixture, entry, frame);
-            WriteJump(fixture, entry + frame.Length, comparison);
-            byte[] result = { 0xb8, 0, 0, 0, 0, 0x48, 0x81, 0xc4, 0x80, 0x01, 0, 0, 0x41, 0x5d, 0x5e, 0x5b, 0xc3 };
+            WriteJump(fixture, entry + frame.Length, prepare);
+            byte[] result = { 0xb8, 0, 0, 0, 0, 0x48, 0x81, 0xc4, 0x68, 0x04, 0, 0, 0x41, 0x5e, 0x41, 0x5d, 0x5e, 0x5b, 0xc3 };
             WriteCode(fixture, reject, result);
-            result[1] = 1; WriteCode(fixture, accept, result);
+            byte[] accepted = {
+                0x31, 0xc0,                          // an ordinary accepted update returns 1
+                0x83, 0xfe, 0x06,                    // only the plain report can reopen a FIN
+                0x75, 0x17,
+                0x83, 0xbc, 0x24, 0x58, 0x01, 0, 0, 0,
+                0x75, 0x0d,
+                0x83, 0xbc, 0x24, 0x64, 0x01, 0, 0, 0,
+                0x75, 0x03,
+                0x83, 0xc0, 0x02                     // a reset also clears the old transmitted 73
+            };
+            WriteCode(fixture, accept, accepted);
+            result[1] = 1; result[0] = 0x05; // add eax, 1
+            WriteCode(fixture, accept + accepted.Length, result);
+            result[0] = 0xb8;
             result[1] = 2; WriteCode(fixture, reportException, result);
             WriteCode(fixture, radioClock, new byte[] { 0x48, 0x8b, 0x01, 0xc3 }); // return the simulated clock value
+            Marshal.WriteIntPtr(fixture, 0x2c1e510, Find(qt, "_ZeqRK7QStringS1_"));
+            WriteCode(fixture, 0x1100, new byte[] { 0xb8, 0xe8, 0x03, 0, 0, 0xc3 }); // monotonic tick = 1000
+            Marshal.WriteIntPtr(fixture, stateRva + 8, IntPtr.Add(fixture, 0x1100));
             uint prior;
-            foreach (int page in new[] { entry, 0x12a000, 0x12b000, 0x159000, codeRva })
+            foreach (int page in new[] { entry, 0x12a000, 0x12b000, 0x159000, codeRva, codeRva + pageSize })
                 if (!VirtualProtect(IntPtr.Add(fixture, page), (UIntPtr)pageSize, 0x20, out prior))
                     throw new Exception("Cannot protect the history comparison fixture");
 
             IntPtr history = IntPtr.Add(fixture, historyData);
             IntPtr clock = IntPtr.Add(history, 8);
             Marshal.WriteIntPtr(history, clock);
-            HistoryUpdate update = Function<HistoryUpdate>(IntPtr.Add(fixture, entry));
+            Marshal.WriteIntPtr(history, 16, IntPtr.Add(fixture, 0x13bac1));
+            IntPtr peer = IntPtr.Add(history, 0x40), sameCall = IntPtr.Add(history, 0x80), anotherCall = IntPtr.Add(history, 0xc0);
+            IntPtr mode = IntPtr.Add(history, 0x100);
+            WriteQtFixtureString(peer, "W2ABC");
+            WriteQtFixtureString(sameCall, "W2ABC");
+            WriteQtFixtureString(anotherCall, "W2ABCD");
+            WriteQtFixtureString(mode, "FT8");
+            Marshal.WriteIntPtr(history, 24, mode);
+            Marshal.WriteInt32(peer, 8, -1); // static QString reference for the native cleanup paths
+            HistoryUpdate nativeUpdate = Function<HistoryUpdate>(IntPtr.Add(fixture, entry));
+            Func<int, int, int, int, int> update = (incoming, saved, status, previous) =>
+                nativeUpdate(incoming, saved, status, previous, history, anotherCall, peer);
             Marshal.WriteInt64(clock, midnight + 1320000);
-            Check(update(1305, 84090, call, finished, history) == 1,
+            Check(update(1305, 84090, call, finished) == 1,
                 "A fresh addressed call after UTC midnight replaces the previous day's FIN");
-            Check(update(1305, 21600, call, finished, history) == 1,
+            Check(update(1305, 21600, call, finished) == 1,
                 "The UTC rollover also works with a saved QSO from earlier on the previous day");
-            Check(update(1320, 1305, sentReport, call, history) == 1
-                && update(1335, 1320, rogerReport, sentReport, history) == 1,
+            Check(update(1320, 1305, sentReport, call) == 1
+                && update(1335, 1320, rogerReport, sentReport) == 1,
                 "The new exchange accepts both the outgoing report and the R-report for RR73");
 
             Marshal.WriteInt64(clock, midnight + 14500);
-            Check(update(0, 86385, rogerReport, sentReport, history) == 1,
+            Check(update(0, 86385, rogerReport, sentReport) == 1,
                 "An active QSO accepts its next report at exactly midnight");
-            Check(update(86370, 86385, call, finished, history) == 0,
+            Check(update(86370, 86385, call, finished) == 0,
                 "An older decode from before midnight cannot replace a later history entry from that day");
 
             Marshal.WriteInt64(clock, midnight + 3829000);
-            Check(update(3800, 3815, call, finished, history) == 0
-                && update(3800, 3815, report, finished, history) == 2
-                && update(3800, 86400, call, finished, history) == 0,
+            Check(update(3800, 3815, call, finished) == 0
+                && update(3800, 3815, report, finished) == 2
+                && update(3800, 86400, call, finished) == 0,
                 "Same-day ordering, the received-report exception and invalid time handling are preserved");
             Marshal.WriteIntPtr(history, IntPtr.Zero);
-            Check(update(1305, 84090, call, finished, history) == 0,
+            Check(update(1305, 84090, call, finished) == 0,
                 "An unavailable radio clock leaves the native ordering in effect");
+
+            Marshal.WriteIntPtr(history, clock);
+            Marshal.WriteInt64(clock, midnight + 42614200);
+            Marshal.WriteInt64(fixture, stateRva, -1);
+            Marshal.WriteByte(fixture, stateRva + 16, 2);
+            Check(update(42600, 36765, report, finished) == reopened,
+                "A new plain report can start a repeat QSO and replaces the completed exchange");
+            Marshal.WriteByte(fixture, stateRva + 16, 10);
+            Check(nativeUpdate(42600, 42585, report, finished, history, sameCall, peer) == 1,
+                "A repeated report from the current peer preserves the active final 73");
+            Check(update(42600, 42585, report, finished) == reopened,
+                "An incoming caller with a similar callsign can start a new exchange during another sign-off");
+            Check(update(42600, 42600, report, finished) == 1
+                && update(42600, 42605, report, finished) == 2
+                && update(42570, 36765, report, finished) == 1
+                && update(42600, 36765, rogerReport, finished) == 1,
+                "Old, duplicate and acknowledged reports do not reopen a finished QSO");
+            Marshal.WriteInt64(clock, midnight + 14600);
+            Check(update(0, 86385, report, finished) == reopened,
+                "An addressed plain report can reopen a previous day's finished exchange at UTC midnight");
+            WriteQtFixtureString(mode, "FT4");
+            Marshal.WriteInt64(clock, midnight + 1319900);
+            Check(update(1312, 1275, report, finished) == reopened,
+                "A repeat FT4 exchange also starts with a fresh plain report");
+            WriteQtFixtureString(mode, "JT9");
+            Check(update(1305, 1275, report, finished) == 1,
+                "A report in another mode keeps the original history behavior");
+            WriteQtFixtureString(mode, "FT8");
+            Marshal.WriteInt64(fixture, stateRva, 0);
+            Check(update(1305, 1275, report, finished) == 1,
+                "After the control lease expires, JTDX handles a report using its original history");
         }
-        finally { VirtualFree(fixture, UIntPtr.Zero, 0x8000); }
+        finally
+        {
+            if (fixture != IntPtr.Zero) VirtualFree(fixture, UIntPtr.Zero, 0x8000);
+            FreeLibrary(qt);
+        }
     }
 
     static void TestPeMapping(string path, string dllDirectory)
@@ -539,11 +616,14 @@ static class TestNativeQueue
             TestSignoffLogging(image, dllDirectory);
             TestRepeatLogging(image, dllDirectory);
             TestSentReportLogging(image, dllDirectory);
-            TestHistoryMidnight(image);
-            int historyEntry = Marshal.ReadInt32(image, 0x2d17000 + 43 * 4);
-            unwind = RtlLookupFunctionEntry(pc + (uint)historyEntry, out imageBase, IntPtr.Zero);
-            Check(unwind != IntPtr.Zero && imageBase == unchecked((ulong)image.ToInt64()),
-                "Windows recognizes the QSO history hook's unwind table");
+            TestHistoryUpdates(image, dllDirectory);
+            foreach (int index in new[] { 43, 45 })
+            {
+                int historyEntry = Marshal.ReadInt32(image, 0x2d17000 + index * 4);
+                unwind = RtlLookupFunctionEntry(pc + (uint)historyEntry, out imageBase, IntPtr.Zero);
+                Check(unwind != IntPtr.Zero && imageBase == unchecked((ulong)image.ToInt64()),
+                    "Windows recognizes the QSO history hook's unwind table");
+            }
         }
         finally { FreeLibrary(image); }
     }
@@ -552,7 +632,7 @@ static class TestNativeQueue
     {
         const int codeRva = 0x2d17000;
         const int entry = 0x1000;
-        const int fixtureSize = codeRva + 0x1000;
+        const int fixtureSize = codeRva + StubCodeBytes;
         int runReply = codeRva + BitConverter.ToInt32(code, 22 * 4);
         int gate = codeRva + BitConverter.ToInt32(code, 23 * 4);
         IntPtr image = VirtualAlloc(IntPtr.Zero, (UIntPtr)fixtureSize, 0x3000, 0x04);
@@ -611,7 +691,7 @@ static class TestNativeQueue
     {
         const int codeRva = 0x2d17000;
         const int entry = 0x1000;
-        const int fixtureSize = codeRva + 0x1000;
+        const int fixtureSize = codeRva + StubCodeBytes;
         int hook = codeRva + BitConverter.ToInt32(code, 32 * 4);
         IntPtr image = VirtualAlloc(IntPtr.Zero, (UIntPtr)fixtureSize, 0x3000, 0x04);
         IntPtr window = VirtualAlloc(IntPtr.Zero, (UIntPtr)0x4000, 0x3000, 0x04);
@@ -704,7 +784,7 @@ static class TestNativeQueue
     static void TestSequencing(byte[] code)
     {
         const int codeRva = 0x2d17000;
-        const int stateRva = 0x2d18000;
+        const int stateRva = codeRva + StubCodeBytes;
         const int guiFixture = 0x1000;
         const int counterFixture = 0x1100;
         const int fixtureSize = stateRva + 0x1000;
@@ -827,13 +907,13 @@ static class TestNativeQueue
     static int Main(string[] args)
     {
         byte[] code = File.ReadAllBytes(args[0]);
-        IntPtr memory = VirtualAlloc(IntPtr.Zero, (UIntPtr)8192, 0x3000, 0x04);
+        IntPtr memory = VirtualAlloc(IntPtr.Zero, (UIntPtr)(StubCodeBytes + 4096), 0x3000, 0x04);
         if (memory == IntPtr.Zero) throw new Exception("Cannot allocate harness memory");
         try
         {
             Marshal.Copy(code, 0, memory, code.Length);
             uint prior;
-            if (!VirtualProtect(memory, (UIntPtr)4096, 0x20, out prior)) throw new Exception("Cannot protect harness code");
+            if (!VirtualProtect(memory, (UIntPtr)StubCodeBytes, 0x20, out prior)) throw new Exception("Cannot protect harness code");
             Func<int, IntPtr> at = n => IntPtr.Add(memory, BitConverter.ToInt32(code, n * 4));
             Sender sender = Function<Sender>(at(7));
             Line line = Function<Line>(at(8));
@@ -841,7 +921,7 @@ static class TestNativeQueue
             Lease lease = Function<Lease>(at(11));
             Control control = Function<Control>(at(12));
             IntPtr kernel = LoadLibraryEx(Path.Combine(Environment.SystemDirectory, "kernel32.dll"), IntPtr.Zero, 0);
-            Marshal.WriteIntPtr(memory, 4096 + 8, Find(kernel, "GetTickCount64"));
+            Marshal.WriteIntPtr(memory, StubCodeBytes + 8, Find(kernel, "GetTickCount64"));
 
             Check(sender(2247, 2247, 0x7f000001, 1) == 1
                 && sender(2247, 2237, 0x7f000001, 1) == 0

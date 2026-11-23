@@ -44,6 +44,8 @@ org 0x142d17000
 %define qso_log_data    0x14012be80
 %define qstring_assign  0x142c1d528
 %define radio_time_ms   0x1401595b0
+%define qstring_equal   0x142c1e510
+%define decoded_history_return 0x14013bac1
 %define qstring_null    0x142c1c8c0
 %define date_time_ms    0x142c1e378
 %define saved_caller    0xa8
@@ -108,9 +110,11 @@ entry remember_report
 entry remember_roger_report
 entry qso_message_time
 entry qso_message_time_end
+entry prepare_received_report
+entry prepare_received_report_end
 
-; Mutable state is placed in a separate non-executable section.
-select_until equ 0x142d18000
+; Mutable state begins after the two code pages, in a non-executable section.
+select_until equ 0x142d19000
 tick_function equ select_until + 8
 lease_flags equ $$ + (select_until - 0x142d17000) + 16
 last_report equ lease_flags + 8
@@ -1124,6 +1128,87 @@ qso_message_time:
 .accept:
     jmp 0x14012a410
 qso_message_time_end:
+
+; A newly addressed plain report can start an exchange without a preceding
+; locator. Discard the old FIN and message positions before the native
+; RREPORT handler saves the new received report, frequency and start time.
+prepare_received_report:
+    cmp esi, 6                    ; incoming RREPORT, without the R prefix
+    jne .original
+    cmp dword [rsp+0x158], 16      ; prior history status FIN
+    jne .original
+    test byte [rel lease_flags], 2
+    jz .original
+    mov rax, [r14]                ; mode QString supplied by DisplayText
+    cmp dword [rax+4], 3
+    jne .original
+    add rax, [rax+16]
+    cmp dword [rax], 0x00540046
+    jne .original
+    cmp word [rax+4], '8'
+    je .check_lease
+    cmp word [rax+4], '4'
+    jne .original
+.check_lease:
+    call_tick
+    state_load {0x48,0x3b,0x05}, select_until
+    jae .original
+    test byte [rel lease_flags], 8
+    jz .check_time
+    db 0x48, 0x8d, 0x05           ; lea rax, [native DisplayText return address]
+    dd decoded_history_return - ($ + 4)
+    cmp [rsp+0x258], rax
+    jne .original
+    ; While the current DX is closing, a repeated report is still part of
+    ; that exchange. DisplayText already receives its base callsign, and
+    ; the normalized key for this decode is live just before its cleanup.
+    mov rdx, [rsp+0x450]
+    lea rcx, [rsp+0x108]
+    iat_call qstring_equal
+    test al, al
+    jnz .original
+.check_time:
+    cmp r13d, 86400
+    jae .original
+    cmp dword [rsp+0x170], 86400
+    jae .original
+    mov rcx, [rbx]
+    test rcx, rcx
+    jz .original
+    call radio_time_ms
+    test rax, rax
+    jle .original
+    xor edx, edx
+    mov ecx, 86400000
+    div rcx
+    mov eax, edx
+    xor edx, edx
+    mov ecx, 1000
+    div ecx
+    ; Compare both slot ages against the same radio clock, including UTC
+    ; rollover. A current decode is younger than a complete FT8 cycle.
+    mov ecx, eax
+    sub ecx, [rsp+0x170]
+    jnc .previous_age
+    add ecx, 86400
+.previous_age:
+    sub eax, r13d
+    jnc .decode_age
+    add eax, 86400
+.decode_age:
+    cmp eax, 30
+    jae .original
+    cmp eax, ecx
+    jae .original
+    xor eax, eax
+    mov [rsp+0x158], eax          ; status
+    mov [rsp+0x15c], rax          ; current and previous RX status
+    mov [rsp+0x164], rax          ; current and previous TX status
+    mov [rsp+0x17c], eax          ; TX frequency
+.original:
+    mov rcx, [rsp+0x108]
+    jmp 0x14012a1c9
+prepare_received_report_end:
 
 network_dll: db 'Qt5Network.dll', 0
 ipv4_export: db '_ZNK12QHostAddress13toIPv4AddressEPb', 0

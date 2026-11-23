@@ -5,8 +5,8 @@ const { createHash } = require('node:crypto');
 const path = require('node:path');
 
 const expectedSha = '6b6718432edb55b3e3c8a5b884522bdc5ef5e466bf074e9dac09cc0b64ce399c';
-const expectedStubSha = '4962a162267f80d54b4829742a99baa03bc3f7f18bd9c663173f902b81fc1f84';
-const expectedOutputSha = '523b3be7fb893b0166808c3169d059f53cb849e16bfa804b5c30e255469e8326';
+const expectedStubSha = '252d9ad1f7196659cc60fceb5d4d83748b7839eeb4195a39a91fc42a2da75a03';
+const expectedOutputSha = '6cf75a0aafd0fb6f71ff4cfd26ba346b62a3ec207bb13f8abb61b5b72ec1c25c';
 const [originalPath, stubPath, outputPath] = process.argv.slice(2);
 const sha = data => createHash('sha256').update(data).digest('hex');
 const align = (n, a) => Math.ceil(n / a) * a;
@@ -70,12 +70,14 @@ const hooks = [
     [0x110754, 'e91ae1ffff', 41, 0x10d440],
     [0x1104d0, 'e99ee3ffff', 42, 0x10d440],
     [0x12a241, '443bac24700100000f83c1010000', 43, 0x129740],
+    [0x12a1c1, '488b8c2408010000', 45, 0x129740],
 ];
 const lastPacketType = raw(0x21e86a);
 assert(original[lastPacketType] === 51 && original.subarray(lastPacketType - 2, lastPacketType).toString('hex') === '83f8',
     'Unexpected network reader type limit.');
-const offsets = Array.from({ length: 45 }, (_, i) => stub.readUInt32LE(i * 4));
-assert(offsets[14] === stub.length && stub.length < sectionAlignment, 'Invalid stub map or code size.');
+const codeSize = 2 * sectionAlignment;
+const offsets = Array.from({ length: 47 }, (_, i) => stub.readUInt32LE(i * 4));
+assert(offsets[14] === stub.length && stub.length <= codeSize, 'Invalid stub map or code size.');
 for (const [rva, hex, index] of hooks) {
     assert(original.subarray(raw(rva), raw(rva) + hex.length / 2).toString('hex') === hex,
         `Instruction check failed at ${rva.toString(16)}.`);
@@ -114,7 +116,7 @@ assert(original.subarray(raw(repeatLogTimer), raw(repeatLogTimer) + repeatLogTim
     'Unexpected recent-call timer check.');
 
 const codeRva = imageSize;
-const stateRva = codeRva + sectionAlignment;
+const stateRva = codeRva + codeSize;
 const unwindRva = stateRva + sectionAlignment;
 const oldTableAt = raw(original.readUInt32LE(exceptionDirectory));
 const oldTableBytes = original.readUInt32LE(exceptionDirectory + 4);
