@@ -16,8 +16,8 @@ using System.Xml;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.19.0")]
-[assembly: AssemblyFileVersion("0.9.19.0")]
+[assembly: AssemblyVersion("0.9.20.0")]
+[assembly: AssemblyFileVersion("0.9.20.0")]
 [assembly: AssemblyTitle(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyProduct(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyCompany(JtdxAutoCq.AppBrand.Author)]
@@ -202,7 +202,7 @@ namespace JtdxAutoCq
 
     public sealed partial class MainForm : Form
     {
-        const string ModuleVersion = "0.9.19";
+        const string ModuleVersion = "0.9.20";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = JtdxPatcher.PatchedHash;
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -765,6 +765,8 @@ namespace JtdxAutoCq
         void UpdateListHint()
         {
             listHint.Text = lists.SelectedIndex==2 ? "После пяти минут станцию снова можно вызвать по свежему сообщению. При остановке мониторинга список очищается."
+                : engine.Awards != null && lists.SelectedIndex == 0 && !engine.Awards.AnswerOtherCallers
+                    ? "В поиске для дипломов AutoCQ отвечает на входящие от станций, которые подходят выбранным целям."
                 : engine.Monitoring && lists.SelectedIndex==0 ? "Входящие вызовы принимаются вне фильтра мониторинга. После очереди программа вернётся к поиску целей."
                 : engine.Monitoring ? "Можно вручную позвать любую станцию: выберите её слева в JTDX или здесь и нажмите «Позвать выбранную»."
                 : lists.SelectedIndex == 1 ? "Свежие CQ, 73, RRR и RR73 из левого окна JTDX. Двойной щелчок выбирает станцию."
@@ -956,10 +958,12 @@ namespace JtdxAutoCq
             replayRequested = nativeStatusSeen = false; engine.Waiting.Invalidate(); engine.Cqs.Invalidate();
             Log("Прежние настройки восстановлены. JTDX снова готов к запуску.");
         }
-        void StartRadioSession()
+        void StartRadioSession(bool awards)
         {
             if (engine.Options.ExcludedDxcc.Length > 0 || engine.HasPriorityCountries
-                || engine.Options.MonitorEnabled && engine.Options.MonitorDxcc.Length > 0) CountryTable();
+                || engine.Options.MonitorEnabled && engine.Options.MonitorDxcc.Length > 0
+                || awards && preferences.Awards.Programs.Any(program => program.Selected && program.Goals.Any(goal => goal.Kind == "dxcc")))
+                CountryTable();
             if (!demo)
             {
                 if (client == null || clientId != "JTDX" || clientVersion != "2.2.160-32A-rc10" || (DateTime.UtcNow - lastSeen).TotalSeconds > 35)
@@ -994,7 +998,14 @@ namespace JtdxAutoCq
                 engine.Waiting.AnswerWorkedB4 = ini.Get("Common", "AnswerWorkedB4", "false") == "true";
                 tail.Reset(); direction = settings.Direction();
             }
-            engine.Start(DateTime.UtcNow);
+            AwardSearch search = null;
+            if (awards)
+            {
+                if (engine.Status == null) throw new InvalidOperationException("Ожидается состояние JTDX.");
+                search = new AwardSearch(preferences.Awards, startupHistory, Callsign.Clean(engine.Status.DeCall),
+                    JtdxAdif.Band(engine.Status.Frequency), engine.Status.Mode, engine.DxccForCall);
+            }
+            engine.Start(DateTime.UtcNow, search);
             UpdateNativeSelection(DateTime.UtcNow);
             UpdateUi();
         }
@@ -1188,7 +1199,8 @@ namespace JtdxAutoCq
             runMinutes.Enabled = cqAttempts.Enabled = searchEnabled.Enabled = priorityAfter73.Enabled =
                 switchMinutes.Enabled = queueMinutes.Enabled = !engine.Armed;
             exclusions.Enabled = priorities.Enabled = monitor.Enabled = monitorSetup.Enabled = !engine.Armed;
-            start.Text = monitor.Checked ? "2. Включить мониторинг" : "2. Включить автомат";
+            start.Text = engine.Awards != null ? "Поиск для дипломов"
+                : monitor.Checked ? "2. Включить мониторинг" : "2. Включить автомат";
             int targetCount = engine.Options.MonitorDxcc.Length + engine.Options.MonitorCalls.Length + engine.Options.MonitorMasks.Length;
             monitorSetup.Text = targetCount == 0 ? "Цели мониторинга" : "Цели мониторинга  ·  " + targetCount;
             callSelectedCq.Enabled = !engine.Finishing;
@@ -1223,14 +1235,16 @@ namespace JtdxAutoCq
                 radio.ForeColor = counts.ForeColor;
             }
             counts.Text = "QSO в журнале  " + engine.LoggedCount + "    ·    73 получено  " + engine.ConfirmedCount + "    ·    Без 73  " + engine.Missing73Count
-                + (engine.Monitoring ? "    ·    Целей мониторинга  " + targetCount
+                + (engine.Awards != null ? "    ·    Дипломов в поиске  " + engine.Awards.Available(DateTime.UtcNow)
+                    : engine.Monitoring ? "    ·    Целей мониторинга  " + targetCount
                     : "    ·    Очередь  " + engine.Waiting.Rows.Count + "    ·    CQ без ответа  " + engine.UnansweredCqs + "/" + engine.Options.CqAttemptsBeforeSearch);
             if(engine.Finishing)
             {sessionInfo.Text="Завершаю QSO и очередь";sessionInfo.ForeColor=Amber;}
             else if(engine.Armed)
             {
                 TimeSpan remaining=engine.SessionDeadline-DateTime.UtcNow;if(remaining<TimeSpan.Zero)remaining=TimeSpan.Zero;
-                sessionInfo.Text=String.Format("{0} {1:00}:{2:00}:{3:00}",engine.Monitoring ? "Мониторинг" : "Осталось",(int)remaining.TotalHours,remaining.Minutes,remaining.Seconds);sessionInfo.ForeColor=Mint;
+                sessionInfo.Text=String.Format("{0} {1:00}:{2:00}:{3:00}", engine.Awards != null ? "Дипломы" : engine.Monitoring ? "Мониторинг" : "Осталось",
+                    (int)remaining.TotalHours,remaining.Minutes,remaining.Seconds);sessionInfo.ForeColor=Mint;
             }
             else{sessionInfo.Text="AutoCQ выключен";sessionInfo.ForeColor=counts.ForeColor;}
             if (queueUiDirty) RefreshQueue();

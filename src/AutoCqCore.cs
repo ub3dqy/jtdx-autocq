@@ -153,7 +153,8 @@ namespace JtdxAutoCq
     public sealed class AutoCqEngine
     {
         public bool Armed { get; private set; }
-        public bool Monitoring { get { return Armed && monitorTargets != null; } }
+        public bool Monitoring { get { return Armed && (monitorTargets != null || Awards != null); } }
+        internal AwardSearch Awards { get; private set; }
         public string ManualMonitorCall { get { return manualMonitorCall ?? ""; } }
         public string IncomingMonitorCall { get { return incomingMonitorCall ?? ""; } }
         public RadioStatus Status { get; private set; }
@@ -218,7 +219,7 @@ namespace JtdxAutoCq
         bool terminalHaltRequested, sentTerminalAcknowledgement;
         bool terminalReportReceived;
         int silentTerminalRepeats;
-        bool reverse73, reverseNeedsReply, repeatSentInSilentWindow;
+        bool reverse73, reverseNeedsReply, repeatSentInSilentWindow, lastRemoteFinalWas73;
         bool ReverseExchangePending
         {
             get { return reverse73 && (reverseNeedsReply || !pending); }
@@ -255,6 +256,9 @@ namespace JtdxAutoCq
         public bool Pending { get { return pending; } }
 
         public void Start(DateTime now)
+        { Start(now, null); }
+
+        internal void Start(DateTime now, AwardSearch awards)
         {
             if (Status == null) throw new InvalidOperationException("Ожидается состояние JTDX.");
             if (Status.Mode != "FT8" && Status.Mode != "FT4") throw new InvalidOperationException("Поддерживаются FT8 и FT4.");
@@ -266,20 +270,26 @@ namespace JtdxAutoCq
             SessionDeadline = now.AddMinutes(Options.RunMinutes);
             sessionStartedAt = now;
             unconfirmedMonitorCall = null;
-            if (Options.MonitorEnabled)
+            if (Options.MonitorEnabled || awards != null)
             {
-                if (Options.MonitorDxcc.Length + Options.MonitorCalls.Length + Options.MonitorMasks.Length == 0)
+                if (awards == null && Options.MonitorDxcc.Length + Options.MonitorCalls.Length + Options.MonitorMasks.Length == 0)
                     throw new InvalidOperationException("Добавьте хотя бы одну цель мониторинга.");
                 if (Status.TxEnabled || Status.Transmitting)
                     throw new InvalidOperationException("Выключите передачу в JTDX для запуска мониторинга.");
                 string band = JtdxAdif.Band(Status.Frequency);
-                if (Options.MonitorOnePerBand && band == null)
+                if ((awards != null || Options.MonitorOnePerBand) && band == null)
                     throw new InvalidOperationException("Не удалось определить диапазон JTDX для учёта связей.");
-                monitorTargets = new MonitorTargets(Options, DxccForCall, Options.MonitorOnePerBand
-                    ? WorkedCallsOnBand(band, CleanCall(Status.DeCall)) : null);
+                if (awards != null)
+                {
+                    if (awards.Available(now) == 0)
+                        throw new InvalidOperationException("На текущем диапазоне и в этом виде работы нет оставшихся целей выбранных дипломов.");
+                }
+                else monitorTargets = new MonitorTargets(Options, DxccForCall, Options.MonitorOnePerBand
+                        ? WorkedCallsOnBand(band, CleanCall(Status.DeCall)) : null);
             }
             else if (!Status.TxEnabled && !String.IsNullOrEmpty(Status.DxCall) && NextManual() == null)
                 throw new InvalidOperationException("Очистите DX в JTDX для начала CQ или сначала запустите выбранную связь.");
+            Awards = awards;
             sessionFrequency = Status.Frequency; sessionMode = Status.Mode; sessionPeriod = Status.TxFirst;
             workedCallers.Clear();
             string callerBand = JtdxAdif.Band(sessionFrequency);
@@ -292,11 +302,13 @@ namespace JtdxAutoCq
             everEnabled = Status.TxEnabled; Resumes = 0; LoggedCount = 0;
             ConfirmedCount = 0; Missing73Count = 0; ReplyCommands = 0; ResetContact();
             Session = new OperatingSession {
-                StartedUtc = now, Band = callerBand, Mode = sessionMode, OwnCall = CleanCall(Status.DeCall), Monitoring = Options.MonitorEnabled,
+                StartedUtc = now, Band = callerBand, Mode = sessionMode, OwnCall = CleanCall(Status.DeCall), Monitoring = Monitoring,
             };
             sentAcknowledgedReports.Clear();
             unexplainedStop = null;
-            if (Monitoring)
+            if (Awards != null)
+                Notice("Мониторинг включён на " + Options.RunMinutes + " мин. Ищу станции для выбранных дипломов.");
+            else if (Monitoring)
                 Notice("Мониторинг включён на " + Options.RunMinutes + " мин. Ищу цели и отвечаю на входящие вызовы.");
             else
             {
@@ -318,6 +330,7 @@ namespace JtdxAutoCq
             unexplainedStop = null;
             manualCq = null; hunting = finishing = false; ResetCqRound();
             monitorTargets = null;
+            Awards = null;
             unconfirmedMonitorCall = null;
             ResetContact();
             sentAcknowledgedReports.Clear();
@@ -516,7 +529,15 @@ namespace JtdxAutoCq
                 Cqs.Complete(worked);
                 if (Status != null && Status.Frequency == sessionFrequency && Status.Mode == sessionMode)
                     workedCallers.Add(CleanCall(worked));
-                if (Monitoring && Status.Frequency == sessionFrequency) monitorTargets.Complete(worked);
+                if (Monitoring && Status.Frequency == sessionFrequency && Status.Mode == sessionMode)
+                {
+                    if (monitorTargets != null) monitorTargets.Complete(worked);
+                    if (Awards != null)
+                    {
+                        DateTime recorded = RadioTime(line) ?? now;
+                        Awards.Record(CleanCall(worked), recorded);
+                    }
+                }
             }
             if (!Armed) return;
             if (line.EndsWith("  Decoding finished", StringComparison.Ordinal))
@@ -544,6 +565,7 @@ namespace JtdxAutoCq
             {
                 lastRemoteFinalCall = resumedAcknowledgementCall;
                 lastRemoteFinalAt = now;
+                lastRemoteFinalWas73 = false;
             }
             Match tx = line.IndexOf("ransmitting ", StringComparison.Ordinal) >= 0 ? TxMessage.Match(line) : Match.Empty;
             if (tx.Success) Transmitted(tx.Groups[1].Value, RadioTime(line), now);
@@ -675,7 +697,7 @@ namespace JtdxAutoCq
             terminalRepeatSlot = null; terminalReportReceived = false; silentTerminalRepeats = 0;
             reverse73 = reverseNeedsReply = repeatSentInSilentWindow = false;
             allowClearDx = false; pendingOwner = null; attemptCall = null; initialTransmissions = 0;
-            attemptAnswered = false; lastRemoteFinalCall = null;
+            attemptAnswered = lastRemoteFinalWas73 = false; lastRemoteFinalCall = null;
             callLimitExceeded = yieldingToCaller = false; stoppingRetry = null;
             lastAttemptReplySlot = -1;
             resumedAcknowledgementCall = null;
@@ -813,7 +835,7 @@ namespace JtdxAutoCq
         {
             Predicate<WaitingStation> fresh = row => row.Call != exceptCall && row.Decode.IsNew
                 && row.LastHeardUtc <= now && now - row.LastHeardUtc < SlotDuration + SlotDuration
-                && CallerWithinSession(row);
+                && CallerWithinSession(row, now);
             return RankedCaller(Monitoring, fresh);
         }
         WaitingStation RankedCaller(bool allowPeriodChange, Predicate<WaitingStation> eligible = null)
@@ -836,12 +858,13 @@ namespace JtdxAutoCq
             WaitingStation fresh = FreshCaller(now);
             if (fresh != null) return fresh;
             return RankedCaller(true, row => !Monitoring || row.Decode.IsNew && row.LastHeardUtc <= now
-                && CallerWithinSession(row));
+                && CallerWithinSession(row, now));
         }
 
-        bool CallerWithinSession(WaitingStation row)
+        bool CallerWithinSession(WaitingStation row, DateTime now)
         {
-            return !Monitoring || !finishing || row.QueuedUtc < SessionDeadline || row.LastHeardUtc < SessionDeadline;
+            return (!Monitoring || !finishing || row.QueuedUtc < SessionDeadline || row.LastHeardUtc < SessionDeadline)
+                && (Awards == null || Awards.AnswerOtherCallers || Awards.Score(row.Call, now) > 0);
         }
 
         void ReplyToQueuedCaller(WaitingStation next)
@@ -948,7 +971,7 @@ namespace JtdxAutoCq
             Waiting.Complete(waitingCall, confirmedAt.Value);
             sentAcknowledgedReports.Remove(waitingCall);
             Cqs.Complete(waitingCall);
-            if (Monitoring) monitorTargets.Complete(waitingCall);
+            if (Monitoring && monitorTargets != null) monitorTargets.Complete(waitingCall);
             Notice("QSO с " + waitingCall + " подтверждено, но в журнале JTDX нет записи. Продолжаю работу.");
         }
         void Transmitted(string text, DateTime? radioTime, DateTime now)
@@ -985,7 +1008,7 @@ namespace JtdxAutoCq
             {
                 DateTime? previousTerminalSlot = lastTerminalSlot;
                 TerminalTransmitted(peer, now, radioTime, acknowledgement: false);
-                // If the peer sent RR73, our 73 is the final acknowledgement.
+                // Our 73 answers a terminal message already received from the peer.
                 if (lastRemoteFinalCall == peer && (now-lastRemoteFinalAt).TotalSeconds < 120)
                 {
                     reverse73 = true;
@@ -996,7 +1019,9 @@ namespace JtdxAutoCq
                     }
                     else if (previousTerminalSlot != lastTerminalSlot && !reverseNeedsReply)
                         repeatSentInSilentWindow = true;
-                    Confirm73(peer + " передал RR73; наше 73 завершает обмен.", radioTime ?? now);
+                    if (lastRemoteFinalWas73 && !received73) receivedFinalAt = firstTerminalSlot;
+                    Confirm73(lastRemoteFinalWas73 ? "Получено заключительное 73 от " + peer + "."
+                        : peer + " передал RR73; наше 73 завершает обмен.", radioTime ?? now);
                 }
             }
             else if (callsignPair || Report.IsMatch(payload) || Grid.IsMatch(payload))
@@ -1054,6 +1079,7 @@ namespace JtdxAutoCq
             if(acknowledgement)
             {
                 lastRemoteFinalCall=peer;lastRemoteFinalAt=now;
+                lastRemoteFinalWas73 = false;
                 if (freshReply)
                 {
                     if (reverse73) reverseNeedsReply = true;
@@ -1062,6 +1088,19 @@ namespace JtdxAutoCq
                         receivedFinalAt = radioTime;
                         Confirm73("Получено заключительное " + payload + " от " + peer + ".", radioTime ?? now);
                     }
+                }
+            }
+            // Some operators answer an acknowledged report directly with 73.
+            // Remember only the current exchange's immediately following RX slot.
+            if (payload == "73" && waitingCall != peer && peer == attemptCall && peer == lastContact
+                && radioTime.HasValue && radioTime.Value <= now.AddSeconds(2) && now - radioTime.Value <= SlotDuration + SlotDuration)
+            {
+                DateTime sent;
+                if (sentAcknowledgedReports.TryGetValue(peer, out sent) && SlotNumber(radioTime.Value) == SlotNumber(sent) + 1)
+                {
+                    lastRemoteFinalCall = peer;
+                    lastRemoteFinalAt = now;
+                    lastRemoteFinalWas73 = true;
                 }
             }
             if(payload!="73" || waitingCall!=peer) return;
@@ -1145,7 +1184,8 @@ namespace JtdxAutoCq
 
         public bool IsMonitorCandidate(CqStation row, DateTime now)
         {
-            return Monitoring && IsMonitorMessage(row, now) && monitorTargets.CanTry(row.Call);
+            return Monitoring && IsMonitorMessage(row, now)
+                && (Awards == null ? monitorTargets.CanTry(row.Call) : Awards.Score(row.Call, now) > 0);
         }
 
         bool IsMonitorMessage(CqStation row, DateTime now)
@@ -1170,9 +1210,16 @@ namespace JtdxAutoCq
             if (finishing) return "Время сеанса вышло. AutoCQ заканчивает текущую связь и очередь.";
             if (Monitoring)
             {
-                MonitorEligibility eligible = monitorTargets.Eligibility(call);
-                if (eligible == MonitorEligibility.Outside) return "Станция не входит в цели мониторинга.";
-                if (eligible == MonitorEligibility.Worked) return "Цель уже выполнена на этом диапазоне. Включено ограничение «Одна связь на цель на диапазоне».";
+                if (Awards != null)
+                {
+                    if (Awards.Score(call, now) == 0) return Awards.Reason(call, now);
+                }
+                else
+                {
+                    MonitorEligibility eligible = monitorTargets.Eligibility(call);
+                    if (eligible == MonitorEligibility.Outside) return "Станция не входит в цели мониторинга.";
+                    if (eligible == MonitorEligibility.Worked) return "Цель уже выполнена на этом диапазоне. Включено ограничение «Одна связь на цель на диапазоне».";
+                }
                 if (!IsMonitorMessage(row, now)) return "Для мониторинга нужно свежее CQ, 73, RRR или RR73.";
             }
             else if (manualCq != call)
@@ -1188,6 +1235,7 @@ namespace JtdxAutoCq
                 return "Сейчас идёт обмен с " + Status.DxCall + ". Выбор продолжится после связи.";
             WaitingStation next = Status == null ? null : NextCaller(now);
             if (next != null) return "Сначала AutoCQ ответит на входящий вызов " + next.Call + ".";
+            if (Awards != null) return Awards.Reason(call, now);
             return "Станция подходит. AutoCQ проверит свежесть сообщения при следующем выборе.";
         }
 
@@ -1219,7 +1267,8 @@ namespace JtdxAutoCq
                 station = null; manual = false; manualCq = null;
             }
             if (!manual) station = Cqs.Next(now, CanCall, includeSignoffs: true,
-                eligible: row => IsMonitorCandidate(row, now), allowWorked: true);
+                eligible: row => IsMonitorCandidate(row, now), allowWorked: true,
+                priority: Awards == null ? (Func<CqStation, int>)null : row => Awards.Score(row.Call, now));
             if (station == null) return;
             loggedCall = null; ResetContact();
             manualCq = null;
@@ -1230,7 +1279,8 @@ namespace JtdxAutoCq
             Cqs.Attempt(station.Call, now);
             ReplyCommands++;
             Notice((manual ? "Ручной вызов " : "Цель мониторинга ") + station.Call + ". Вызываю по " + (station.Signoff ?? "CQ") + "."
-                + (manual ? " После связи или лимита вызовов продолжу мониторинг." : ""));
+                + (manual ? " После связи или лимита вызовов продолжу мониторинг."
+                    : Awards == null ? "" : " " + Awards.Reason(station.Call, now)));
             RequestReply(station.Decode.Copy());
         }
 

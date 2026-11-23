@@ -25,7 +25,7 @@ namespace JtdxAutoCq
             cqView.SelectedIndexChanged += delegate { whyCq.Enabled = cqView.SelectedItems.Count == 1; };
             Controls.Add(whyCq);
 
-            var tools = new Button { Text = "Журнал и профили ▾" };
+            var tools = new Button { Text = "Журнал и дипломы ▾" };
             tools.SetBounds(744, 571, 190, 30);
             tools.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             StyleButton(tools, Color.White, Ink, Color.FromArgb(201, 213, 224));
@@ -34,10 +34,12 @@ namespace JtdxAutoCq
             var source = menu.Items.Add("Основной журнал", null, delegate { Guard(ChooseLogbook); });
             var profiles = menu.Items.Add("Профили настроек", null, delegate { Guard(ShowProfiles); });
             var targets = menu.Items.Add("Подбор целей DXCC", null, delegate { Guard(ChooseDxccFromLogbook); });
+            var awards = menu.Items.Add("Дипломы HAMLOG", null, delegate { Guard(ShowAwards); });
             menu.Items.Add("Итоги сеанса", null, delegate { Guard(ShowSessionSummary); });
             menu.Opening += delegate {
                 source.Enabled = !engine.Armed && !startingWithHistory;
                 targets.Enabled = source.Enabled && !loadingTargets;
+                awards.Enabled = targets.Enabled;
                 profiles.Enabled = !startingWithHistory;
             };
             tools.Click += delegate { menu.Show(tools, new Point(0, tools.Height)); };
@@ -110,6 +112,9 @@ namespace JtdxAutoCq
         }
 
         void StartAutomation()
+        { StartAutomation(false); }
+
+        void StartAutomation(bool awards)
         {
             if (startingWithHistory || engine.Armed) return;
             string file = PrimaryLogbook();
@@ -121,14 +126,14 @@ namespace JtdxAutoCq
                 if (failure != null && !String.Equals(file, NativeLogbook, StringComparison.OrdinalIgnoreCase))
                 {
                     Log("Основной журнал недоступен. Проверяю локальный журнал JTDX.");
-                    ReadLogbook(NativeLogbook, (local, error) => FinishStart(request, local, error));
+                    ReadLogbook(NativeLogbook, (local, error) => FinishStart(request, local, error, awards));
                     return;
                 }
-                FinishStart(request, history, failure);
+                FinishStart(request, history, failure, awards);
             });
         }
 
-        void FinishStart(int request, LogbookHistory history, Exception failure)
+        void FinishStart(int request, LogbookHistory history, Exception failure, bool awards)
         {
             if (request != historyStartRequest) return;
             startingWithHistory = false;
@@ -136,7 +141,38 @@ namespace JtdxAutoCq
             UpdateUi();
             if (failure != null) Log("История связей недоступна. Автомат запустится без данных прошлых сеансов.");
             else if (!demo) Log("История связей загружена из журнала " + LogbookName(history.Path) + ".");
-            Guard(StartRadioSession);
+            Guard(() => StartRadioSession(awards));
+        }
+
+        void ShowAwards()
+        {
+            if (engine.Armed || startingWithHistory || loadingTargets) return;
+            loadingTargets = true;
+            string file = PrimaryLogbook();
+            ReadLogbook(file, (history, failure) => {
+                loadingTargets = false;
+                if (engine.Armed || startingWithHistory) return;
+                if (failure != null) Log("Не удалось прочитать основной журнал для дипломов. Проверьте его в меню «Основной журнал».");
+                Guard(() => EditAwardCatalog(history ?? LogbookHistory.Empty));
+            });
+        }
+
+        void EditAwardCatalog(LogbookHistory history)
+        {
+            string own = engine.Status == null ? "" : Callsign.Clean(engine.Status.DeCall);
+            var catalog = preferences.Awards ?? new AwardCatalog();
+            using (var dialog = new AwardsDialog(catalog, history, own, call => {
+                DxccCountry country = CountryTable().Find(call);
+                return country == null ? null : country.Prefix;
+            },
+                engine.Status != null && !engine.Status.TxEnabled && !engine.Status.Transmitting))
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+                preferences.Awards = dialog.Catalog;
+                try { preferenceStore.Save(preferences); }
+                catch { preferences.Awards = catalog; throw; }
+                if (dialog.StartRequested) StartAutomation(true);
+            }
         }
 
         void HaltAutomation()
@@ -307,6 +343,20 @@ namespace JtdxAutoCq
             };
             var targets = new DxccTargetsDialog(table, history, profiles[1].Options, "", "20m", "LogHX");
             targets.SelectDemoCountry();
+            var diploma = new AwardProgram { Title = "Страны на 20 м", Selected = true, Goals = new List<AwardGoal> {
+                new AwardGoal { Kind = "dxcc", Value = "K", Band = "20m", Mode = "FT8" },
+                new AwardGoal { Kind = "dxcc", Value = "JA", Band = "20m", Mode = "FT8" },
+            } };
+            var stations = new AwardProgram { Title = "Две японские станции", Selected = true, Goals = new List<AwardGoal> {
+                new AwardGoal { Kind = "mask", Value = "JA*", Band = "20m", Count = 2 },
+            } };
+            var example = new AwardCatalog { Programs = new List<AwardProgram> { diploma, stations } };
+            foreach (AwardProgram program in example.Programs) program.Validate();
+            var awards = new AwardsDialog(example, history, "K1ABC", call => {
+                DxccCountry country = table.Find(call);
+                return country == null ? null : country.Prefix;
+            }, true);
+            awards.SelectDemoProgram(diploma);
             return new Form[] {
                 new LogbookSourceDialog("", history.Path, "LogHX"),
                 new ProfilesDialog(profiles, profiles[0].Options, true),
@@ -315,6 +365,8 @@ namespace JtdxAutoCq
                     "Пауза после вызова. После её окончания AutoCQ ждёт свежее сообщение.",
                     new CqStation { Decode = new DecodedMessage { Message = "CQ JA1AAA PM95" }, HeardUtc = DemoStart }),
                 summary,
+                awards,
+                new AwardGoalsDialog(diploma),
             };
         }
     }

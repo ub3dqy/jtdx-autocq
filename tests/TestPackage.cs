@@ -16,9 +16,9 @@ static class TestPackage
             if(prepared.JtdxSha256!=JtdxPatcher.PatchedHash)throw new Exception("Native patch version does not match the updater manifest.");
             string directory=Path.Combine(destination,"package");
             if(!File.Exists(Path.Combine(directory,"docs/bug-report-demo.png")))throw new Exception("Missing bug report screenshot.");
-            foreach (string image in new[] { "frequency-stop-demo.png", "signoff-retry-demo.png", "logbook-source-demo.png", "profiles-demo.png", "dxcc-targets-demo.png",
-                "station-reason-demo.png", "session-summary-demo.png" })
-                if (!File.Exists(Path.Combine(directory, "docs", image))) throw new Exception("Missing " + image);
+            foreach (string file in new[] { "frequency-stop-demo.png", "signoff-retry-demo.png", "logbook-source-demo.png", "profiles-demo.png", "dxcc-targets-demo.png",
+                "station-reason-demo.png", "session-summary-demo.png", "awards-demo.png", "award-goals-demo.png", "award-catalog.md" })
+                if (!File.Exists(Path.Combine(directory, "docs", file))) throw new Exception("Missing " + file);
             if (JtdxPatcher.Resource("LogHxReader.exe").Length == 0) throw new Exception("Missing embedded LogHX reader.");
             foreach(string name in new[]{"JTDX-AutoCQ-Patch.exe","Update-AutoCQ.ps1","USER-GUIDE.md","USER-GUIDE.en.md","README.md","README.en.md","CONTRIBUTING.md",
                 "docs/user-guide.ru.html","docs/user-guide.en.html","docs/guide.css","docs/autocq-demo.png","docs/setup-demo.png","docs/updates-demo.png","docs/monitor-demo.png","docs/monitor-timeouts-demo.png","docs/monitor-manual-demo.png","docs/monitor-callers-demo.png","docs/about-demo.png","docs/updates-download-demo.png"})

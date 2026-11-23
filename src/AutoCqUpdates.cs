@@ -20,6 +20,7 @@ namespace JtdxAutoCq
         public DateTime LastUpdateCheckUtc;
         public string LogbookPath = "";
         public List<OperatorProfile> Profiles = new List<OperatorProfile>();
+        public AwardCatalog Awards = new AwardCatalog();
         public OperatingSession LastSession;
     }
     public sealed class AppPreferencesStore

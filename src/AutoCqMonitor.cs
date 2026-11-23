@@ -22,13 +22,17 @@ namespace JtdxAutoCq
         {
             countries = new HashSet<string>(options.MonitorDxcc, StringComparer.OrdinalIgnoreCase);
             calls = new HashSet<string>(options.MonitorCalls);
-            masks = options.MonitorMasks.ToDictionary(mask => mask, mask =>
-                new Regex("\\A" + Regex.Escape(mask).Replace(@"\*", "[A-Z0-9/]*").Replace(@"\?", "[A-Z0-9/]") + "\\z",
-                    RegexOptions.CultureInvariant));
+            masks = options.MonitorMasks.ToDictionary(mask => mask, MaskPattern);
             dxcc = dxccForCall;
             onePerBand = options.MonitorOnePerBand;
             if (onePerBand && log != null)
                 foreach (string call in log) Complete(call);
+        }
+
+        internal static Regex MaskPattern(string mask)
+        {
+            return new Regex("\\A" + Regex.Escape(mask).Replace(@"\*", "[A-Z0-9/]*").Replace(@"\?", "[A-Z0-9/]") + "\\z",
+                RegexOptions.CultureInvariant);
         }
 
         public static string[] NormalizeCalls(IEnumerable<string> values)

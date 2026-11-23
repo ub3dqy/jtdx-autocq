@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="author" content="UB3DQY"><title>Using AutoCQ · UB3DQY</title><link rel="icon" href="icon.png"><link rel="stylesheet" href="guide.css"></head><body><main><h1>Using AutoCQ</h1>
-<p>Guide for AutoCQ 0.9.19 · <strong>UB3DQY</strong> · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
+<p>Guide for AutoCQ 0.9.20 · <strong>UB3DQY</strong> · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
 <p>AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.</p>
 <p>Monitoring works differently: JTDX listens until a wanted country or callsign appears, calls that station, then returns to receive. The application interface is currently in Russian; this guide includes the labels you will see.</p>
 <h2>1. Downloads</h2>
@@ -78,7 +78,7 @@
 <p>The pause lasts five minutes after the unsuccessful attempt. When it expires, the row disappears and a new fresh message can make that station eligible again. Expiry alone does not start a transmission. Use «Снять отметку попытки» in the left-pane tab to retry sooner.</p>
 <p>Stopping monitoring, including a timer stop, clears this list and its pauses. Clearing the monitoring-mode checkbox also resets them. Other entries and completed contacts are preserved.</p>
 <h2>Main logbook and profiles</h2>
-<p><strong>«Журнал и профили»</strong> (Logbook and profiles) sits next to the station list. Open <strong>«Основной журнал»</strong> (Main logbook) to see which history AutoCQ uses. When AutoCQ can identify the open LogHX logbook, it offers that file automatically. If the source is JTDX and the complete history lives elsewhere, click <strong>«Выбрать файл»</strong> (Choose file) and select your LogHX logbook (.lhx2) or an ADIF export (.adi, .adif). AutoCQ reads a copy of the LogHX database while the logger stays open.</p>
+<p><strong>«Журнал и дипломы»</strong> (Logbook and awards) sits next to the station list. Open <strong>«Основной журнал»</strong> (Main logbook) to see which history AutoCQ uses. When AutoCQ can identify the open LogHX logbook, it offers that file automatically. If the source is JTDX and the complete history lives elsewhere, click <strong>«Выбрать файл»</strong> (Choose file) and select your LogHX logbook (.lhx2) or an ADIF export (.adi, .adif). AutoCQ reads a copy of the LogHX database while the logger stays open.</p>
 <p><img loading="lazy" src="logbook-source-demo.png" alt="Choosing the main logbook"></p>
 <p>Open <strong>«Подбор целей DXCC»</strong> (Find DXCC targets) and select a band. AutoCQ shows entities with no contact on that band in the selected logbook. It includes contacts in every mode. Tick the entities you want and click <strong>«Добавить в цели»</strong> (Add to targets). You can see the full list in the monitoring settings.</p>
 <p><img loading="lazy" src="dxcc-targets-demo.png" alt="Finding entities to work on a band"></p>
@@ -88,6 +88,13 @@
 <p><img loading="lazy" src="station-reason-demo.png" alt="Why a station was skipped"></p>
 <p><strong>«Итоги сеанса»</strong> (Session results) shows JTDX log entries, final confirmations and the reason for stopping. AutoCQ checks the main logbook by callsign, band, mode and time. With an ADIF export, refresh the export file before checking recent contacts.</p>
 <p><img loading="lazy" src="session-summary-demo.png" alt="Session results compared with the LogHX logbook"></p>
+<h3>Search for HAMLOG award contacts</h3>
+<p>Open <strong>«Журнал и дипломы → Дипломы HAMLOG»</strong> (Logbook and awards → HAMLOG awards). If your HAMLOG browser extension build supports export, click <strong>«Проверить дипломы»</strong> (Check awards), then <strong>«Скачать каталог для AutoCQ»</strong> (Download catalog for AutoCQ). Open the JSON file with <strong>«Импорт»</strong>. The catalog lists programs and issuance. Enter award targets in AutoCQ or import them in a prepared file.</p>
+<p><img loading="lazy" src="awards-demo.png" alt="Selecting two awards and comparing their goals with the main logbook"></p>
+<p>Select an award and click <strong>«Условия»</strong> (Requirements), or use <strong>«Добавить»</strong> (Add). You can use exact callsigns, DXCC prefixes and patterns such as <code>JA*</code>. Each target can specify a band and FT8 or FT4. For a country or pattern, you can specify a count of distinct callsigns. Enter UTC dates for time-limited awards. Check the targets against the published award rules.</p>
+<p><img loading="lazy" src="award-goals-demo.png" alt="Two DXCC targets on 20 metres in the award editor"></p>
+<p>Tick the awards you want and click <strong>«Начать поиск»</strong> (Start search) while JTDX is connected and receiving. AutoCQ selects stations on your current band. Stations that contribute to several awards get priority. To answer other incoming callers as well, tick <strong>«Отвечать всем входящим»</strong> (Answer all incoming callers).</p>
+<p>Progress comes from the main logbook and advances during a session when a QSO is logged. HAMLOG confirms credit and issues the award. Importing a fresh catalog keeps the rules you entered. You can show completed programs with the checkbox. To try for another level in a program with an issued award, open its requirements and select the option for another level. <a href="award-catalog.md">Import file format</a></p>
 <h2>8. Updates</h2>
 <p><img loading="lazy" src="updates-demo.png" alt="Updates window"></p>
 <p>At startup and daily while open, AutoCQ checks GitHub for releases. A newer version highlights Updates and shows a notification. You can disable automatic checks in the window. Requests use public project files; no callsign, settings or log data are uploaded.</p>

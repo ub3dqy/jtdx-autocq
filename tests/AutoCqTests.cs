@@ -1519,8 +1519,40 @@ class AutoCqTests
                     Assert(c.SequenceEqual(new[]{"HALT","CQ"}) && e.Armed && !e.ListenAfterFinal73 && e.Missing73Count == 0,
                         "Completed reverse exchange missed its next TX opportunity");
                 });
+                Run("A plain 73 after our acknowledged report closes the exchange without silent repeats", () => {
+                    List<string> commands;
+                    AutoCqEngine engine = Active(out commands);
+                    engine.UseNativeSelection = true;
+                    engine.OnLine(Tx(At, "W1AW", "R+00"), At);
+                    engine.OnDecode(D(At.AddSeconds(15), "W1AW", "73"), At.AddSeconds(29));
+                    engine.OnLine(Tx(At.AddSeconds(30), "W1AW", "73"), At.AddSeconds(30));
+                    engine.OnLine("QSO logged: W1AW", At.AddSeconds(30));
+                    Assert(engine.ConfirmedCount == 1 && !engine.Awaiting73 && !engine.RepeatFinal73,
+                        "The earlier directed 73 did not complete the exchange");
+                    DateTime next = At.AddSeconds(59.6);
+                    engine.OnLine(DecodeFinished(next), next);
+                    engine.Tick(next, true);
+                    Assert(commands.SequenceEqual(new[] { "HALT" }) && engine.SilentTerminalRepeats == 0,
+                        "AutoCQ tried to retransmit 73 after the quiet period");
+                    engine.OnLine("Halt Tx triggered at RX: UDP request", next);
+                    engine.OnStatus(S(false, "W1AW"), next);
+                    engine.Tick(next, true);
+                    Assert(engine.Armed && engine.Missing73Count == 0 && commands.SequenceEqual(new[] { "HALT", "CQ" }),
+                        "The completed exchange did not resume CQ");
+
+                    foreach (string sentReport in new[] { "-17", "R-17" })
+                    {
+                        engine = Active(out commands);
+                        engine.OnLine(Tx(At, "W1AW", sentReport), At);
+                        string peer = sentReport[0] == 'R' ? "W2ABC" : "W1AW";
+                        engine.OnDecode(D(At.AddSeconds(15), peer, "73"), At.AddSeconds(29));
+                        engine.OnLine(Tx(At.AddSeconds(30), "W1AW", "73"), At.AddSeconds(30));
+                        Assert(engine.Awaiting73 && engine.ConfirmedCount == 0,
+                            "An unrelated 73 or a 73 before an acknowledged report completed the exchange");
+                    }
+                });
                 Run("Sending the final 73 retires the old queued report even without a QSO log entry", () => {
-                    foreach (string acknowledgement in new[] { "RRR", "RR73" })
+                    foreach (string acknowledgement in new[] { "RRR", "RR73", "73" })
                     {
                         var engine = new AutoCqEngine { UseNativeSelection = true };
                         var commands = new List<string>();

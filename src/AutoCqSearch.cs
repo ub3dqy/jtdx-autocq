@@ -156,13 +156,14 @@ namespace JtdxAutoCq
         { return Fresh(row, now) && (allowWorked || !row.Worked) && now >= row.NextTryUtc; }
 
         public CqStation Next(DateTime now, Predicate<string> canCall = null, bool includeSignoffs = false,
-            Predicate<CqStation> eligible = null, bool allowWorked = false)
+            Predicate<CqStation> eligible = null, bool allowWorked = false, Func<CqStation, int> priority = null)
         {
             // A recent CQ is more likely to remain actionable in JTDX and to
             // describe a station still calling. Keep the caller FIFO separate.
             return rows.Where(r=>CanTry(r, now, allowWorked) && (includeSignoffs || r.Signoff == null)
                     && (canCall == null || canCall(r.Call)) && (eligible == null || eligible(r)))
-                .OrderByDescending(r=>r.HeardUtc).ThenBy(r=>r.LastAttemptUtc).FirstOrDefault();
+                .OrderByDescending(r=>priority == null ? 0 : priority(r)).ThenByDescending(r=>r.HeardUtc)
+                .ThenBy(r=>r.LastAttemptUtc).FirstOrDefault();
         }
         public void Attempt(string call,DateTime now)
         {CqStation row=Find(call);if(row==null)return;row.LastAttemptUtc=now;row.NextTryUtc=now.AddMinutes(5);row.MonitorRetryUntilUtc=DateTime.MinValue;Changed();}

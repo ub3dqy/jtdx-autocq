@@ -17,6 +17,7 @@ You could let it work for an hour, answering callers and looking for another sta
 - **Keep a queue.** Remember callers while you are busy. Manually added callsigns are called directly after the current contact and available incoming callers.
 - **Make a manual call while monitoring.** Choose an interesting station outside the target list. After that contact, AutoCQ resumes monitoring with the same settings and time remaining.
 - **Watch for wanted stations.** Match DXCC entities, callsigns and patterns against fresh CQ, 73, RRR or RR73. Return to receive after the contact or attempt limit.
+- **Look for contacts for HAMLOG awards.** Select multiple awards, compare their targets with the main logbook and call stations that contribute to them. Enter the targets in the app or import a prepared file.
 - **Answer callers while monitoring.** Stations calling you take priority over searching for another target, even when they are outside your target list.
 - **Update from the application.** Notify you about new releases and show download percentage, transferred size, speed and estimated time remaining. Install when you choose.
 - **Show monitoring retry pauses.** List unanswered stations with a countdown to their next eligible attempt. Stopping monitoring clears the list.
@@ -64,7 +65,7 @@ Spotted an interesting station outside your targets? While monitoring is listeni
 
 ## Main logbook, profiles and session results
 
-Open **«Журнал и профили»** (Logbook and profiles) to select your LogHX logbook or an ADIF export from another program. AutoCQ uses that history, including voice and contacts made through other software. In **«Подбор целей DXCC»** (Find DXCC targets), select a band and tick the entities that you still need on that band.
+Open **«Журнал и дипломы»** (Logbook and awards) to select your LogHX logbook or an ADIF export from another program. AutoCQ uses that history, including voice and contacts made through other software. In **«Подбор целей DXCC»** (Find DXCC targets), select a band and tick the entities that you still need on that band. **«Дипломы HAMLOG»** (HAMLOG awards) starts a search for the selected awards.
 
 The same menu lets you save settings under a name and check **«Итоги сеанса»** (Session results). The results show final confirmations and which records were found in your main logbook. If a callsign remains in the left list, select it and click **«Почему пропущена?»** (Why was this station skipped?).
 

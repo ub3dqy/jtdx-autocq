@@ -1,6 +1,6 @@
 # Using AutoCQ
 
-Guide for AutoCQ 0.9.19 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
+Guide for AutoCQ 0.9.20 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
 
 AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.
 
@@ -149,7 +149,7 @@ Stopping monitoring, including a timer stop, clears this list and its pauses. Cl
 
 ## Main logbook and profiles
 
-**«Журнал и профили»** (Logbook and profiles) sits next to the station list. Open **«Основной журнал»** (Main logbook) to see which history AutoCQ uses. When AutoCQ can identify the open LogHX logbook, it offers that file automatically. If the source is JTDX and the complete history lives elsewhere, click **«Выбрать файл»** (Choose file) and select your LogHX logbook (.lhx2) or an ADIF export (.adi, .adif). AutoCQ reads a copy of the LogHX database while the logger stays open.
+**«Журнал и дипломы»** (Logbook and awards) sits next to the station list. Open **«Основной журнал»** (Main logbook) to see which history AutoCQ uses. When AutoCQ can identify the open LogHX logbook, it offers that file automatically. If the source is JTDX and the complete history lives elsewhere, click **«Выбрать файл»** (Choose file) and select your LogHX logbook (.lhx2) or an ADIF export (.adi, .adif). AutoCQ reads a copy of the LogHX database while the logger stays open.
 
 ![Choosing the main logbook](docs/logbook-source-demo.png)
 
@@ -168,6 +168,20 @@ Select a callsign in **«Станции из левого окна JTDX»** and 
 **«Итоги сеанса»** (Session results) shows JTDX log entries, final confirmations and the reason for stopping. AutoCQ checks the main logbook by callsign, band, mode and time. With an ADIF export, refresh the export file before checking recent contacts.
 
 ![Session results compared with the LogHX logbook](docs/session-summary-demo.png)
+
+### Search for HAMLOG award contacts
+
+Open **«Журнал и дипломы → Дипломы HAMLOG»** (Logbook and awards → HAMLOG awards). If your HAMLOG browser extension build supports export, click **«Проверить дипломы»** (Check awards), then **«Скачать каталог для AutoCQ»** (Download catalog for AutoCQ). Open the JSON file with **«Импорт»**. The catalog lists programs and issuance. Enter award targets in AutoCQ or import them in a prepared file.
+
+![Selecting two awards and comparing their goals with the main logbook](docs/awards-demo.png)
+
+Select an award and click **«Условия»** (Requirements), or use **«Добавить»** (Add). You can use exact callsigns, DXCC prefixes and patterns such as `JA*`. Each target can specify a band and FT8 or FT4. For a country or pattern, you can specify a count of distinct callsigns. Enter UTC dates for time-limited awards. Check the targets against the published award rules.
+
+![Two DXCC targets on 20 metres in the award editor](docs/award-goals-demo.png)
+
+Tick the awards you want and click **«Начать поиск»** (Start search) while JTDX is connected and receiving. AutoCQ selects stations on your current band. Stations that contribute to several awards get priority. To answer other incoming callers as well, tick **«Отвечать всем входящим»** (Answer all incoming callers).
+
+Progress comes from the main logbook and advances during a session when a QSO is logged. HAMLOG confirms credit and issues the award. Importing a fresh catalog keeps the rules you entered. You can show completed programs with the checkbox. To try for another level in a program with an issued award, open its requirements and select the option for another level. [Import file format](docs/award-catalog.md)
 
 ## 8. Updates
 
