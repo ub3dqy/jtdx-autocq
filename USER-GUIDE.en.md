@@ -199,13 +199,17 @@ For **WHCG**, AutoCQ reads the first four characters of a recent grid locator fr
 
 Kazan has two requirements. You need 25 credited contacts and five different city districts. If you see **«25 из 25 · 4 из 5»** (25 of 25, 4 of 5), AutoCQ looks for a station in a fifth district. St. Petersburg TV Tower requires 60 points plus a contact with RC1B or one of the operators named in the rules. [Kazan rules](https://hamlog.online/club/kazan/be5792cd277125309bc1216c86f36bba/rules/) · [TV Tower rules](https://hamlog.online/global/russia/r1a/a75954ec9180c819a1a6d4bb4e2fd522/rules/)
 
-To see the additional conditions, double-click the award and choose **«Зачёт и надбавки»** (Required contacts and bonuses). The window shows mandatory districts, callsigns and any extra points for a date or band. After making changes, click **«Применить»** (Apply), followed by **«Сохранить»** (Save) in the rule editor. When AutoCQ checks credit again, it verifies any mandatory counters supplied by HAMLOG. **«Вернуть исходные»** (Restore original rules) restores the published settings.
+To see the additional conditions, double-click the award and choose **«Зачёт и надбавки»** (Required contacts and bonuses). The window shows mandatory districts, callsigns, extra points and special dates. After making changes, click **«Применить»** (Apply), followed by **«Сохранить»** (Save) in the rule editor. When AutoCQ checks credit again, it verifies any mandatory counters supplied by HAMLOG. **«Вернуть исходные»** (Restore original rules) restores the published settings.
 
-![Mandatory districts in the Kazan award rules](docs/hamlog-additional-demo.png)
+For the Yesenin award, a contact with Ryazan Oblast scores one point, or three points from October 1 to 7. You can qualify with 30 points or with three contacts on October 3 in the same year. If these three contacts are still only in your main log, AutoCQ pauses calls for that award while awaiting HAMLOG credit. [Yesenin award rules](https://hamlog.online/global/russia/r3s/ceddda6399c0f0c743c89d76a8340145/rules/)
+
+![Annual scoring bonuses and a qualifying date in the Yesenin award rules](docs/hamlog-additional-demo.png)
 
 For My Russia, AutoCQ reads the grid locator from a recent JTDX decode. Each credited square counts once across all bands. For Legendary Gunsmiths of Tula, another QSO with the same station on a different band can count. FT8 and FT4 belong to the same digital mode group on a given band. ARCK 35 Years requires distinct club members, so each callsign counts once. For RDA district awards, AutoCQ needs a known district from earlier HAMLOG credit or from your logbook.
 
 For supported RCPW awards, AutoCQ reads the callsigns from the club's roster. For example, a contact for “Not a Step Back” is worth 10 points during the activity days and five afterward. AutoCQ uses the threshold HAMLOG reports for your callsign. When HAMLOG shows no credit yet and the rules give two thresholds, AutoCQ starts with the lower threshold and checks it again once the first contact is credited. [Not a Step Back rules](https://hamlog.online/club/rcpw/bbfc8b0d8f75b77c547a8cd342e70de3/rules/)
+
+For 105 Years of the Border Troops, temporary callsigns such as R105PW count during the activity days. This award and Dynamo 100 give double points to operators from Russia's zero call district under the published rules. Open the award rules to see the callsigns, dates and point values. [RCPW archive](https://rcpw.ru/daysactiv23.html)
 
 Each award has its own repeat-contact rules. Romania's National Day counts two QSOs with YQ0U on different bands or modes. The VK5IPA award credits every separate QSO and AutoCQ shows the next tier after checking HAMLOG. [YQ0U rules](https://hamlog.online/club/romania/ce6666711abaa4e7ab5831a23b5370ca/rules/) · [VK5IPA rules](https://hamlog.online/global/australia/vk5/e766e96a35afca0a42fe8fa1de3337a7/rules/)
 

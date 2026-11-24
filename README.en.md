@@ -75,6 +75,8 @@ Select a reviewed award whose search is unavailable to see the reason below the 
 
 For RDA district awards, AutoCQ looks for districts you still need. It matches the callsign and received locator to a district in your main logbook or HAMLOG credit.
 
+Some awards give extra points on particular dates or for certain callsigns. For the Yesenin award, contacts score more points from October 1 to 7, and three contacts on October 3 are enough to qualify. Double-click the award and open **«Зачёт и надбавки»** (Required contacts and bonuses) to see those conditions.
+
 After an interruption, **«Продолжить загрузку»** (Resume download) uses documents already downloaded. The AutoCQ log shows the reason for the interruption.
 
 ![Choosing an award and viewing RDA district credit](docs/awards-demo.png)

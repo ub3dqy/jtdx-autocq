@@ -489,12 +489,22 @@ namespace JtdxAutoCq
                     }
                 }
             };
+            var yesenin = new AwardProgram { Title = "Родина русского поэта С. А. Есенина", Url = HamlogLinks.Origin + "club/demo/1030/",
+                Sponsor = "Рязанская область", Selected = true, RuleDocumentStatus = "downloaded",
+                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2025-10-01",
+                    Required = 30, MemberPoints = 1, ExtraPoints = 1,
+                    BonusGroups = new[] { new HamlogBonusGroup { Area = true, Points = 1, Targets = new[] { "RA" } } },
+                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.EveryQso, ShortcutDay = "10-03",
+                        ShortcutContacts = 3, Adjustments = new[] { new HamlogPointAdjustment { Factor = 3,
+                            AnnualFrom = "10-01", AnnualUntil = "10-07" } } }
+                }
+            };
             new HamlogRuleCache(awardCache, (url, cancel) => new HamlogRules(url, "Демонстрационный документ", null),
                 (delay, cancel) => { }).Scan(new[] { border }, default(System.Threading.CancellationToken), result => { });
             var custom = new AwardProgram { Title = "Учебный диплом", Url = HamlogLinks.Origin + "club/demo/19/",
                 ManualSearch = true, Goals = new List<AwardGoal> { new AwardGoal { Kind = "call", Value = "W2ABC" } } };
             foreach (AwardProgram program in new[] { russia, gunsmiths, falcon, tula, arck, counties, angels, border, romania, raem,
-                saratov, tulaDistricts, kazan, custom })
+                saratov, tulaDistricts, kazan, yesenin, custom })
             {
                 program.PublicEntry = true;
                 program.Section = "Клубные и региональные";
@@ -535,6 +545,13 @@ namespace JtdxAutoCq
                     Band = "40m", Mode = "FT8", DayUtc = october, Points = 1
                 }).ToList()
             };
+            yesenin.Hamlog = new HamlogStanding {
+                Callsign = "K1ABC", Points = 6, Required = 30, CheckedUtc = falcon.Hamlog.CheckedUtc,
+                Credits = new List<HamlogCredit> {
+                    new HamlogCredit { Call = "R3SAA", Band = "20m", Mode = "FT8", DayUtc = october.AddDays(1), Points = 3 },
+                    new HamlogCredit { Call = "R3SAB", Band = "40m", Mode = "FT8", DayUtc = october.AddDays(2), Points = 3 }
+                }
+            };
             var awardHistory = new LogbookHistory(history.Path, history.Records.Concat(falcon.Hamlog.Credits.Take(12).Select(credit =>
                 new LogbookQso { Call = credit.Call, Band = credit.Band, Mode = credit.Mode, StartedUtc = credit.DayUtc }))
                 .Concat(new[] {
@@ -544,14 +561,14 @@ namespace JtdxAutoCq
             var example = new AwardCatalog {
                 Callsign = "K1ABC", PublicCatalogUtc = DateTime.UtcNow.AddMinutes(-20),
                 Programs = new List<AwardProgram> { russia, gunsmiths, arck, counties, diploma, stations, falcon, tula, angels, border,
-                    romania, raem, saratov, tulaDistricts, kazan, custom }
+                    romania, raem, saratov, tulaDistricts, kazan, yesenin, custom }
             };
             foreach (AwardProgram program in example.Programs) program.Validate();
             var awards = new AwardsDialog(example, awardHistory, "K1ABC", call => {
                 DxccCountry country = table.Find(call);
                 return country == null ? null : country.Prefix;
             }, cache: awardCache, demo: true);
-            awards.SelectDemoProgram(tulaDistricts);
+            awards.SelectDemoProgram(yesenin);
             return new Form[] {
                 new LogbookSourceDialog("", history.Path, "LogHX"),
                 new ProfilesDialog(profiles, profiles[0].Options, true),
@@ -565,8 +582,9 @@ namespace JtdxAutoCq
                 new HamlogJournalDialog(falcon.Title, new HamlogPointProgress(falcon, awardHistory, "K1ABC")),
                 new HamlogAccountDialog("K1ABC", ""),
                 new HamlogPlanDialog(saratov),
-                new HamlogAdditionalRulesDialog(kazan.EffectiveRules.Contacts, kazan.EffectiveRules.Contacts.Additional,
-                    kazan.EffectiveRules.Contacts.Adjustments),
+                new HamlogAdditionalRulesDialog(yesenin.EffectiveRules.Contacts, yesenin.EffectiveRules.Contacts.Additional,
+                    yesenin.EffectiveRules.Contacts.Adjustments, yesenin.EffectiveRules.Contacts.ShortcutDay,
+                    yesenin.EffectiveRules.Contacts.ShortcutContacts),
             };
         }
     }

@@ -1,10 +1,31 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 
 namespace JtdxAutoCq
 {
+    internal static class HamlogCalendar
+    {
+        internal static int MonthDay(string value)
+        {
+            DateTime parsed;
+            if (!DateTime.TryParseExact("2000-" + value, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out parsed))
+                throw new InvalidDataException("Для ежегодной даты укажите месяц и день (ММ-ДД).");
+            return MonthDay(parsed);
+        }
+
+        internal static int MonthDay(DateTime time) { return time.Month * 100 + time.Day; }
+
+        internal static bool InRange(DateTime time, int first, int last)
+        {
+            int date = MonthDay(time);
+            return first <= last ? first <= date && date <= last : first <= date || date <= last;
+        }
+    }
+
     public sealed class HamlogContactRequirement
     {
         internal const string Counties = "counties", CountyContacts = "county-contacts", Stations = "stations";
@@ -98,9 +119,18 @@ namespace JtdxAutoCq
     public sealed class HamlogPointAdjustment
     {
         public int Factor = 1, Add;
-        public string FromUtc, UntilUtc;
+        public string FromUtc, UntilUtc, AnnualFrom, AnnualUntil;
         public string[] Bands = new string[0];
+        public string[] PortableSuffixes = new string[0];
         Tuple<DateTime?, DateTime?> window;
+        Tuple<int, int> monthDays;
+
+        internal bool Annual { get { return !String.IsNullOrEmpty(AnnualFrom) || !String.IsNullOrEmpty(AnnualUntil); } }
+
+        Tuple<int, int> MonthDays
+        {
+            get { return monthDays ?? (monthDays = Tuple.Create(HamlogCalendar.MonthDay(AnnualFrom), HamlogCalendar.MonthDay(AnnualUntil))); }
+        }
 
         Tuple<DateTime?, DateTime?> Window
         {
@@ -113,25 +143,33 @@ namespace JtdxAutoCq
         internal void Validate()
         {
             Bands = (Bands ?? new string[0]).Distinct(StringComparer.Ordinal).ToArray();
+            PortableSuffixes = (PortableSuffixes ?? new string[0]).Distinct(StringComparer.Ordinal).ToArray();
             window = null;
+            monthDays = null;
             DateTime? from = Window.Item1, until = Window.Item2;
             if (Factor < 1 || Factor > 5 || Add < 0 || Add > 1000 || Factor == 1 && Add == 0
                 || from.HasValue != until.HasValue || from.HasValue && from >= until
-                || !from.HasValue && Bands.Length == 0 || Bands.Any(band => !JtdxAdif.BandNames.Contains(band)))
+                || Annual && from.HasValue || !from.HasValue && !Annual && Bands.Length == 0 && PortableSuffixes.Length == 0
+                || Bands.Any(band => !JtdxAdif.BandNames.Contains(band)) || PortableSuffixes.Any(suffix => suffix != "/P" && suffix != "/M"))
                 throw new InvalidDataException("Проверьте условия повышения очков.");
+            if (Annual)
+                monthDays = Tuple.Create(HamlogCalendar.MonthDay(AnnualFrom), HamlogCalendar.MonthDay(AnnualUntil));
         }
 
         internal bool SameAs(HamlogPointAdjustment other)
         {
             return other != null && Factor == other.Factor && Add == other.Add
                 && (FromUtc ?? "") == (other.FromUtc ?? "") && (UntilUtc ?? "") == (other.UntilUtc ?? "")
-                && Bands.SequenceEqual(other.Bands);
+                && (AnnualFrom ?? "") == (other.AnnualFrom ?? "") && (AnnualUntil ?? "") == (other.AnnualUntil ?? "")
+                && Bands.SequenceEqual(other.Bands) && PortableSuffixes.SequenceEqual(other.PortableSuffixes);
         }
 
-        internal decimal Apply(decimal points, string band, DateTime at)
+        internal decimal Apply(decimal points, string band, DateTime at, string call)
         {
             var range = Window;
             return points > 0 && (Bands.Length == 0 || Bands.Contains(band))
+                && (PortableSuffixes.Length == 0 || call != null && PortableSuffixes.Any(suffix => call.EndsWith(suffix, StringComparison.Ordinal)))
+                && (!Annual || HamlogCalendar.InRange(at, MonthDays.Item1, MonthDays.Item2))
                 && (!range.Item1.HasValue || at >= range.Item1.Value && at < range.Item2.Value) ? points * Factor + Add : points;
         }
 

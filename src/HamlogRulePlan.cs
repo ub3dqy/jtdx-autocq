@@ -10,8 +10,8 @@ namespace JtdxAutoCq
     public sealed class HamlogRulePlan
     {
         public string Kind, FromUtc, UntilUtc, BonusUntilUtc;
-        public int Required, MemberPoints, ExtraPoints, AlternativeRequired, RcpwOnlineAfterPoints;
-        public bool HfOnly, VhfBonus, NoMultipliers;
+        public int Required, MemberPoints, ExtraPoints, AlternativeRequired, RcpwOnlineAfterPoints, RcpwSpecialPoints;
+        public bool HfOnly, VhfBonus, NoMultipliers, RcpwDoubleDistrictZero;
         public string[] Calls = new string[0];
         public HamlogBonusGroup[] BonusGroups = new HamlogBonusGroup[0];
         public HamlogContactCriteria Contacts;
@@ -33,7 +33,8 @@ namespace JtdxAutoCq
         {
             if (other == null || Kind != other.Kind || Required != other.Required || MemberPoints != other.MemberPoints
                 || ExtraPoints != other.ExtraPoints || AlternativeRequired != other.AlternativeRequired
-                || RcpwOnlineAfterPoints != other.RcpwOnlineAfterPoints
+                || RcpwOnlineAfterPoints != other.RcpwOnlineAfterPoints || RcpwSpecialPoints != other.RcpwSpecialPoints
+                || RcpwDoubleDistrictZero != other.RcpwDoubleDistrictZero
                 || HfOnly != other.HfOnly || VhfBonus != other.VhfBonus || NoMultipliers != other.NoMultipliers
                 || (FromUtc ?? "") != (other.FromUtc ?? "")
                 || (UntilUtc ?? "") != (other.UntilUtc ?? "") || (BonusUntilUtc ?? "") != (other.BonusUntilUtc ?? "")
@@ -47,9 +48,10 @@ namespace JtdxAutoCq
         {
             if (!Points && Kind != "single-station")
                 throw new InvalidDataException("Неизвестный способ зачёта диплома.");
-            if (RcpwOnlineAfterPoints != 0 && (!Rcpw || RcpwOnlineAfterPoints < MemberPoints || RcpwOnlineAfterPoints > ExtraPoints))
+            if (RcpwOnlineAfterPoints != 0 && (!Rcpw || RcpwOnlineAfterPoints < MemberPoints || RcpwOnlineAfterPoints > ExtraPoints)
+                || !Rcpw && (RcpwSpecialPoints != 0 || RcpwDoubleDistrictZero))
                 throw new InvalidDataException("Проверьте подтверждённую ставку HAMLOG после дней активности.");
-            if (Calls == null || Calls.Length > 80 || Rcpw && Calls.Length != 0
+            if (Calls == null || Calls.Length > 80
                 || Calls.Length == 0 && !Rcpw && !Club && !ContactAward)
                 throw new InvalidDataException("Укажите позывные станций.");
             Calls = Calls.Select(Callsign.Parse).Distinct(StringComparer.Ordinal).ToArray();
@@ -90,13 +92,17 @@ namespace JtdxAutoCq
             {
                 BonusUntilUtc = (BonusUntilUtc ?? "").Trim();
                 DateTime? bonusUntil = AwardCatalog.ReadTime(BonusUntilUtc);
-                if (!from.HasValue || !bonusUntil.HasValue || bonusUntil < from || bonusUntil == from && ExtraPoints != MemberPoints
+                if (!from.HasValue || !bonusUntil.HasValue || bonusUntil < from
+                    || bonusUntil == from && (ExtraPoints != MemberPoints || Calls.Length != 0)
                     || until.HasValue && bonusUntil > until
                     || AlternativeRequired < 1 || AlternativeRequired > Required || ExtraPoints < MemberPoints
+                    || (Calls.Length == 0 ? RcpwSpecialPoints != 0 : RcpwSpecialPoints < ExtraPoints || RcpwSpecialPoints > 1000)
                     || HfOnly || VhfBonus)
                     throw new InvalidDataException("Проверьте границу дней активности и пороги зачёта RCPW.");
             }
         }
+
+        internal int RcpwFactor(string own) { return RcpwDoubleDistrictZero && HamlogAwardAreas.IsZeroDistrict(own) ? 2 : 1; }
     }
 
     public sealed class HamlogBonusGroup
@@ -110,9 +116,9 @@ namespace JtdxAutoCq
     {
         internal const string BandMode = "band-mode", DayBandMode = "day-band-mode", EveryQso = "every-qso",
             Call = "call", Band = "band", Day = "day", District = "district", Locator = "locator";
-        public string Repeat, BonusFromUtc, BonusUntilUtc, Roster, CountyPrefix;
-        public int LastCounty;
-        public bool GroupModes, PortableAliases, AcceptObserverCredit, ActivatorRoster, MultiplyByCountyCount, CreditBeforePublication;
+        public string Repeat, BonusFromUtc, BonusUntilUtc, Roster, CountyPrefix, ShortcutDay;
+        public int LastCounty, ShortcutContacts, RepeatDayOffsetMinutes;
+        public bool GroupModes, PortableAliases, PortableRegionalCalls, AcceptObserverCredit, ActivatorRoster, MultiplyByCountyCount, CreditBeforePublication;
         public string[] ActivatorAreas = new string[0];
         public string[] Countries = new string[0];
         public string[] Bands = new string[0];
@@ -166,6 +172,12 @@ namespace JtdxAutoCq
                 throw new InvalidDataException("Проверьте дополнительные условия диплома.");
             if (CreditBeforePublication && (Repeat == District || Repeat == Locator))
                 throw new InvalidDataException("Проверьте дату начала зачёта.");
+            if (RepeatDayOffsetMinutes < -720 || RepeatDayOffsetMinutes > 840
+                || RepeatDayOffsetMinutes != 0 && Repeat != Day && Repeat != DayBandMode
+                || ShortcutContacts < 0 || ShortcutContacts > 1000 || String.IsNullOrEmpty(ShortcutDay) != (ShortcutContacts == 0)
+                || ShortcutContacts != 0 && (Additional.Length != 0 || Repeat == District || Repeat == Locator || MultiplyByCountyCount))
+                throw new InvalidDataException("Проверьте время повтора и альтернативный зачёт.");
+            if (ShortcutContacts != 0) HamlogCalendar.MonthDay(ShortcutDay);
             foreach (HamlogContactRequirement condition in Additional) condition.Validate(this);
             foreach (HamlogPointAdjustment adjustment in Adjustments) adjustment.Validate();
             DateTime? from = AwardCatalog.ReadTime(BonusFromUtc), until = AwardCatalog.ReadTime(BonusUntilUtc);
@@ -176,6 +188,8 @@ namespace JtdxAutoCq
         internal bool SameAs(HamlogContactCriteria other)
         {
             return other != null && Repeat == other.Repeat && GroupModes == other.GroupModes && PortableAliases == other.PortableAliases
+                && PortableRegionalCalls == other.PortableRegionalCalls && RepeatDayOffsetMinutes == other.RepeatDayOffsetMinutes
+                && (ShortcutDay ?? "") == (other.ShortcutDay ?? "") && ShortcutContacts == other.ShortcutContacts
                 && AcceptObserverCredit == other.AcceptObserverCredit
                 && ActivatorRoster == other.ActivatorRoster && ActivatorAreas.SequenceEqual(other.ActivatorAreas)
                 && MultiplyByCountyCount == other.MultiplyByCountyCount && EligibleCounties.SequenceEqual(other.EligibleCounties)
@@ -195,9 +209,9 @@ namespace JtdxAutoCq
         internal string ContactKey(string call, string band, string mode)
         { return call + "|" + band + "|" + (GroupModes ? HamlogPointProgress.ModeGroup(mode) : (mode ?? "").ToUpperInvariant()); }
 
-        internal decimal Adjust(decimal points, string band, DateTime time)
+        internal decimal Adjust(decimal points, string band, DateTime time, string call)
         {
-            foreach (HamlogPointAdjustment adjustment in Adjustments) points = adjustment.Apply(points, band, time);
+            foreach (HamlogPointAdjustment adjustment in Adjustments) points = adjustment.Apply(points, band, time, call);
             return points;
         }
 
@@ -206,7 +220,7 @@ namespace JtdxAutoCq
             if (Adjustments.Length == 0) return points == credit.Points;
             DateTime day = credit.DayUtc.Date;
             return new[] { day }.Concat(Adjustments.SelectMany(adjustment => adjustment.Boundaries(day)))
-                .Any(time => Adjust(points, credit.Band, time) == credit.Points);
+                .Any(time => Adjust(points, credit.Band, time, credit.Call) == credit.Points);
         }
 
         internal bool AllowsBandMode(string band, string group)
@@ -246,7 +260,7 @@ namespace JtdxAutoCq
 
     internal static class HamlogPlanCompiler
     {
-        internal const int Version = 6;
+        internal const int Version = 7;
         const string Day = @"\d{1,2} [а-яё]+ \d{4}";
         const string Points = @"\s*(?:[-–—]\s*)?(?<count>\d{1,4})\s*оч(?:ков|ка|ко)\.?";
         static readonly Regex Sky = Pattern(

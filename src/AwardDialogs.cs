@@ -472,6 +472,8 @@ namespace JtdxAutoCq
                     condition.Label + " " + condition.Confirmed + " из " + condition.Required)) + ". ";
             if (points.Closed) return snapshot + "К зачёту подходят связи с 1 по 30 сентября 2021 года.";
             if (history.Path == null) return snapshot + "Выберите доступный основной журнал для сверки связей.";
+            if (points.ConfirmedShortcut && points.NeedOnline > 0)
+                return snapshot + "Условие на особую дату выполнено. Способ получения указан в положении.";
             if (points.ConfirmedComplete) return snapshot + "Диплом можно получить на HAMLOG.";
             if (points.Additional.Count != 0 && points.NeedOnline == 0 && !points.PendingEnough)
                 return snapshot + "Автомат ищет связь для обязательного зачёта.";
@@ -676,6 +678,8 @@ namespace JtdxAutoCq
         readonly NumericUpDown member = new NumericUpDown { Minimum = 1, Maximum = 1000 };
         readonly NumericUpDown special = new NumericUpDown { Minimum = 1, Maximum = 1000 };
         readonly NumericUpDown alternative = new NumericUpDown { Minimum = 1, Maximum = 10000 };
+        readonly NumericUpDown rcpwSpecial = new NumericUpDown { Minimum = 0, Maximum = 1000 };
+        readonly CheckBox rcpwDoubleDistrictZero = new CheckBox { Text = "Двойные очки для 0-го района России", AutoSize = true };
         readonly TextBox bonusUntil = new TextBox { MaxLength = 32 };
         readonly TextBox groups = new TextBox { Multiline = true, ScrollBars = ScrollBars.Vertical, MaxLength = 4000 };
         readonly CheckBox hf = new CheckBox { Text = "Только КВ (160–10 м)", AutoSize = true };
@@ -699,6 +703,8 @@ namespace JtdxAutoCq
         HamlogRulePlan loadedPlan;
         HamlogContactRequirement[] obligations;
         HamlogPointAdjustment[] adjustments;
+        string shortcutDay;
+        int shortcutContacts;
         internal HamlogRulePlan Edited { get; private set; }
 
         static bool HasContactGroups(AwardProgram program)
@@ -709,7 +715,7 @@ namespace JtdxAutoCq
 
         internal HamlogPlanDialog(AwardProgram program) : base("Правила поиска диплома", 740,
             program.EffectiveRules.Club ? 574 : program.EffectiveRules.Districts ? 558
-                : program.EffectiveRules.Rcpw && program.EffectiveRules.RcpwOnlineAfterPoints > 0 ? 506
+                : program.EffectiveRules.Rcpw ? 576
                 : HasContactGroups(program) ? 703 : program.EffectiveRules.ContactAward ? 624 : 468)
         {
             this.program = program;
@@ -732,9 +738,9 @@ namespace JtdxAutoCq
             }
             else if (plan.Rcpw)
             {
-                LabelAt("AutoCQ ищет членов клуба RCPW по списку клуба. Порог для вашего позывного берёт с HAMLOG.",
-                    20, 127, 680, 45);
-                ButtonAt("Список членов RCPW", 20, 176, 208, () => AwardsDialog.OpenInBrowser(this, HamlogRcpwRoster.Url));
+                ButtonAt("Список членов RCPW", 20, 124, 184, () => AwardsDialog.OpenInBrowser(this, HamlogRcpwRoster.Url));
+                LabelAt("Позывные дней активности", 20, 169, 189, 39);
+                Place(calls, 212, 124, 506, 83);
             }
             else
             {
@@ -779,11 +785,14 @@ namespace JtdxAutoCq
                 Place(member, 640, 304, 78, 27);
                 LabelAt("Обычные очки с этой даты (UTC)", 20, 344, 267, 27);
                 Place(bonusUntil, 296, 341, 152, 27);
+                LabelAt("Очки за указанные позывные", 20, 383, 256, 27);
+                Place(rcpwSpecial, 296, 380, 78, 27);
+                Place(rcpwDoubleDistrictZero, 394, 383, 324, 24);
                 LabelAt("Повтор учитывается на другом диапазоне или другим видом. FT8 и FT4 считаются одним видом.",
-                    20, 374, 700, 30);
+                    20, 422, 700, 30);
                 if (plan.RcpwOnlineAfterPoints > 0)
                     LabelAt("За поздние связи HAMLOG также начислял " + plan.RcpwOnlineAfterPoints + " очк. AutoCQ сверяет ставку по зачёту.",
-                        20, 405, 698, 30);
+                        20, 459, 698, 34);
             }
             else if (plan.Districts)
             {
@@ -813,8 +822,9 @@ namespace JtdxAutoCq
                 LabelAt("Сколько очков на степень", 20, 384, 190, 24);
                 Place(levels, 212, 380, 506, 27);
                 LabelAt("Зачёт повторов", 20, 422, 190, 24);
-                repeats.Items.AddRange(new[] { "На разных диапазонах или видах", "На разных диапазонах или видах в сутки UTC",
-                    "Каждая отдельная связь", "Одна связь на позывной", "На разных диапазонах", "Одна связь на позывной в сутки UTC",
+                string day = plan.Contacts.RepeatDayOffsetMinutes == 180 ? "по московскому времени" : "по UTC";
+                repeats.Items.AddRange(new[] { "На разных диапазонах или видах", "На разных диапазонах или видах за сутки " + day,
+                    "Каждая отдельная связь", "Одна связь на позывной", "На разных диапазонах", "Одна связь на позывной за сутки " + day,
                     "Одна связь на квадрат, повторы по диапазону и виду" });
                 Place(repeats, 212, 418, 506, 27);
                 Place(modeGroups, 20, 456, 300, 23);
@@ -833,7 +843,7 @@ namespace JtdxAutoCq
             }
             else LabelAt("Для диплома нужна одна связь с этой станцией в указанный срок.", 20, 278, 699, 45);
             int buttons = plan.Club ? 516 : plan.Districts ? 502 : HasContactGroups(program) ? 645 : plan.ContactAward ? 582
-                : plan.Rcpw && plan.RcpwOnlineAfterPoints > 0 ? 447 : 410;
+                : plan.Rcpw ? 518 : 410;
             var restore = ButtonAt("Вернуть исходные", 20, buttons, 205, () => LoadValues(program.DownloadedRules, false));
             restore.Enabled = program.DownloadedRules != null;
             additionalButton = ButtonAt("Зачёт и надбавки", 235, buttons, 200, EditAdditional);
@@ -862,13 +872,17 @@ namespace JtdxAutoCq
             {
                 alternative.Value = plan.AlternativeRequired;
                 bonusUntil.Text = plan.BonusUntilUtc;
+                rcpwSpecial.Value = plan.RcpwSpecialPoints;
+                rcpwDoubleDistrictZero.Checked = plan.RcpwDoubleDistrictZero;
             }
             if (plan.ContactAward)
             {
                 obligations = plan.Contacts.Additional;
                 adjustments = plan.Contacts.Adjustments;
+                shortcutDay = plan.Contacts.ShortcutDay;
+                shortcutContacts = plan.Contacts.ShortcutContacts;
                 additionalButton.Visible = obligations.Length != 0 || adjustments.Length != 0
-                    || plan.Contacts.RestrictsCounties && !plan.Districts || plan.Contacts.ActivatorAreas.Length != 0;
+                    || shortcutContacts != 0 || plan.Contacts.RestrictsCounties && !plan.Districts || plan.Contacts.ActivatorAreas.Length != 0;
                 territories.Text = String.Join(", ", plan.Contacts.Countries);
                 contactBands.Text = String.Join(", ", plan.Contacts.Bands);
                 contactModes.Text = String.Join(", ", plan.Contacts.Modes);
@@ -903,16 +917,24 @@ namespace JtdxAutoCq
                         : previous.Rcpw ? (int)alternative.Value : previous.AlternativeRequired,
                     RcpwOnlineAfterPoints = member.Value == previous.MemberPoints && special.Value == previous.ExtraPoints
                         && bonusUntil.Text == previous.BonusUntilUtc ? previous.RcpwOnlineAfterPoints : 0,
+                    RcpwSpecialPoints = previous.Rcpw ? (int)rcpwSpecial.Value : 0,
+                    RcpwDoubleDistrictZero = previous.Rcpw && rcpwDoubleDistrictZero.Checked,
                     BonusUntilUtc = previous.Rcpw ? bonusUntil.Text : "",
                     Calls = Tokens(calls.Text),
                     BonusGroups = previous.Club || HasContactGroups(program) ? groups.Lines.Where(line => !String.IsNullOrWhiteSpace(line)).Select(ReadGroup).ToArray()
                         : new HamlogBonusGroup[0]
                 };
                 if (previous.ContactAward)
+                {
+                    string repeat = previous.Districts ? HamlogContactCriteria.District : RepeatKeys[repeats.SelectedIndex];
                     plan.Contacts = new HamlogContactCriteria {
-                        Repeat = previous.Districts ? HamlogContactCriteria.District : RepeatKeys[repeats.SelectedIndex],
+                        Repeat = repeat,
+                        RepeatDayOffsetMinutes = repeat == HamlogContactCriteria.Day || repeat == HamlogContactCriteria.DayBandMode
+                            ? previous.Contacts.RepeatDayOffsetMinutes : 0,
+                        ShortcutDay = shortcutDay, ShortcutContacts = shortcutContacts,
                         GroupModes = modeGroups.Checked,
                         PortableAliases = portableAliases.Checked,
+                        PortableRegionalCalls = previous.Contacts.PortableRegionalCalls,
                         AcceptObserverCredit = previous.Contacts.AcceptObserverCredit,
                         Countries = Tokens(territories.Text.ToUpperInvariant()), Bands = Tokens(contactBands.Text.ToLowerInvariant()),
                         Modes = Tokens(contactModes.Text.ToUpperInvariant()),
@@ -931,6 +953,7 @@ namespace JtdxAutoCq
                         Roster = previous.Contacts.Roster, ActivatorRoster = previous.Contacts.ActivatorRoster,
                         ActivatorAreas = previous.Contacts.ActivatorAreas, Additional = obligations, Adjustments = adjustments
                     };
+                }
                 plan.Validate();
                 Edited = plan.SameAs(original) ? null : plan;
                 DialogResult = DialogResult.OK;
@@ -944,11 +967,13 @@ namespace JtdxAutoCq
 
         void EditAdditional()
         {
-            using (var dialog = new HamlogAdditionalRulesDialog(loadedPlan.Contacts, obligations, adjustments))
+            using (var dialog = new HamlogAdditionalRulesDialog(loadedPlan.Contacts, obligations, adjustments, shortcutDay, shortcutContacts))
             {
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
                 obligations = dialog.Obligations;
                 adjustments = dialog.Adjustments;
+                shortcutDay = dialog.ShortcutDay;
+                shortcutContacts = dialog.ShortcutContacts;
             }
         }
 
@@ -969,11 +994,13 @@ namespace JtdxAutoCq
     {
         internal HamlogContactRequirement[] Obligations { get; private set; }
         internal HamlogPointAdjustment[] Adjustments { get; private set; }
+        internal string ShortcutDay { get; private set; }
+        internal int ShortcutContacts { get; private set; }
 
         internal HamlogAdditionalRulesDialog(HamlogContactCriteria criteria, HamlogContactRequirement[] obligations,
-            HamlogPointAdjustment[] adjustments)
+            HamlogPointAdjustment[] adjustments, string shortcutDay = null, int shortcutContacts = 0)
             : base("Обязательный зачёт и надбавки", 780, 205 + obligations.Length * 73 + adjustments.Length * 58
-                + (adjustments.Length == 0 ? 0 : 27))
+                + (adjustments.Length == 0 ? 0 : 27) + (shortcutContacts == 0 ? 0 : 69))
         {
             int top = 58;
             string eligibility = criteria.RestrictsCounties && criteria.Repeat != HamlogContactCriteria.District
@@ -983,9 +1010,23 @@ namespace JtdxAutoCq
                 eligibility += "Отдельные условия активаторов действуют в " + String.Join(", ", criteria.ActivatorAreas) + ".";
             if (criteria.MultiplyByCountyCount)
                 eligibility = "Сумма очков за связи умножается на число разных зачтённых районов RDA.";
+            if (criteria.PortableRegionalCalls) eligibility += "Для позывных с /P учитывается код области по положению.";
             if (eligibility.Length == 0) eligibility = "Здесь указаны отдельные требования диплома и правила повышения очков.";
             LabelAt(eligibility, 20, top, 740, 42);
             top += 46;
+            TextBox shortcutDate = null;
+            NumericUpDown shortcutCount = null;
+            if (shortcutContacts != 0)
+            {
+                shortcutDate = new TextBox { Text = shortcutDay, MaxLength = 5 };
+                shortcutCount = new NumericUpDown { Minimum = 0, Maximum = 1000, Value = shortcutContacts };
+                LabelAt("Можно выполнить диплом за один день", 20, top, 740, 24);
+                LabelAt("Дата (ММ-ДД, UTC)", 20, top + 28, 150, 26);
+                Place(shortcutDate, 172, top + 28, 89, 26);
+                LabelAt("Связей в этот день", 285, top + 28, 177, 26);
+                Place(shortcutCount, 468, top + 28, 70, 26);
+                top += 69;
+            }
             var readObligations = new List<Func<HamlogContactRequirement>>();
             foreach (HamlogContactRequirement condition in obligations)
             {
@@ -1018,38 +1059,48 @@ namespace JtdxAutoCq
                 LabelAt("+ очки", 88, top, 62, 25);
                 LabelAt("С даты (UTC)", 163, top, 154, 25);
                 LabelAt("По дату (UTC)", 332, top, 154, 25);
-                LabelAt("Диапазоны через запятую", 503, top, 257, 25);
+                LabelAt("Диапазоны", 503, top, 133, 25);
+                LabelAt("Окончания", 657, top, 103, 25);
                 top += 27;
             }
             foreach (HamlogPointAdjustment adjustment in adjustments)
             {
                 var factor = new NumericUpDown { Minimum = 1, Maximum = 5, Value = adjustment.Factor };
                 var extra = new NumericUpDown { Minimum = 0, Maximum = 1000, Value = adjustment.Add };
-                var from = new TextBox { Text = adjustment.FromUtc, MaxLength = 32 };
-                var until = new TextBox { Text = adjustment.UntilUtc, MaxLength = 32 };
+                var from = new TextBox { Text = adjustment.Annual ? adjustment.AnnualFrom : adjustment.FromUtc, MaxLength = 32 };
+                var until = new TextBox { Text = adjustment.Annual ? adjustment.AnnualUntil : adjustment.UntilUtc, MaxLength = 32 };
                 var bands = new TextBox { Text = String.Join(", ", adjustment.Bands), MaxLength = 230 };
+                var suffixes = new TextBox { Text = String.Join(", ", adjustment.PortableSuffixes), MaxLength = 12 };
                 Place(factor, 20, top, 55, 26);
                 Place(extra, 88, top, 62, 26);
                 Place(from, 163, top, 154, 26);
                 Place(until, 332, top, 154, 26);
-                Place(bands, 503, top, 257, 26);
+                Place(bands, 503, top, 143, 26);
+                Place(suffixes, 657, top, 103, 26);
                 readAdjustments.Add(() => {
+                    string start = from.Text.Trim(), end = until.Text.Trim();
+                    bool annual = start.Length == 5 || end.Length == 5;
                     var rule = new HamlogPointAdjustment { Factor = (int)factor.Value, Add = (int)extra.Value,
-                        FromUtc = from.Text.Trim(), UntilUtc = until.Text.Trim(),
-                        Bands = bands.Text.ToLowerInvariant().Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries) };
+                        AnnualFrom = annual ? start : null, AnnualUntil = annual ? end : null,
+                        FromUtc = annual ? null : start, UntilUtc = annual ? null : end,
+                        Bands = bands.Text.ToLowerInvariant().Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries),
+                        PortableSuffixes = suffixes.Text.ToUpperInvariant().Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries) };
                     rule.Validate();
                     return rule;
                 });
                 top += 58;
             }
             if (adjustments.Length != 0)
-                LabelAt("Подойдут дата 2026-11-19 и точное время 2026-11-19T21:00:00Z.", 20, top - 22, 740, 29);
+                LabelAt("Введите дату целиком или только месяц и день для ежегодных надбавок.", 20, top - 22, 740, 29);
             ButtonAt("Отмена", 477, top + 51, 126, () => DialogResult = DialogResult.Cancel);
             ButtonAt("Применить", 614, top + 51, 146, () => {
                 try
                 {
                     Obligations = readObligations.Select(read => read()).ToArray();
                     Adjustments = readAdjustments.Select(read => read()).ToArray();
+                    ShortcutContacts = shortcutCount == null ? 0 : (int)shortcutCount.Value;
+                    ShortcutDay = ShortcutContacts == 0 ? null : shortcutDate.Text.Trim();
+                    if (ShortcutContacts != 0) HamlogCalendar.MonthDay(ShortcutDay);
                     DialogResult = DialogResult.OK;
                 }
                 catch (InvalidDataException error)

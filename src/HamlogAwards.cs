@@ -288,16 +288,20 @@ namespace JtdxAutoCq
             if (award.Rule == HamlogRule.RcpwHunter)
             {
                 HamlogRulePlan plan = award.DocumentPlan;
-                DateTime? bonusUntil = AwardCatalog.ReadTime(plan.BonusUntilUtc);
+                DateTime bonusUntil = AwardCatalog.ReadTime(plan.BonusUntilUtc).Value;
+                int factor = plan.RcpwFactor(own);
+                var special = new HashSet<string>(plan.Calls, StringComparer.Ordinal);
                 // HAMLOG only exposes contact dates, so a boundary day can contain either rate.
-                if (credits.Any(credit => !(credit.DayUtc < bonusUntil && credit.Points == plan.ExtraPoints)
-                    && !(credit.DayUtc.AddDays(1) > bonusUntil
-                        && (credit.Points == plan.MemberPoints || plan.RcpwOnlineAfterPoints > 0
-                            && credit.Points == plan.RcpwOnlineAfterPoints))))
+                if (credits.Any(credit => special.Contains(credit.Call)
+                    ? credit.DayUtc >= bonusUntil || credit.Points != plan.RcpwSpecialPoints * factor
+                    : !(credit.DayUtc < bonusUntil && credit.Points == plan.ExtraPoints * factor)
+                        && !(credit.DayUtc.AddDays(1) > bonusUntil
+                            && (credit.Points == plan.MemberPoints * factor || plan.RcpwOnlineAfterPoints > 0
+                                && credit.Points == plan.RcpwOnlineAfterPoints * factor))))
                     throw new InvalidDataException("Очки за связи в HAMLOG отличаются от ставок в положении RCPW.");
-                HamlogCredit recent = credits.Where(credit => credit.DayUtc >= bonusUntil)
+                HamlogCredit recent = credits.Where(credit => credit.DayUtc >= bonusUntil && !special.Contains(credit.Call))
                     .OrderByDescending(credit => credit.DayUtc).FirstOrDefault();
-                rcpwAfterPoints = recent == null ? plan.MemberPoints : (int)recent.Points;
+                rcpwAfterPoints = recent == null ? plan.MemberPoints : (int)recent.Points / factor;
             }
             if (award.Rule == HamlogRule.ContactPoints && !ContactPointsAgree(award.DocumentPlan, credits))
                 throw new InvalidDataException("Очки за связи в HAMLOG отличаются от условий диплома.");
@@ -430,6 +434,10 @@ namespace JtdxAutoCq
         readonly HamlogRequirementProgress[] requirements;
         readonly HashSet<string> multiplierCounties;
         readonly decimal confirmedContactPoints;
+        readonly Dictionary<DateTime, int> shortcutDays;
+        readonly int shortcutDay;
+        readonly int rcpwFactor;
+        bool projectedShortcut;
         decimal pendingContactPoints;
         static readonly HashSet<string> RussianEntities = new HashSet<string> { "UA", "UA2", "UA9", "R1FJ" };
         bool EveryQso { get { return contacts != null && contacts.Repeat == HamlogContactCriteria.EveryQso; } }
@@ -443,10 +451,11 @@ namespace JtdxAutoCq
         internal decimal PendingPoints { get; private set; }
         internal int ConfirmedCountyMultiplier { get; private set; }
         internal decimal NeedOnline { get { return Math.Max(0, Required - (Standing == null ? 0 : Standing.Points)); } }
+        internal readonly bool ConfirmedShortcut;
         internal bool ConfirmedComplete
-        { get { return Standing != null && NeedOnline == 0 && requirements.All(requirement => requirement.Confirmed >= requirement.Required); } }
+        { get { return Standing != null && (ConfirmedShortcut || NeedOnline == 0 && requirements.All(requirement => requirement.Confirmed >= requirement.Required)); } }
         internal bool PendingEnough
-        { get { return Standing != null && PendingPoints >= NeedOnline && requirements.All(requirement => requirement.Enough) && !ConfirmedComplete; } }
+        { get { return Standing != null && !ConfirmedComplete && (projectedShortcut || PendingPoints >= NeedOnline && requirements.All(requirement => requirement.Enough)); } }
         internal bool CanSearch { get { return Standing != null && logbookAvailable && !IsMember && !Closed && !ConfirmedComplete && !PendingEnough; } }
         internal IReadOnlyList<HamlogRequirementProgress> Additional { get { return requirements; } }
 
@@ -460,6 +469,12 @@ namespace JtdxAutoCq
             contacts = plan != null && plan.ContactAward ? plan.Contacts : null;
             bonus = plan == null ? Bonus : new HashSet<string>(plan.Calls, StringComparer.Ordinal);
             rcpw = plan != null && plan.Rcpw;
+            rcpwFactor = rcpw ? plan.RcpwFactor(this.own) : 1;
+            if (contacts != null && contacts.ShortcutContacts > 0)
+            {
+                shortcutDay = HamlogCalendar.MonthDay(contacts.ShortcutDay);
+                shortcutDays = new Dictionary<DateTime, int>();
+            }
             bonusFrom = contacts == null ? null : AwardCatalog.ReadTime(contacts.BonusFromUtc);
             bonusUntil = contacts != null ? AwardCatalog.ReadTime(contacts.BonusUntilUtc)
                 : rcpw ? AwardCatalog.ReadTime(plan.BonusUntilUtc) : null;
@@ -517,6 +532,7 @@ namespace JtdxAutoCq
                 {
                     if (counties != null) counties.Add(credit.Call, credit.Locator, credit.County);
                     if (credit.Observation) continue;
+                    RecordShortcut(credit.DayUtc);
                     if (EveryQso)
                     {
                         string key = CountKey(credit.Call, credit.Band, credit.Mode, credit.DayUtc);
@@ -526,10 +542,18 @@ namespace JtdxAutoCq
                         continue;
                     }
                     recorded.Add(Key(credit.Call, credit.Band, credit.Mode, credit.DayUtc));
+                    if (contacts != null && contacts.RepeatDayOffsetMinutes != 0)
+                    {
+                        // A date-only row may belong to either local day when the repeat ends outside UTC midnight.
+                        int offset = contacts.RepeatDayOffsetMinutes;
+                        recorded.Add(Key(credit.Call, credit.Band, credit.Mode,
+                            offset > 0 ? credit.DayUtc.AddDays(1).AddTicks(-1) : credit.DayUtc.AddMinutes(-offset)));
+                    }
                     if (!logbookKeys.Contains(ContactKey(credit.Call, credit.Band, credit.Mode, credit.DayUtc)))
                         ConfirmedMissingFromLogbook++;
                 }
             }
+            ConfirmedShortcut = projectedShortcut;
             if (Closed || IsMember || Standing == null) return;
             foreach (LogbookQso row in history.Records.OrderBy(row => row.StartedUtc ?? row.EndedUtc))
             {
@@ -581,8 +605,8 @@ namespace JtdxAutoCq
                             && !String.IsNullOrEmpty(memberNumber) ? "#" + memberNumber : call;
                     case HamlogContactCriteria.Band: return call + divider + band;
                     case HamlogContactCriteria.BandMode: return contacts.ContactKey(call, band, mode);
-                    case HamlogContactCriteria.Day: return call + divider + time.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
-                    case HamlogContactCriteria.DayBandMode: return CountKey(call, band, mode, time);
+                    case HamlogContactCriteria.Day: return call + divider + time.AddMinutes(contacts.RepeatDayOffsetMinutes).ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+                    case HamlogContactCriteria.DayBandMode: return CountKey(call, band, mode, time.AddMinutes(contacts.RepeatDayOffsetMinutes));
                     case HamlogContactCriteria.EveryQso: return CountKey(call, band, mode, time) + divider + time.Ticks;
                 }
             }
@@ -623,13 +647,15 @@ namespace JtdxAutoCq
             if (contacts != null)
             {
                 if (contacts.RestrictsCounties && !contacts.MultiplyByCountyCount && county == null) return 0;
-                return contacts.Adjust(ContactCredit(call, time, county), band, time);
+                return contacts.Adjust(ContactCredit(call, time, county), band, time, call);
             }
             if (rcpw)
             {
+                if (bonus.Contains(call)) return time < bonusUntil.Value ? plan.RcpwSpecialPoints * rcpwFactor : 0;
                 if (!rcpwMembers.Contains(call)) return 0;
-                if (time < bonusUntil.Value) return plan.ExtraPoints;
-                return Standing.RcpwAfterPoints > 0 ? Standing.RcpwAfterPoints : plan.MemberPoints;
+                int rate = time < bonusUntil.Value ? plan.ExtraPoints
+                    : Standing.RcpwAfterPoints > 0 ? Standing.RcpwAfterPoints : plan.MemberPoints;
+                return rate * rcpwFactor;
             }
             int points;
             if (bonus.Contains(call)) points = plan == null ? 10 : plan.ExtraPoints;
@@ -661,7 +687,8 @@ namespace JtdxAutoCq
             points = contacts.RestrictsCounties && !contacts.MultiplyByCountyCount || contacts.Countries.Contains(country)
                 || ContactMember(call, country) ? plan.MemberPoints : 0;
             foreach (KeyValuePair<string, int> area in areaBonuses)
-                if (HamlogAwardAreas.Matches(area.Key, call, country, county)) points = Math.Max(points, area.Value);
+                if (HamlogAwardAreas.Matches(area.Key, call, country, county, contacts.PortableRegionalCalls))
+                    points = Math.Max(points, area.Value);
             return points;
         }
 
@@ -699,7 +726,7 @@ namespace JtdxAutoCq
                 return bonus.Concat(namedBonuses.Keys).Concat(ContactRoster()).Any(call => CandidatePoints(call, band, mode, time) > 0);
             }
             if (areaBonuses.Count != 0) return true;
-            IEnumerable<string> candidates = rcpw ? rcpwMembers : Membership.Keys.Concat(bonus).Concat(namedBonuses.Keys);
+            IEnumerable<string> candidates = rcpw ? rcpwMembers.Concat(bonus) : Membership.Keys.Concat(bonus).Concat(namedBonuses.Keys);
             return candidates.Any(call => CandidatePoints(call, band, mode, time) > 0);
         }
 
@@ -710,6 +737,7 @@ namespace JtdxAutoCq
             county = CountyFor(call, locator, county);
             decimal points = Credit(call, band, mode, time, county);
             if (points == 0 || !recorded.Add(Key(call, band, mode, time))) return;
+            RecordShortcut(time);
             var credit = new HamlogCredit { Call = call, DayUtc = time.Date, Band = band, Mode = mode, Points = points,
                 County = county, Locator = AwardLocator.Parse(locator) };
             pending.Add(credit);
@@ -721,6 +749,15 @@ namespace JtdxAutoCq
                 pendingContactPoints += points;
                 PendingPoints = (confirmedContactPoints + pendingContactPoints) * multiplierCounties.Count - Standing.Points;
             }
+        }
+
+        void RecordShortcut(DateTime at)
+        {
+            if (shortcutDays == null || !WithinCredit(at) || HamlogCalendar.MonthDay(at) != shortcutDay) return;
+            int count;
+            shortcutDays.TryGetValue(at.Date, out count);
+            shortcutDays[at.Date] = ++count;
+            if (count >= contacts.ShortcutContacts) projectedShortcut = true;
         }
     }
 }

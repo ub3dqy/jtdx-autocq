@@ -1,10 +1,11 @@
-# AutoCQ 0.9.33
+# AutoCQ 0.9.34
 
 ## Русский
 
-- Добавлены и сверены с HAMLOG правила для десяти действующих дипломов. Среди них «Тула», «Земля Саратовская — левый берег», «Шолоховская весна 2026» и FIRAC OE DIGI.
-- Для «Тулы» AutoCQ умножает очки за связи на число сработанных районов. Для «Земли Саратовской» он выбирает станции из опубликованного списка районов левого берега на КВ.
-- В WHCG поиск идёт по новым квадратам Эквадора до ближайшей степени. Для FIRAC OE DIGI программа отдельно считает связи с тремя разными участниками австрийской группы.
+- Добавлены и сверены с HAMLOG правила семи действующих дипломов. Среди них дипломы о Есенине и Костроме, «Память» клуба «Квант» и четыре диплома RCPW.
+- В дипломе о Есенине AutoCQ учитывает ежегодные тройные очки с 1 по 7 октября и три связи 3 октября как отдельный способ выполнить условия. Для диплома о Костроме на КВ учитываются полевые выезды /P.
+- Для дипломов RCPW учтены даты и ставки временных позывных. По правилам «Динамо-100» и «105 лет Пограничным войскам» для операторов нулевого района России очки удваиваются. В правилах «Памяти» используется список клуба «Квант».
+- Разобран юбилейный диплом клуба радиолюбителей Волжского. Его срок истёк, поэтому карточку можно посмотреть в архиве.
 - Если положения уже скачаны, откройте **«Дипломы HAMLOG»** и нажмите **«Разобрать скачанное»**, чтобы применить новые правила.
 
 **Как обновиться.** Откройте **«Обновления»**, скачайте выпуск и закройте JTDX перед установкой. Затем нажмите **«Обновить и перезапустить»**. При работе с LogHX запускайте JTDX значком в журнале.
@@ -13,9 +14,10 @@
 
 ## English
 
-- Added and checked rules against HAMLOG for ten active awards, including Tula, Saratov Land — the Left Bank, Sholokhov's Spring 2026 and FIRAC OE DIGI.
-- For Tula, AutoCQ multiplies contact points by the number of districts worked. For Saratov Land, it uses the published list of left-bank districts when searching on HF.
-- For WHCG, AutoCQ searches for new Ecuadorian grids toward the next award tier. FIRAC OE DIGI separately tracks contacts with three different stations in its Austrian group.
+- Added and checked rules against HAMLOG for seven active awards, including the Yesenin and Kostroma awards, the Kvant club's Samoylov memorial award, and four RCPW awards.
+- For the Yesenin award, contacts score triple each year from October 1 to 7. Three contacts on October 3 are a separate way to qualify. The Kostroma rules account for /P operation on HF.
+- RCPW rules now include the dates and point values of temporary callsigns. Dynamo 100 and 105 Years of the Border Troops award double points to applicants from Russia's zero call district. The Samoylov memorial award uses the club's published roster.
+- Added rules for the Volzhsky Radio Amateurs Club anniversary award. Its operating window has ended and its card is available in the archive.
 - If you have already downloaded the conditions, open **«Дипломы HAMLOG»** (HAMLOG awards) and click **«Разобрать скачанное»** (Process downloaded rules) to apply the new rules.
 
 **Updating.** Open **«Обновления»** (Updates), download the release, and close JTDX before installation. Click **«Обновить и перезапустить»** (Update and restart). If you use LogHX, launch JTDX from its icon.

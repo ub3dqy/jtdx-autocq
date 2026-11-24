@@ -660,6 +660,97 @@ static class OperatorToolsTests
                 "A second qualifying QSO in the same district did not satisfy the contact quota pending confirmation.");
         });
 
+        run("A recurring scoring window and a same-day alternative follow the calendar each year", () => {
+            const string own = "K1ABC";
+            DateTime birthday = new DateTime(2026, 10, 3, 6, 0, 0, DateTimeKind.Utc);
+            var award = new AwardProgram { Title = "Example annual award", Url = "https://hamlog.online/club/demo/83/",
+                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", Required = 30, MemberPoints = 1, ExtraPoints = 1,
+                    FromUtc = "2025-10-01", BonusGroups = new[] { new HamlogBonusGroup { Area = true, Points = 1, Targets = new[] { "RA" } } },
+                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.EveryQso, ShortcutDay = "10-03", ShortcutContacts = 3,
+                        Adjustments = new[] { new HamlogPointAdjustment { Factor = 3, AnnualFrom = "10-01", AnnualUntil = "10-07" } }
+                    }
+                }
+            };
+            award.Validate();
+            var store = new AppPreferencesStore(TestWorkspace.Create());
+            var preferences = new AppPreferences();
+            preferences.Awards.Programs.Add(award);
+            store.Save(preferences);
+            award = store.Load().Awards.Programs.Single();
+            string priorYear = HamlogRow("R3SAA", "3 Oct 2025", "40m", "FT8", "3");
+            string currentYear = HamlogRow("R3SAB", "3 Oct 2026", "40m", "FT8", "3");
+            award.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, "<span class='award-dashboard-value'>6 / 30</span>",
+                priorYear, currentYear), award.Template, own, birthday);
+            var history = new LogbookHistory("example.adi", new List<LogbookQso> {
+                new LogbookQso { Call = "R3SAB", Station = own, Band = "40m", Mode = "FT8", StartedUtc = birthday.AddHours(-1) }
+            });
+            var score = new HamlogPointProgress(award, history, own, call => "UA");
+            Check(score.Pending.Count == 0 && score.CandidatePoints("R3SAC", "40m", "FT8", birthday.AddDays(-3)) == 1
+                && score.CandidatePoints("R3SAC", "40m", "FT8", birthday.AddYears(1)) == 3
+                && score.CandidatePoints("R3SAC", "40m", "FT8", birthday.AddDays(4)) == 3
+                && score.CandidatePoints("R3SAC", "40m", "FT8", birthday.AddDays(5)) == 1
+                && score.CandidatePoints("R3PAA", "40m", "FT8", birthday) == 0,
+                "The recurring dates, regional eligibility or existing QSO reconciliation were lost.");
+            score.Record("R3SAC", "40m", "FT8", birthday);
+            score.Record("R3SAC", "40m", "FT8", birthday);
+            Check(!score.PendingEnough && !score.ConfirmedComplete, "A previous year or a duplicate completed the special date.");
+            score.Record("R3SAD", "40m", "FT8", birthday.AddMinutes(1));
+            Check(score.PendingEnough && !score.ConfirmedComplete && score.PendingPoints == 6 && !score.CanSearch,
+                "Three QSOs on the same date did not suspend calls pending confirmation.");
+            award.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, "<span class='award-dashboard-value'>12 / 30</span>",
+                priorYear, currentYear, HamlogRow("R3SAC", "3 Oct 2026", "40m", "FT8", "3"),
+                HamlogRow("R3SAD", "3 Oct 2026", "40m", "FT8", "3")), award.Template, own, birthday);
+            var confirmed = new HamlogPointProgress(award, history, own, call => "UA");
+            Check(confirmed.ConfirmedShortcut && confirmed.ConfirmedComplete && confirmed.NeedOnline == 18,
+                "Confirmed special-date completion was incorrectly tied to the ordinary points target.");
+        });
+
+        run("Regional portable points only apply to the eligible suffix and configured bands", () => {
+            const string own = "K1ABC";
+            DateTime today = new DateTime(2026, 11, 24, 6, 0, 0, DateTimeKind.Utc);
+            var award = new AwardProgram { Title = "Example portable scores", Url = "https://hamlog.online/club/demo/84/",
+                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", Required = 44, MemberPoints = 1, ExtraPoints = 5,
+                    Calls = new[] { "RK3NWA" }, BonusGroups = new[] { new HamlogBonusGroup { Area = true, Points = 1, Targets = new[] { "KS" } } },
+                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.BandMode, PortableRegionalCalls = true,
+                        Bands = new[] { "20m", "40m" },
+                        Adjustments = new[] { new HamlogPointAdjustment { Factor = 2, PortableSuffixes = new[] { "/P" } } } }
+                }
+            };
+            award.Validate();
+            award.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, "<span class='award-dashboard-value'>2 / 44</span>",
+                HamlogRow("R3NAA/P", "23 Nov 2026", "40m", "FT8", "2")), award.Template, own, today);
+            var score = new HamlogPointProgress(award, new LogbookHistory("example.adi", new List<LogbookQso>()), own, call => "UA");
+            Check(score.CandidatePoints("R3NAA/P", "40m", "FT8", today) == 0 && score.CandidatePoints("R3NAA/P", "20m", "FT8", today) == 2
+                && score.CandidatePoints("R3NBB", "40m", "FT8", today) == 1 && score.CandidatePoints("RK3NWA", "40m", "FT8", today) == 5
+                && score.CandidatePoints("R3NBB/M", "20m", "FT8", today) == 0
+                && score.CandidatePoints("R3NBB/4/P", "20m", "FT8", today) == 0
+                && score.CandidatePoints("R3SAA/P", "20m", "FT8", today) == 0 && !score.Available("2m", "FT8", today),
+                "Portable scoring selected the wrong region, suffix, band or duplicate.");
+        });
+
+        run("Calendar-day repeats use the event's local day while official dates remain conservative", () => {
+            const string own = "K1ABC";
+            DateTime boundary = new DateTime(2021, 10, 18, 21, 0, 0, DateTimeKind.Utc);
+            var award = new AwardProgram { Title = "Example Moscow-time event", Url = "https://hamlog.online/club/demo/85/",
+                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", Required = 10, MemberPoints = 1, ExtraPoints = 1,
+                    UntilUtc = "2021-10-19T21:00:00Z", Calls = new[] { "R4AAA", "R4ABB" },
+                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.DayBandMode, RepeatDayOffsetMinutes = 180,
+                        Adjustments = new[] { new HamlogPointAdjustment { Factor = 2, FromUtc = "2021-10-18T21:00:00Z", UntilUtc = "2021-10-19T21:00:00Z" } }
+                    }
+                }
+            };
+            award.Validate();
+            award.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, "<span class='award-dashboard-value'>1 / 10</span>",
+                HamlogRow("R4ABB", "18 Oct 2021", "40m", "FT8", "1")), award.Template, own, boundary);
+            var score = new HamlogPointProgress(award, new LogbookHistory("example.adi", new List<LogbookQso>()), own);
+            score.Record("R4AAA", "40m", "FT8", boundary.AddMinutes(-1));
+            Check(score.CandidatePoints("R4AAA", "40m", "FT8", boundary.AddSeconds(-1)) == 0
+                && score.CandidatePoints("R4AAA", "40m", "FT8", boundary) == 2
+                && score.CandidatePoints("R4ABB", "40m", "FT8", boundary) == 0
+                && score.CandidatePoints("R4ABB", "20m", "FT8", boundary) == 2
+                && !score.Available("40m", "FT8", boundary.AddDays(1)), "Local days and publication dates were treated as UTC days.");
+        });
+
         run("An RDA subset accepts only listed districts and keeps the activator out of hunter search", () => {
             const string own = "K1ABC";
             DateTime now = new DateTime(2026, 11, 24, 20, 0, 0, DateTimeKind.Utc);
@@ -783,6 +874,26 @@ static class OperatorToolsTests
             });
             var earlier = new HamlogPointProgress(award, history, own);
             Check(earlier.PendingEnough && !earlier.ConfirmedComplete, "A valid contact before the publishing date was ignored.");
+        });
+
+        run("RCPW days of activity can include an exact temporary call and a separate applicant factor", () => {
+            const string own = "R0AAA";
+            DateTime boundary = new DateTime(2023, 5, 29, 0, 0, 0, DateTimeKind.Utc);
+            var award = new AwardProgram { Title = "Example RCPW day", Url = "https://hamlog.online/club/rcpw/84/",
+                DownloadedRules = new HamlogRulePlan { Kind = "rcpw-hunter", FromUtc = "2023-05-20", BonusUntilUtc = "2023-05-29",
+                    MemberPoints = 3, ExtraPoints = 5, RcpwOnlineAfterPoints = 5, Required = 105, AlternativeRequired = 105,
+                    Calls = new[] { "R105PW" }, RcpwSpecialPoints = 5, RcpwDoubleDistrictZero = true }
+            };
+            award.Validate();
+            var live = HamlogPage(own, "<span class='award-dashboard-value'>20 / 105</span>",
+                HamlogRow("R105PW", "28 May 2023", "20m", "FT8", "10"), HamlogRow("R3QAA", "29 May 2023", "20m", "FT8", "10"));
+            award.Hamlog = HamlogStandingClient.Parse(live, award.Template, own, boundary);
+            award.Hamlog.RcpwMembers = new[] { "R3QAA" };
+            var score = new HamlogPointProgress(award, new LogbookHistory("example.adi", new List<LogbookQso>()), own);
+            Check(award.Hamlog.RcpwAfterPoints == 5 && score.CandidatePoints("R105PW", "40m", "FT8", boundary.AddSeconds(-1)) == 10
+                && score.CandidatePoints("R105PW", "40m", "FT8", boundary) == 0
+                && score.CandidatePoints("R3QAA", "40m", "FT8", boundary) == 10 && award.DownloadedRules.RcpwFactor("K0AAA") == 1,
+                "The temporary call remained eligible after the event or the applicant bonus was applied incorrectly.");
         });
 
         run("RCPW preserves published rates, adopts a corroborated online rate and groups a member's calls", () => {

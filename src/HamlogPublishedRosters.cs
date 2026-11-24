@@ -6,6 +6,22 @@ namespace JtdxAutoCq
 {
     internal static class HamlogPublishedRosters
     {
+        // Callsigns from the Kvant club roster dated 31 December 2025.
+        // https://www.r3r.ru/index.php?option=com_content&task=view&id=339&Itemid=84
+        internal static readonly HashSet<string> Kvant = new HashSet<string>((
+            "DH7FA F5PBL LY2JO OK1DOZ R2AKN R2CA R2RAR R2RBF R2RCO R2RCU R2REC R2REM R2RFQ " +
+            "R3BB R3EP R3FO R3PQ R3RA R3RAA R3RAC R3RAE R3RAL R3RAO R3RAT R3RB R3RH " +
+            "R3RK R3RM R3RU R3RUA R4CHN R4FAI R4FBB R4FCD R4FCJ R4FD R4FS R5EJ R5GP " +
+            "R5RA R6DBT R6DQQ R6MK R8FF RA3DVM RA3GZ RA3RA RA3RCH RA3RFT RA3RIR RA3RKC RA3RKO " +
+            "RA3RPW RA3RST RA3RTB RA3RTG RA4CFX RA4FKW RA4FMH RA4FUT RA5R RC2SA RD5R RK3DAE RK3RX " +
+            "RL3BA RL5R RM5R RN3RBD RN3RBT RN3RCH RN3RE RN3RFZ RN3RGY RN3RHQ RN3RJK RN3RU RU3GB " +
+            "RU3R RU3RA RU3RN RU3SH RU4CK RW3RB RW3RN RX3AFP RX3RB RX4HJ RZ3R UA1WA UA3ADR " +
+            "UA3FQ UA3R UA3RA UA3RAW UA3RBP UA3RBR UA3RC UA3RDV UA3REO UA3RF UA3RFT UA3RGL UA3RGX " +
+            "UA3RHQ UA3RJD UA3RMH UA3RMR UA3RNA UA3ROJ UA3RPQ UA3RRA UA3RU UA3RUF UA3RVW UA3RW UA3RY " +
+            "UA3STA UA4FKD UA4FKT UA4FMQ UB3RBU UB3RFY UB3RHB UB4FGQ UG5R UN7BU UR5VQL UR7UT US1MM " +
+            "US7IBU UX3IO YD3DOC YU1WAT YU2TT"
+            ).Split(' '), StringComparer.Ordinal);
+
         // Public callsign lists checked on 2026-11-24.
         // https://www.afaru.ru/index.php?doc=log&section=doc
         internal static readonly HashSet<string> Afaru = new HashSet<string>((

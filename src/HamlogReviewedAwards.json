@@ -1593,7 +1593,7 @@
     "Title": "Long distance digital QSO",
     "TextSha256": "c2149fd20c830c3a87d629cfa742911c3c54ef61472dcce2f8fcca6c6b601ddf",
     "Plan": null,
-    "Note": "Диплом требует 100 связей на расстоянии более 10 000 км. Для автоматического выбора нужна достоверная пара локаторов и вид работы для конкретной степени."
+    "Note": "Карточка HAMLOG содержит старые условия цифрового диплома. Сейчас РЦРК ведёт выдачу в своём дипломном центре по новому положению. Сверить действующий зачёт по старой карточке не удалось."
   },
   {
     "Url": "https://hamlog.online/neca/",
@@ -1754,7 +1754,7 @@
     "Title": "Hermoupolis 200",
     "TextSha256": "3341a47edb8e665e34be8a3d6d5aad83cd77f0e500d5f42dff43e391deec13f1",
     "Plan": null,
-    "Note": "Организатор может отклонить QSO, проведённые без оператора. Условия также различают пороги по континенту и дают разовый бонус за CW, SSB и DIGI."
+    "Note": "В положении ограничено автоматическое проведение связей без участия оператора. Для зачёта отдельно учитываются страна соискателя и бонусы за три вида работы."
   },
   {
     "Url": "https://hamlog.online/club/safonovo/bb6b90b684e4b62641d2d08fe592c2e3/",
@@ -1819,7 +1819,7 @@
     "Title": "Bucharest 567",
     "TextSha256": "80740b7c69da8ea721c5dbbcc351add715b4be78daf0c8c38c517b2a402c0d1e",
     "Plan": null,
-    "Note": "Нужны пять разных станций города Бухареста. По румынскому префиксу нельзя подтвердить город передачи."
+    "Note": "Для зачёта нужны пять разных станций из Бухареста. Код позывного сам по себе не подтверждает нахождение станции в городской черте."
   },
   {
     "Url": "https://hamlog.online/club/romania/cb2f3abc7eb44216586c2ec43c7247f3/",
@@ -3664,8 +3664,23 @@
     "Url": "https://hamlog.online/club/kwant/be6227b2cf5b7f55593d7fd3ca69bdd9/",
     "Title": "In memory of Y. N. Samoilov",
     "TextSha256": "1931a0a9bbd5061559295c5d29e053db6a6bca7817e52253854af41ef4fdee5a",
-    "Plan": null,
-    "Note": "Требуется 146 очков. Ставка членов клуба «Квант» отличается от ставки остальных станций. Нужен список клуба для проверки очков."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2021-02-01",
+      "UntilUtc": "",
+      "Required": 146,
+      "MemberPoints": 20,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Modes": [],
+        "Roster": "kwant"
+      }
+    },
+    "Note": "По 20 очков за связь с членом «Кванта», всего нужно набрать не менее 146. Для поиска используется опубликованный клубом список. Опубликованный список может отличаться от состава клуба на дату старых зачтённых связей."
   },
   {
     "Url": "https://hamlog.online/global/russia/r3d/f74111d3df7510a6f4112de75b474879/",
@@ -4028,8 +4043,39 @@
     "Url": "https://hamlog.online/global/russia/r3s/ceddda6399c0f0c743c89d76a8340145/",
     "Title": "Homeland of the Russian Poet S. A. Yesenin",
     "TextSha256": "27e140f0e7c06a32e8068dd64a51bd72386e457181525385ed4d01ae4d5e183c",
-    "Plan": null,
-    "Note": "Обычные связи с Рязанской областью дают по 1 очку, в ежегодные дни активности по 3. На 3 октября действует отдельное условие по трём QSO."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2025-10-01",
+      "UntilUtc": "",
+      "Required": 30,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [
+        {
+          "Points": 1,
+          "Targets": [
+            "RA"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "every-qso",
+        "GroupModes": false,
+        "Modes": [],
+        "ShortcutDay": "10-03",
+        "ShortcutContacts": 3,
+        "Adjustments": [
+          {
+            "Factor": 3,
+            "AnnualFrom": "10-01",
+            "AnnualUntil": "10-07"
+          }
+        ]
+      }
+    },
+    "Note": "Обычная связь с Рязанской областью даёт одно очко. С 1 по 7 октября ежегодно — три очка. Три связи в один день 3 октября выполняют условия независимо от суммы очков. Способ получения диплома указан в положении."
   },
   {
     "Url": "https://hamlog.online/club/lefty/a2c2837a0c37b0bd630fe7dba1d3d913/",
@@ -4109,8 +4155,53 @@
     "Url": "https://hamlog.online/global/russia/r3n/d01934db383479f0d50c13ec7a9d0467/",
     "Title": "Kostroma - the cradle of the Romanovs",
     "TextSha256": "e476f528db4e6b798e94ad463216011a129c95f5b034c9db4597482121eff93e",
-    "Plan": null,
-    "Note": "На КВ, УКВ и для RK3NWA действуют разные ставки. Положение также учитывает конкретные режимы на высоких диапазонах."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2025-05-01",
+      "UntilUtc": "",
+      "Required": 44,
+      "MemberPoints": 1,
+      "ExtraPoints": 5,
+      "Calls": [
+        "RK3NWA"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 1,
+          "Targets": [
+            "KS"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Modes": [],
+        "Bands": [
+          "160m",
+          "80m",
+          "60m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m"
+        ],
+        "PortableRegionalCalls": true,
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "PortableSuffixes": [
+              "/P"
+            ]
+          }
+        ]
+      }
+    },
+    "Note": "Поиск на КВ. За обычную связь с 2N, 3N или 5N начисляется одно очко, за выезд /P — два, за RK3NWA — пять. Отдельные условия УКВ и работы через спутник описаны в положении."
   },
   {
     "Url": "https://hamlog.online/club/r4cdosaaf/c79a9d53dfd138529a1c20125b2137a2/",
@@ -4422,15 +4513,48 @@
     "Url": "https://hamlog.online/club/rcpw/dd8ac424bbb4dc3c911eede00750d99b/",
     "Title": "105 years of border troops",
     "TextSha256": "550b395974494f7fe1ebeab9a202afad893062826a1128f528162c61fc8ac283",
-    "Plan": null,
-    "Note": "В положении две награды и удвоенные ставки для 0-го района. Современный зачёт показывает обычную ставку в 5 очков и после дней активности."
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2023-05-20",
+      "BonusUntilUtc": "2023-05-29",
+      "Required": 105,
+      "AlternativeRequired": 105,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [
+        "R10RCPW",
+        "R105APW",
+        "R105PSKR",
+        "R105MPW",
+        "R105PW",
+        "R105RPW",
+        "R105SPW",
+        "R105VAM"
+      ],
+      "RcpwSpecialPoints": 5,
+      "RcpwDoubleDistrictZero": true
+    },
+    "Note": "105 очков за связи с членами RCPW. Временные позывные учитываются с 20 по 28 мая 2023 года. Положение удваивает очки для соискателей из нулевого района России. После дней активности сверяется ставка по зачёту HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/rcpw/f7cbdc2a638f700ae625436e8a13ba6a/",
     "Title": "Dinamo 100",
     "TextSha256": "5985fae069adf5c20db53603ac4305ef0ad43ed5b3c163a55a14496d460ce804",
-    "Plan": null,
-    "Note": "Для 0-го района действует удвоенная ставка. Обычной станции HAMLOG выставляет 5 очков и после дней активности, хотя в положении указаны 3."
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2023-05-10",
+      "BonusUntilUtc": "2023-05-18",
+      "Required": 100,
+      "AlternativeRequired": 100,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [],
+      "RcpwSpecialPoints": 0,
+      "RcpwDoubleDistrictZero": true
+    },
+    "Note": "100 очков за связи с членами RCPW. В дни активности 10–17 мая 2023 года — пять очков за связь. Положение удваивает очки для соискателей из нулевого района России. После дней активности сверяется ставка по зачёту HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/seafarer/e05988296bf0a032b39ad035d7579bd5/",
@@ -4607,8 +4731,23 @@
     "Url": "https://hamlog.online/club/rcpw/f354a1d65975b0d75af9ecb4ae926375/",
     "Title": "Day of activity",
     "TextSha256": "fa49dedc47e769ebd142491e00ecd3eeda056c63ec3ad24e229614219146a3c9",
-    "Plan": null,
-    "Note": "Позывные R105FSB и R105KGB дают по 10 очков за связь. Для остальных действуют ставки клуба по датам. Для расчёта нужен отдельный зачёт специальных станций."
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2022-12-19",
+      "BonusUntilUtc": "2022-12-30",
+      "Required": 105,
+      "AlternativeRequired": 105,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [
+        "R105FSB",
+        "R105KGB"
+      ],
+      "RcpwSpecialPoints": 10,
+      "RcpwDoubleDistrictZero": false
+    },
+    "Note": "105 очков за связи с членами RCPW. R105FSB и R105KGB дают по десять очков 19–29 декабря 2022 года. Для связей после этих дат сверяется ставка HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/rcpw/d5c1c02b43a5e1571bb334af98ed3657/",
@@ -4678,8 +4817,23 @@
     "Url": "https://hamlog.online/club/rcpw/c3729a290cc9f016ecc0b2349ac341d2/",
     "Title": "Day of the employee of the security organs of the Russian Federation",
     "TextSha256": "3a0a57d0ff29335fd48a5b0d24c69ff71f2998e7e5c09d0ee9244ef16c552eae",
-    "Plan": null,
-    "Note": "Позывные R104FSB и R104KGB имеют отдельное условие. После периода активности проверенные строки HAMLOG сохраняют ставку 5 очков, хотя положение указывает 3."
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2021-12-18",
+      "BonusUntilUtc": "2022-01-01",
+      "Required": 105,
+      "AlternativeRequired": 105,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [
+        "R104FSB",
+        "R104KGB"
+      ],
+      "RcpwSpecialPoints": 5,
+      "RcpwDoubleDistrictZero": false
+    },
+    "Note": "105 очков за связи с членами RCPW. Временные позывные R104FSB и R104KGB засчитываются 18–31 декабря 2021 года. Для связей после этих дат сверяется ставка HAMLOG."
   },
   {
     "Url": "https://hamlog.online/global/russia/r9u/b5d01a49569afc45cbf31e9c71817d74/",
@@ -4692,8 +4846,100 @@
     "Url": "https://hamlog.online/club/krv/ff25e4f985c4530baa1f99535cb0c76d/",
     "Title": "10th anniversary of the Volzhsky Radio Amateurs Club",
     "TextSha256": "4b55c794658a4775ef5c35a0162d87a1a7f444d31c1ef1413f3041f7799dbaa4",
-    "Plan": null,
-    "Note": "Нужны 10 очков и хотя бы один член клуба «КРВ». Повторы считаются по суткам, диапазону и виду, 19 октября действует удвоение."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2021-10-13T21:00:00Z",
+      "UntilUtc": "2021-10-19T21:00:00Z",
+      "Required": 10,
+      "MemberPoints": 1,
+      "ExtraPoints": 3,
+      "Calls": [
+        "RN4AE",
+        "R6DOP",
+        "UA4AMM",
+        "R4ACU",
+        "RA4ALZ",
+        "UB4ACE",
+        "UA4AHU",
+        "RT4B",
+        "UA4AB",
+        "RW4AU",
+        "R4ADD",
+        "R4ADN",
+        "R4ADT",
+        "R4AF/MM",
+        "RC4A/P",
+        "RQ4A",
+        "RC4A",
+        "R4AS",
+        "RA4ALY",
+        "R4AF",
+        "UA4AVN",
+        "UA4AFM",
+        "RN4AM",
+        "UC4A"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 1,
+          "Targets": [
+            "VG"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "day-band-mode",
+        "GroupModes": true,
+        "Modes": [
+          "CW",
+          "SSB",
+          "DIGI"
+        ],
+        "RepeatDayOffsetMinutes": 180,
+        "Additional": [
+          {
+            "Kind": "stations",
+            "Required": 1,
+            "ReportedByHamlog": true,
+            "Calls": [
+              "RN4AE",
+              "R6DOP",
+              "UA4AMM",
+              "R4ACU",
+              "RA4ALZ",
+              "UB4ACE",
+              "UA4AHU",
+              "RT4B",
+              "UA4AB",
+              "RW4AU",
+              "R4ADD",
+              "R4ADN",
+              "R4ADT",
+              "R4AF/MM",
+              "RC4A/P",
+              "RQ4A",
+              "RC4A",
+              "R4AS",
+              "RA4ALY",
+              "R4AF",
+              "UA4AVN",
+              "UA4AFM",
+              "RN4AM",
+              "UC4A"
+            ]
+          }
+        ],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2021-10-18T21:00:00Z",
+            "UntilUtc": "2021-10-19T21:00:00Z"
+          }
+        ]
+      }
+    },
+    "Note": "Связи с Волгоградской областью 14–19 октября 2021 года по московскому времени. Нужна хотя бы одна связь с членом КРВ по списку HAMLOG. 19 октября очки удваиваются. Срок работы на диплом закончился."
   },
   {
     "Url": "https://hamlog.online/club/muzhestvo/c4cb936b8ef5999a1a43c0552d518b33/",

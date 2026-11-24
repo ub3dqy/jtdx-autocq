@@ -20,6 +20,7 @@ namespace JtdxAutoCq
                 case "afaru-fifth-ocean": return "членов СРВС и клуба «Пятый Океан»";
                 case "afaru-sky": return "членов СРВС и клуба «Рыцари неба»";
                 case "firac": return "членов FIRAC";
+                case "kwant": return "членов клуба «Квант»";
                 default: return "членов клуба из положения";
             }
         }
@@ -35,6 +36,7 @@ namespace JtdxAutoCq
                 case "afaru-fifth-ocean": return HamlogPublishedRosters.AfaruAndFifthOcean;
                 case "afaru-sky": return AfaruSky.Value;
                 case "firac": return HamlogPublishedRosters.Firac;
+                case "kwant": return HamlogPublishedRosters.Kvant;
                 case "miller": return Miller;
                 default: return null;
             }
