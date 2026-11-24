@@ -335,6 +335,14 @@ namespace JtdxAutoCq
                 return;
             }
             string context = String.IsNullOrEmpty(program.Sponsor) ? "" : program.Sponsor + "\r\n";
+            if (program.UsesGeographicSearch)
+            {
+                details.Text = context + (program.Template.MonitoringRegion == null
+                    ? "Поиск по европейской и азиатской частям России и Калининградской области."
+                    : "Поиск среди станций области, указанной в положении.");
+                details.Text += "\r\nОчки считает и диплом выдаёт HAMLOG.";
+                return;
+            }
             if (value.Online != null)
             {
                 HamlogOnlineProgress online = value.Online;
@@ -342,8 +350,6 @@ namespace JtdxAutoCq
                     : "Сверено " + online.Standing.CheckedUtc.ToLocalTime().ToString("dd.MM в HH:mm") + ". ";
                 details.Text = context + checkedAt + (program.Template.Rule == HamlogRule.Grid
                     ? "Для поиска нужен свежий QTH-локатор. AutoCQ ищет квадраты, которых ещё нет в зачёте."
-                    : program.Template.Rule == HamlogRule.Bryansk || program.Template.Rule == HamlogRule.Tatarstan
-                    ? "Для зачёта нового района нужен известный RDA корреспондента."
                     : online.IsActivator ? "Для вашего района действуют условия активатора. Откройте положение."
                     : program.EffectiveRules != null && program.EffectiveRules.Districts
                     ? "Двойной щелчок открывает список зачётных районов."
@@ -674,6 +680,7 @@ namespace JtdxAutoCq
         readonly Label edition;
         readonly TextBox calls = new TextBox { Multiline = true, ScrollBars = ScrollBars.Vertical, MaxLength = 1500 };
         readonly TextBox from = new TextBox(), until = new TextBox();
+        readonly TextBox searchRegion = new TextBox { MaxLength = 2 };
         readonly NumericUpDown required = new NumericUpDown { Minimum = 1, Maximum = 10000 };
         readonly NumericUpDown member = new NumericUpDown { Minimum = 1, Maximum = 1000 };
         readonly NumericUpDown special = new NumericUpDown { Minimum = 1, Maximum = 1000 };
@@ -733,7 +740,7 @@ namespace JtdxAutoCq
                 Place(retiredCounties, 212, 161, 506, 27);
                 LabelAt("Зачётные районы", 20, 204, 188, 24);
                 Place(eligibleCounties, 212, 199, 506, 27);
-                LabelAt("Для поиска должен быть известен район RDA по позывному и принятому локатору.",
+                LabelAt("В поиске участвуют станции области. Зачтённые районы определяет HAMLOG.",
                     20, 236, 698, 24);
             }
             else if (plan.Rcpw)
@@ -741,6 +748,12 @@ namespace JtdxAutoCq
                 ButtonAt("Список членов RCPW", 20, 124, 184, () => AwardsDialog.OpenInBrowser(this, HamlogRcpwRoster.Url));
                 LabelAt("Позывные дней активности", 20, 169, 189, 39);
                 Place(calls, 212, 124, 506, 83);
+            }
+            else if (plan.RdaOnly)
+            {
+                LabelAt("Код области", 20, 128, 188, 26);
+                Place(searchRegion, 212, 124, 78, 27);
+                LabelAt("Пустое поле означает всю Россию, включая Калининград.", 308, 128, 410, 45);
             }
             else
             {
@@ -767,8 +780,11 @@ namespace JtdxAutoCq
                 LabelAt("Дополнительные группы", 20, 326, 228, 26);
                 LabelAt("Очки | позывные, DXCC или код области", 249, 326, 450, 24);
                 Place(groups, 20, 354, 698, 76);
-                LabelAt("Повторы считаются по дате UTC, диапазону и виду работы. FT8 и FT4 относятся к DIGI. "
-                    + "При включённых множителях CW даёт ×2, SSB ×1,5, а 160 м ×1,5.", 20, 444, 700, 48);
+                string factors = plan.ClubHamlogModeRates
+                    ? "По зачёту HAMLOG CW даёт ×2, DIGI ×1,5 и SSB ×1."
+                    : "При включённых множителях CW даёт ×2, SSB ×1,5, а 160 м ×1,5.";
+                LabelAt("Повторы считаются по дате UTC, диапазону и виду работы. FT8 и FT4 относятся к DIGI. " + factors,
+                    20, 444, 700, 48);
             }
             else if (plan.Rcpw)
             {
@@ -841,6 +857,12 @@ namespace JtdxAutoCq
                     Place(groups, 212, 582, 506, 56);
                 }
             }
+            else if (plan.RdaOnly)
+            {
+                LabelAt("Порог зачёта HAMLOG", 20, 270, 188, 28);
+                Place(required, 212, 267, 78, 27);
+                LabelAt("Программа выбирает станции по позывному. Зачёт определяет HAMLOG.", 20, 320, 698, 44);
+            }
             else LabelAt("Для диплома нужна одна связь с этой станцией в указанный срок.", 20, 278, 699, 45);
             int buttons = plan.Club ? 516 : plan.Districts ? 502 : HasContactGroups(program) ? 645 : plan.ContactAward ? 582
                 : plan.Rcpw ? 518 : 410;
@@ -859,6 +881,7 @@ namespace JtdxAutoCq
             calls.Text = String.Join(", ", plan.Calls);
             from.Text = plan.FromUtc;
             until.Text = plan.UntilUtc;
+            searchRegion.Text = plan.SearchRegion;
             required.Value = plan.Required;
             hf.Checked = plan.HfOnly;
             vhfBonus.Checked = plan.VhfBonus;
@@ -913,6 +936,9 @@ namespace JtdxAutoCq
                     MemberPoints = previous.Points ? (int)member.Value : 0, ExtraPoints = previous.Points ? (int)special.Value : 0,
                     HfOnly = previous.Club && hf.Checked, VhfBonus = previous.Club && !hf.Checked && !flat.Checked && vhfBonus.Checked,
                     NoMultipliers = previous.Club && flat.Checked,
+                    ClubMembersMayHunt = previous.ClubMembersMayHunt, ClubOnlyActivatorAreas = previous.ClubOnlyActivatorAreas,
+                    ClubHamlogModeRates = previous.ClubHamlogModeRates, ClubHamlogNo160mBonus = previous.ClubHamlogNo160mBonus,
+                    SearchRegion = previous.RdaOnly ? searchRegion.Text.Trim().ToUpperInvariant() : previous.SearchRegion,
                     AlternativeRequired = previous.Rcpw && previous.AlternativeRequired == previous.Required ? (int)required.Value
                         : previous.Rcpw ? (int)alternative.Value : previous.AlternativeRequired,
                     RcpwOnlineAfterPoints = member.Value == previous.MemberPoints && special.Value == previous.ExtraPoints

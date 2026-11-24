@@ -2148,8 +2148,35 @@
     "Url": "https://hamlog.online/club/nebo/ee4eafadbb16d522bb7cea2e26d73dcd/",
     "Title": "Huge sky",
     "TextSha256": "81b138fe6377da3a494d353f8f366503a5b638b5b30641e10c5c69f696848a57",
-    "Plan": null,
-    "Note": "Положение различает соискателей и активаторов, включая операторов из Липецкой области. Для скоринга нужно определить роль самого соискателя."
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2023-12-10",
+      "Required": 55,
+      "MemberPoints": 5,
+      "ExtraPoints": 10,
+      "VhfBonus": false,
+      "Calls": [
+        "U4MIR",
+        "UA9CES",
+        "LZ04RN"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 3,
+          "Targets": [
+            "LP"
+          ],
+          "Area": true
+        }
+      ],
+      "ClubOnlyActivatorAreas": [
+        "LP"
+      ],
+      "ClubMembersMayHunt": false,
+      "ClubHamlogModeRates": false,
+      "ClubHamlogNo160mBonus": false
+    },
+    "Note": "За липецкие станции начисляется 3 очка, за членов клуба «Рыцари неба» — 5, за U4MIR, UA9CES и LZ04RN — 10. Для членов клуба и липецких станций действует зачёт активаторов."
   },
   {
     "Url": "https://hamlog.online/club/rcpw/db5f65b76fb1ac76fb92212b16cbe83b/",
@@ -2225,29 +2252,97 @@
     "Url": "https://hamlog.online/club/nebo-cosmodromes/b9b718cdcc3346a8dc0907f863dc4756/",
     "Title": "CWA - Kourou, French Guiana",
     "TextSha256": "dcaba2c67055b91b4c249dc07ff3c09805ca2c13b8d0479d578f3c3d5f8a3433",
-    "Plan": null,
-    "Note": "Положение перечисляет только КВ в списке диапазонов и одновременно даёт множитель за УКВ. Нужно уточнить, входит ли УКВ в зачёт."
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-09-17",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "VhfBonus": true,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 15,
+          "Targets": [
+            "LZ105IN"
+          ],
+          "Area": false
+        }
+      ],
+      "ClubOnlyActivatorAreas": [],
+      "ClubMembersMayHunt": true,
+      "ClubHamlogModeRates": true,
+      "ClubHamlogNo160mBonus": false
+    },
+    "Note": "Для 100 очков нужны связи с «Рыцарями неба». В зачёте HAMLOG за обычную цифровую связь начисляется 15, за SSB — 10. После дней активности члены клуба также могут выполнить диплом по общим условиям."
   },
   {
     "Url": "https://hamlog.online/club/nebo-agpa/d20b1d926f47637d95965ca055e1bc8e/",
     "Title": "Namibe - Yuri Gagarin",
     "TextSha256": "b4e0e5f2febe8fface9d457d96bdf5c7ad0ad461d46e5bb30bb080eb54eeaced",
-    "Plan": null,
-    "Note": "В начале положения указаны КВ, а в таблице очков есть множитель за УКВ. Требуется согласовать условия диапазонов."
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-04-12",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "VhfBonus": true,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": [],
+      "ClubOnlyActivatorAreas": [],
+      "ClubMembersMayHunt": true,
+      "ClubHamlogModeRates": true,
+      "ClubHamlogNo160mBonus": false
+    },
+    "Note": "100 очков за связи с «Рыцарями неба». Повторы учитываются по диапазону и виду работы один раз в сутки. За обычную цифровую связь HAMLOG начисляет 15 очков, на 160 м — 22,5."
   },
   {
     "Url": "https://hamlog.online/club/nebo-agpa/c15c50a0f096d648afeffd5c278ee9c2/",
     "Title": "Batumi - Aleksander Kartveli",
     "TextSha256": "cb8544eb45bf93ca8fe31bd69b56d8007aec665ac5ccaabcf6d4f212f93e22e9",
-    "Plan": null,
-    "Note": "Русская и английская части перечисляют диапазоны КВ, а отдельная строка начисляет множитель на УКВ. Нужен подтверждённый список диапазонов."
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-03-12",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "VhfBonus": true,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": [],
+      "ClubOnlyActivatorAreas": [],
+      "ClubMembersMayHunt": true,
+      "ClubHamlogModeRates": true,
+      "ClubHamlogNo160mBonus": true
+    },
+    "Note": "100 очков за связи с «Рыцарями неба». В подтверждённых примерах HAMLOG начислял 15 за обычную цифровую связь и 10 за SSB. Клубный зачёт описан в положении."
   },
   {
     "Url": "https://hamlog.online/club/nebo-agpa/cf6add15ae1afb270bf7cdcd3b9cad67/",
     "Title": "Omsk - Dmitriy Karbyshev",
     "TextSha256": "e58815bead01dc09595662b7075563f78e08c5aedefd2a93f965b605cc7d4666",
-    "Plan": null,
-    "Note": "Положение описывает диапазоны КВ и отдельно множитель на УКВ. Для полной проверки нужно уточнить условия диапазонов."
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-02-23",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "VhfBonus": true,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": [],
+      "ClubOnlyActivatorAreas": [],
+      "ClubMembersMayHunt": true,
+      "ClubHamlogModeRates": true,
+      "ClubHamlogNo160mBonus": true
+    },
+    "Note": "100 очков за связи с «Рыцарями неба». Повторы разрешены на разных диапазонах или разными видами в одни сутки. Для цифровых связей используется ставка из подтверждённых примеров HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/arck/ebbdc9bdff203101a93c2b87e610e314/",
@@ -3657,8 +3752,14 @@
     "Url": "https://hamlog.online/club/kwant/f71a519e60ae449577964fca849e1edb/",
     "Title": "Tambov wolf...",
     "TextSha256": "7d5b845b402624766e8e1159412d5c4d2c91a36a45cc4723aa9e04d867efd530",
-    "Plan": null,
-    "Note": "Пороги 50, 20 и 10 относятся к разным диапазонам. Для удвоенной ставки нужен опубликованный перечень членов «Кванта»."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "TB",
+      "Required": 50,
+      "FromUtc": "2021-02-01",
+      "UntilUtc": ""
+    },
+    "Note": "Тамбовский волк. Поиск по Тамбовской области. Положение также разрешает зачёт связей с членами клуба «Квант» и отдельный зачёт на 160 м и УКВ."
   },
   {
     "Url": "https://hamlog.online/club/kwant/be6227b2cf5b7f55593d7fd3ca69bdd9/",
@@ -3686,15 +3787,27 @@
     "Url": "https://hamlog.online/global/russia/r3d/f74111d3df7510a6f4112de75b474879/",
     "Title": "Flight of Friendship",
     "TextSha256": "efe9c9abaa9c72b957d515fe99436db679866e0b7e7046d729087af552fda780",
-    "Plan": null,
-    "Note": "Зачёт зависит от фактического района RDA, клуба и специальных позывных. Общий порог привязан к году перелёта, а 160 м и УКВ имеют множитель."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "",
+      "Required": 84,
+      "FromUtc": "2017-01-01",
+      "UntilUtc": ""
+    },
+    "Note": "Перелёт дружбы. Для поиска RDA доступны российские станции. Положение описывает также отдельный способ получить диплом со связями с США."
   },
   {
     "Url": "https://hamlog.online/global/russia/r3q/c9c19aa9c17514e682f19cfdcd636748/",
     "Title": "White Bim",
     "TextSha256": "385be2a5c3e188a4c5c3c71854381ebc90fedce213dc10adc865df4f47c63aa9",
-    "Plan": null,
-    "Note": "Нужны пределы для радиостанций области, специальных станций и выездов RDA, RFF и других программ. Ставки зависят от района, диапазона и даты."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "VR",
+      "Required": 90,
+      "FromUtc": "2020-11-29",
+      "UntilUtc": ""
+    },
+    "Note": "Белый Бим. Поиск по Воронежской области. Очки за выезды и выбор зачётного варианта определяют HAMLOG и положение."
   },
   {
     "Url": "https://hamlog.online/club/rcpw/db3781a8aaf30a657aecab0e69e03b5d/",
@@ -3802,29 +3915,150 @@
     "Url": "https://hamlog.online/global/russia/r1o/ee033e615a25ddce996d534f9df6df7a/",
     "Title": "Lomonosov",
     "TextSha256": "abc3474c50a9987b329b761db50550f5e3f90c831e56a6878d579659712e4111",
-    "Plan": null,
-    "Note": "Требуются 310 очков за станции Архангельской области. Для других континентов и 0-го района ставка удваивается, поэтому условие зависит от позывного соискателя."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "AR",
+      "Required": 310,
+      "FromUtc": "1992-01-01",
+      "UntilUtc": ""
+    },
+    "Note": "Ломоносов. Поиск по Архангельской области. HAMLOG учитывает отдельные ставки для соискателей из других континентов и нулевого района."
   },
   {
     "Url": "https://hamlog.online/global/russia/r4y/a3fd4d10d2bd37aeddcad539834d530b/",
     "Title": "V. Chapaev",
     "TextSha256": "ec5e5d65648ea57d7e84d704a161f585cc695cf028925917a3c1cf18c28a9b6b",
-    "Plan": null,
-    "Note": "Зачёт идёт с февраля по апрель. Есть альтернативы за десять разных станций Чувашии, одну связь с указанной коллективной станцией, работу автопробега или QSO на УКВ."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "CU",
+      "Required": 10,
+      "FromUtc": "",
+      "UntilUtc": ""
+    },
+    "Note": "Чапаев. Поиск по Чувашии. Положение описывает зачёт с февраля по апрель, в текущем зачёте HAMLOG есть связи и за другие месяцы."
   },
   {
     "Url": "https://hamlog.online/global/russia/r0a/f1c261eab739f648b413e71eb2a7241f/",
     "Title": "Bogotol residents - Heroes of the Great Patriotic War",
     "TextSha256": "5739e58032a782ac229fa53ba768c5ad13f7f4c103374ed1ee13253c3b3c71f2",
-    "Plan": null,
-    "Note": "Положение различает участников по месту работы, отдельным позывным и УКВ. Для расчёта требуется подтвердить списки станций Боготола и округа."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-10-20",
+      "UntilUtc": "2026-12-31",
+      "Required": 100,
+      "MemberPoints": 1,
+      "ExtraPoints": 30,
+      "Calls": [
+        "RC0AS"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 20,
+          "Targets": [
+            "RA0ANF",
+            "RA0AHU",
+            "RA0AIL",
+            "UB0B",
+            "RU0AX",
+            "RU0AJ",
+            "R0AGI",
+            "UB0ALY",
+            "UB0AMX",
+            "UB0AMZ",
+            "UB0AAH",
+            "RV0AQF",
+            "R0ADP"
+          ],
+          "Area": false
+        },
+        {
+          "Points": 15,
+          "Targets": [
+            "R0ADO",
+            "UB0AMY"
+          ],
+          "Area": false
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Modes": [
+          "CW",
+          "SSB",
+          "DIGI"
+        ],
+        "Bands": [
+          "160m",
+          "80m",
+          "60m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m",
+          "6m",
+          "4m",
+          "2m",
+          "1.25m",
+          "70cm",
+          "33cm",
+          "23cm",
+          "13cm",
+          "9cm",
+          "6cm",
+          "3cm",
+          "1.25cm",
+          "6mm",
+          "4mm",
+          "2.5mm",
+          "2mm",
+          "1mm",
+          "submm"
+        ],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "Bands": [
+              "6m",
+              "4m",
+              "2m",
+              "1.25m",
+              "70cm",
+              "33cm",
+              "23cm",
+              "13cm",
+              "9cm",
+              "6cm",
+              "3cm",
+              "1.25cm",
+              "6mm",
+              "4mm",
+              "2.5mm",
+              "2mm",
+              "1mm",
+              "submm"
+            ]
+          }
+        ]
+      }
+    },
+    "Note": "На диплом нужны 100 очков. RC0AS даёт 30 очков, станции из опубликованного списка Боготола дают 20, а две станции Боготольского округа — 15. На УКВ очки удваиваются. Срок зачёта до 31 декабря 2026 года включительно."
   },
   {
     "Url": "https://hamlog.online/club/r4cdosaaf/f87ac5f4e45f84cde8f77bb0a0b5e7c9/",
     "Title": "80 Years of the Saratov Regional DOSAAF Radio Club",
     "TextSha256": "50bf4b4449f11b770c8adf50cf0072ffa667df8bd8395e809ee5c416bf98543d",
-    "Plan": null,
-    "Note": "Для зачёта нужны отдельные группы станций ДОСААФ, молодёжных коллективов и района. Положение использует обязательные категории, кроме общего порога."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "SA",
+      "Required": 80,
+      "FromUtc": "2026-05-22",
+      "UntilUtc": "2026-12-31"
+    },
+    "Note": "80-летие Саратовского радиоклуба. Поиск по Саратовской области. HAMLOG учитывает надбавки за специальные позывные и диапазоны."
   },
   {
     "Url": "https://hamlog.online/club/mdxc/bd6412492f4bf23b93a2b1eeafaebe1c/",
@@ -3908,8 +4142,14 @@
     "Url": "https://hamlog.online/global/russia/r0s/d297eb8c229c31d421abe45247f0a867/",
     "Title": "175th Anniversary of the Founding of the Irkutsk Branch of the RGS",
     "TextSha256": "5565e28a6d75fc4d1f0b39f896788889626419927a11855b8dded91b2cef69a1",
-    "Plan": null,
-    "Note": "Повышенная ставка для экспедиций и временных позывных применяется только при работе из Иркутской области. Текущий зачёт подтверждает обычную ставку 5; для выбора экспедиции нужны код её района или перечень специальных станций."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "IR",
+      "Required": 175,
+      "FromUtc": "2026-05-11",
+      "UntilUtc": "2026-11-30"
+    },
+    "Note": "Юбилей Иркутского отделения РГО. Поиск по Иркутской области. За работу с экспедициями предусмотрена отдельная ставка."
   },
   {
     "Url": "https://hamlog.online/club/arktika/a702f53a1d09d9543ad9e07f6e98bf42/",
@@ -4029,15 +4269,27 @@
     "Url": "https://hamlog.online/global/russia/r3q/de4028527a11e33132a2f81b2ee343aa/",
     "Title": "83 years since the liberation of Voronezh",
     "TextSha256": "90f5ea4e31565f0437f1247c42f5cf708a95b51f25ca919b9b59c2d14ef3e21b",
-    "Plan": null,
-    "Note": "Положение отдельно принимает ветеранов ВОВ независимо от области. По зачёту проверена обычная ставка 10 после дней активности. Нужен опубликованный список зачётных станций вне области."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "VR",
+      "Required": 80,
+      "FromUtc": "2026-01-19",
+      "UntilUtc": "2026-12-31"
+    },
+    "Note": "83 года освобождения Воронежа. Поиск по Воронежской области. Опубликованный зачёт принимает также отдельные связи с ветеранами."
   },
   {
     "Url": "https://hamlog.online/global/russia/r3y/c409e0e74c97c1a12d3ab2e05695e367/",
     "Title": "Gagarin on Bryansk land - 60",
     "TextSha256": "0535b154f80b931bf7581240fff77cb6935d882d7e873f7afd0c2375add49885",
-    "Plan": null,
-    "Note": "Положение объединяет разные виды наград. Нужно отделить требования к электронному диплому и группы станций от зачёта плакетки."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "BR",
+      "Required": 60,
+      "FromUtc": "2026-01-01",
+      "UntilUtc": "2026-12-31"
+    },
+    "Note": "Гагарин на Брянской земле. Поиск по Брянской области. Повышенную ставку за восемь перечисленных районов проверяет организатор."
   },
   {
     "Url": "https://hamlog.online/global/russia/r3s/ceddda6399c0f0c743c89d76a8340145/",
@@ -4081,8 +4333,14 @@
     "Url": "https://hamlog.online/club/lefty/a2c2837a0c37b0bd630fe7dba1d3d913/",
     "Title": "645 Years of the Battle of Kulikovo",
     "TextSha256": "a7b7f9884c0d72e6f130acd8b9321f1af9788fd66aac764120e9a1dcfc348ff0",
-    "Plan": null,
-    "Note": "Обе группы дают 10 очков. Для зачёта нужны не только члены центра «Левша», но и отдельный список РО СРР по Тульской области."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "TL",
+      "Required": 100,
+      "FromUtc": "2025-09-20",
+      "UntilUtc": ""
+    },
+    "Note": "645 лет Куликовской битве. Поиск по Тульской области. Дополнительные очки клубным станциям начисляет HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/r4cdosaaf/d27ebf73533b61a7971785e003d6d583/",
@@ -4207,8 +4465,14 @@
     "Url": "https://hamlog.online/club/r4cdosaaf/c79a9d53dfd138529a1c20125b2137a2/",
     "Title": "Engels Industrial and Economic College",
     "TextSha256": "f9fd25d448053f79cf416473ce1553b8a25a89398254df0f93ee53404267b4ee",
-    "Plan": null,
-    "Note": "Саратовская область и станции из положения имеют разные ставки. Для отдельного зачёта учитывается роль активатора, а на 160 м и УКВ действует множитель."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "SA",
+      "Required": 80,
+      "FromUtc": "2025-04-30",
+      "UntilUtc": ""
+    },
+    "Note": "Энгельсский промышленно-экономический колледж. Поиск по Саратовской области. В опубликованном зачёте HAMLOG есть цифровые связи."
   },
   {
     "Url": "https://hamlog.online/global/russia/r4c/a8f87e372e2e2b5441d40d9f804c24db/",
@@ -4477,8 +4741,14 @@
     "Url": "https://hamlog.online/club/seafarer/fe7410e394490b163a6f2ba5f59fd113/",
     "Title": "Buryatiya",
     "TextSha256": "04c3449901e8f6a0dcda1be41add63dd461af2c4f13de93fe93240e786b3e4c5",
-    "Plan": null,
-    "Note": "Для электронного диплома нужны две связи с радиолюбителями Бурятии. Среди зачтённых карточек есть позывной из Украины без кода RDA. Требуется уточнить состав зачётных станций."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "BU",
+      "Required": 2,
+      "FromUtc": "2023-06-17",
+      "UntilUtc": ""
+    },
+    "Note": "Бурятия. Поиск по позывным республики. Две зачтённые связи проверяет HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/seafarer/ddfba6643fbcf44b37be94552ad2830e/",
@@ -4600,8 +4870,14 @@
     "Url": "https://hamlog.online/club/seafarer/b45f65e07f485e1421a29427ecf750a6/",
     "Title": "Yakutia - homeland of the mammut",
     "TextSha256": "386a6345a5d056eae845f05b24ec7893d9f376b3704866a7a3c951184a0ba286",
-    "Plan": null,
-    "Note": "В положении указан порог две связи с Якутией, на карточке HAMLOG — три. В строках зачёта присутствуют выезды в другие области. Требуется сверить редакцию и принадлежность станции к региону."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "YA",
+      "Required": 3,
+      "FromUtc": "2023-02-26",
+      "UntilUtc": ""
+    },
+    "Note": "Якутия. Поиск по позывным республики. В положении указаны две связи, на карточке HAMLOG отображается порог три."
   },
   {
     "Url": "https://hamlog.online/global/russia/r1a/a75954ec9180c819a1a6d4bb4e2fd522/",
@@ -4703,29 +4979,53 @@
     "Url": "https://hamlog.online/club/comrade/db9dfe864c8ca092db028cab41ea9aad/",
     "Title": "Saray-Batu",
     "TextSha256": "da67352d499b38e8f8351f8ffc05dc00ba62e6375241f28538613b74e7d6b2c5",
-    "Plan": null,
-    "Note": "Очки зависят от конкретного района Астраханской области, диапазона и года. В тексте приведён порог 772 для 2022 года. Для новых связей требуется подтвердить текущий порог."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "AO",
+      "Required": 772,
+      "FromUtc": "2022-12-25",
+      "UntilUtc": ""
+    },
+    "Note": "Сарай-Бату. Поиск по Астраханской области. Зачётные районы и их очки определяет HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/comrade/c56a48916cf7d6f8d09bce98edae6c9f/",
     "Title": "Lake Baskunchak",
     "TextSha256": "11f7364e30ee563dcf798af241853c096a92a4ce2c50e4dd14aacb6bb61c40b0",
-    "Plan": null,
-    "Note": "В положении перечислены районы Астраханской области и особые ставки. HAMLOG засчитал также связи без кода района и с кодом Волгоградской области. Для поиска нужно уточнить, по месту работы или регистрации засчитывается такая связь."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "AO",
+      "Required": 106,
+      "FromUtc": "2022-12-25",
+      "UntilUtc": ""
+    },
+    "Note": "Баскунчак. Поиск по Астраханской области. Зачётные районы и их очки определяет HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/comrade/d16fce1445dfabfc5b909f337ff6d063/",
     "Title": "Saray-Berke",
     "TextSha256": "96adf5054ee998fba649aa48923722ca5151391f6dae4b402b968ea71e52f135",
-    "Plan": null,
-    "Note": "В 2022 году порог составлял 762. Районы Волгоградской области разделены по ставкам, у VG-29 самая высокая. Требуются актуальный порог и район станции."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "VG",
+      "Required": 762,
+      "FromUtc": "2022-12-25",
+      "UntilUtc": ""
+    },
+    "Note": "Сарай-Берке. Поиск по Волгоградской области. Зачётные районы и их очки определяет HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/comrade/ecf32145e668115373987060178a4fa7/",
     "Title": "Lake Elton",
     "TextSha256": "ca8db98acbcd44441e2b6fd02d56611f4efae04515e9ceee4d2432d9f896d5c1",
-    "Plan": null,
-    "Note": "В положении каждому зачётному району Волгоградской области назначена ставка. HAMLOG засчитал также связи без района и с кодом Башкортостана. Нужна сверка принадлежности этих связей, прежде чем использовать их для выбора кандидатов."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "VG",
+      "Required": 152,
+      "FromUtc": "2022-12-25",
+      "UntilUtc": ""
+    },
+    "Note": "Эльтон. Поиск по Волгоградской области. Зачётные районы и их очки определяет HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/rcpw/f354a1d65975b0d75af9ecb4ae926375/",
@@ -4760,8 +5060,14 @@
     "Url": "https://hamlog.online/global/russia/r3q/c8473cf9f2fe2a1fa3a9e152410dd8c1/",
     "Title": "Voronezh Admiralty",
     "TextSha256": "dcd6d0dc22b833b08e101032e699192989a78c47f7dbce93a84222b1b618efae",
-    "Plan": null,
-    "Note": "Указано зачетное окно 9 июня — 31 декабря 2022 года. Дни активности и диапазоны дают разные очки. Для заявки только на УКВ обязательны десять корреспондентов."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "VR",
+      "Required": 350,
+      "FromUtc": "2022-06-09",
+      "UntilUtc": "2022-12-31"
+    },
+    "Note": "Воронежское Адмиралтейство. Связи принимались с 9 июня по 31 декабря 2022 года."
   },
   {
     "Url": "https://hamlog.online/global/russia/r3p/f5a0b9ee6a01f044bedf0b967e6220b4/",
@@ -4839,8 +5145,14 @@
     "Url": "https://hamlog.online/global/russia/r9u/b5d01a49569afc45cbf31e9c71817d74/",
     "Title": "Miner's glory",
     "TextSha256": "9f39c9f1f866efdcd38e5fd88ce76c0f2e7e068f831b688b0382c211781dda7d",
-    "Plan": null,
-    "Note": "Разные ставки за станции Кемеровской области, членов СРР и опубликованные позывные. В День шахтёра действует ежегодный множитель, повторы разрешены по диапазону."
+    "Plan": {
+      "Kind": "rda-search",
+      "SearchRegion": "KE",
+      "Required": 300,
+      "FromUtc": "2022-01-01",
+      "UntilUtc": ""
+    },
+    "Note": "Шахтёрская слава. Поиск по Кемеровской области. Связи с членами СРР и радиоклубами учитываются по зачёту HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/krv/ff25e4f985c4530baa1f99535cb0c76d/",

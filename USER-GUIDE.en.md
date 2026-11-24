@@ -191,7 +191,9 @@ If a row says **«Проверено · поиск недоступен»** (Rev
 
 Each prepared award follows its own repeat-contact rule. For the OE6XMF award, one QSO counts per UTC day, even if the station changes bands or uses a portable callsign. For Stelvio Pass, the points depend on the other station's DXCC entity.
 
-For RDA district awards such as Voronezh Region, AutoCQ tracks progress toward the next available tier. It looks for a new district when the callsign and locator match a known record. Districts come from the main logbook and HAMLOG credit. If two records give different districts for the same callsign and locator, AutoCQ waits for another eligible station.
+Nationwide RDA searches cover European Russia, Asiatic Russia and Kaliningrad. For an award covering one region, such as Tula or Ryazan, AutoCQ selects callsigns from that region. Upload contacts from your main logbook to HAMLOG to update your credit.
+
+![Search area for the Lake Baskunchak award](docs/hamlog-plan-demo.png)
 
 **Saratov Land — the Left Bank** requires eight different districts on HF. Double-click the award to see the published list under **«Зачётные районы»** (Eligible districts). For **Tula**, each QSO is worth two points. If you have 18 credited contacts across four districts, the score is 36 × 4 = 144 points. A new district increases the multiplier. [Saratov Land rules](https://hamlog.online/global/russia/r4c/1025/rules/) · [Tula rules](https://hamlog.online/global/russia/r3p/485/rules/)
 
@@ -205,7 +207,7 @@ For the Yesenin award, a contact with Ryazan Oblast scores one point, or three p
 
 ![Annual scoring bonuses and a qualifying date in the Yesenin award rules](docs/hamlog-additional-demo.png)
 
-For My Russia, AutoCQ reads the grid locator from a recent JTDX decode. Each credited square counts once across all bands. For Legendary Gunsmiths of Tula, another QSO with the same station on a different band can count. FT8 and FT4 belong to the same digital mode group on a given band. ARCK 35 Years requires distinct club members, so each callsign counts once. For RDA district awards, AutoCQ needs a known district from earlier HAMLOG credit or from your logbook.
+For My Russia, AutoCQ reads the grid locator from a recent JTDX decode. Each credited square counts once across all bands. For Legendary Gunsmiths of Tula, another QSO with the same station on a different band can count. FT8 and FT4 belong to the same digital mode group on a given band. ARCK 35 Years requires distinct club members, so each callsign counts once.
 
 For supported RCPW awards, AutoCQ reads the callsigns from the club's roster. For example, a contact for “Not a Step Back” is worth 10 points during the activity days and five afterward. AutoCQ uses the threshold HAMLOG reports for your callsign. When HAMLOG shows no credit yet and the rules give two thresholds, AutoCQ starts with the lower threshold and checks it again once the first contact is credited. [Not a Step Back rules](https://hamlog.online/club/rcpw/bbfc8b0d8f75b77c547a8cd342e70de3/rules/)
 
@@ -214,6 +216,8 @@ For 105 Years of the Border Troops, temporary callsigns such as R105PW count dur
 Each award has its own repeat-contact rules. Romania's National Day counts two QSOs with YQ0U on different bands or modes. The VK5IPA award credits every separate QSO and AutoCQ shows the next tier after checking HAMLOG. [YQ0U rules](https://hamlog.online/club/romania/ce6666711abaa4e7ab5831a23b5370ca/rules/) · [VK5IPA rules](https://hamlog.online/global/australia/vk5/e766e96a35afca0a42fe8fa1de3337a7/rules/)
 
 After any automatic or manual QSO, AutoCQ checks the incoming queue first. When the queue is clear, it goes back to listening for award stations. Among the stations it calls on its own, priority goes to those that help with more than one selected award.
+
+During automatic CQ operation, double-click a station in JTDX to call it manually. AutoCQ follows the selected station's TX period. Automatic operation continues on the same timer after the contact or the retry limit.
 
 If HAMLOG did not return a result for an award, AutoCQ shows it in the log and searches for the awards it could check. You can check credit again after uploading new contacts to HAMLOG.
 

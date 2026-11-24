@@ -189,7 +189,11 @@ namespace JtdxAutoCq
                     new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = 3 }, index => {
                         AwardProgram program = programs[index];
                         try { program.Hamlog = HamlogStandingClient.Read(program.Template, own); }
-                        catch (Exception error) { failures[index] = program.Title + ". " + error.Message; program.Selected = false; }
+                        catch (Exception error)
+                        {
+                            failures[index] = program.Title + ". " + error.Message;
+                            if (!program.UsesGeographicSearch) program.Selected = false;
+                        }
                     });
             };
             worker.RunWorkerCompleted += delegate(object sender, RunWorkerCompletedEventArgs args) {
@@ -205,8 +209,13 @@ namespace JtdxAutoCq
                     DateTime checkedAt = DateTime.UtcNow;
                     for (int index = 0; index < programs.Length; index++)
                     {
-                        if (failures[index] != null) { Log("Диплом пропущен: " + failures[index]); continue; }
                         AwardProgram snapshot = programs[index];
+                        if (failures[index] != null)
+                        {
+                            Log((snapshot.UsesGeographicSearch ? "Зачёт пока не сверён. Поиск по территории диплома доступен. " : "Диплом пропущен. ")
+                                + failures[index]);
+                            continue;
+                        }
                         snapshot.Selected = new AwardProgress(snapshot, startupHistory, own, engine.DxccForCall)
                             .CanSelectForSearch(checkedAt);
                         AwardProgram saved = preferences.Awards.Programs.FirstOrDefault(program => program.Id == snapshot.Id);
@@ -216,7 +225,8 @@ namespace JtdxAutoCq
                             saved.Selected = snapshot.Selected;
                         }
                     }
-                    if (failures.All(failure => failure != null) && !selected.Programs.Any(program => program.Selected && program.UsesLocalTargets))
+                    if (failures.All(failure => failure != null)
+                        && !selected.Programs.Any(program => program.Selected && (program.UsesLocalTargets || program.UsesGeographicSearch)))
                         throw new InvalidOperationException("HAMLOG не подтвердил зачёт выбранных дипломов. Подробности в журнале AutoCQ.");
                     preferenceStore.Save(preferences);
                     Log("Зачёт обновлён для " + failures.Count(failure => failure == null) + " дипломов.");
@@ -499,12 +509,16 @@ namespace JtdxAutoCq
                             AnnualFrom = "10-01", AnnualUntil = "10-07" } } }
                 }
             };
+            var lake = new AwardProgram { Title = "Соль России · Баскунчак", Url = HamlogLinks.Origin + "club/demo/106/",
+                Sponsor = "Астраханская область", Selected = true, RuleDocumentStatus = "downloaded",
+                DownloadedRules = new HamlogRulePlan { Kind = "rda-search", SearchRegion = "AO", Required = 106, FromUtc = "2022-12-25" }
+            };
             new HamlogRuleCache(awardCache, (url, cancel) => new HamlogRules(url, "Демонстрационный документ", null),
                 (delay, cancel) => { }).Scan(new[] { border }, default(System.Threading.CancellationToken), result => { });
             var custom = new AwardProgram { Title = "Учебный диплом", Url = HamlogLinks.Origin + "club/demo/19/",
                 ManualSearch = true, Goals = new List<AwardGoal> { new AwardGoal { Kind = "call", Value = "W2ABC" } } };
             foreach (AwardProgram program in new[] { russia, gunsmiths, falcon, tula, arck, counties, angels, border, romania, raem,
-                saratov, tulaDistricts, kazan, yesenin, custom })
+                saratov, tulaDistricts, kazan, yesenin, lake, custom })
             {
                 program.PublicEntry = true;
                 program.Section = "Клубные и региональные";
@@ -552,6 +566,12 @@ namespace JtdxAutoCq
                     new HamlogCredit { Call = "R3SAB", Band = "40m", Mode = "FT8", DayUtc = october.AddDays(2), Points = 3 }
                 }
             };
+            lake.Hamlog = new HamlogStanding {
+                Callsign = "K1ABC", Points = 20, Required = 106, CheckedUtc = falcon.Hamlog.CheckedUtc,
+                Credits = new List<HamlogCredit> {
+                    new HamlogCredit { Call = "R7UAA", Band = "20m", Mode = "FT8", DayUtc = october, Points = 20 }
+                }
+            };
             var awardHistory = new LogbookHistory(history.Path, history.Records.Concat(falcon.Hamlog.Credits.Take(12).Select(credit =>
                 new LogbookQso { Call = credit.Call, Band = credit.Band, Mode = credit.Mode, StartedUtc = credit.DayUtc }))
                 .Concat(new[] {
@@ -561,14 +581,14 @@ namespace JtdxAutoCq
             var example = new AwardCatalog {
                 Callsign = "K1ABC", PublicCatalogUtc = DateTime.UtcNow.AddMinutes(-20),
                 Programs = new List<AwardProgram> { russia, gunsmiths, arck, counties, diploma, stations, falcon, tula, angels, border,
-                    romania, raem, saratov, tulaDistricts, kazan, yesenin, custom }
+                    romania, raem, saratov, tulaDistricts, kazan, yesenin, lake, custom }
             };
             foreach (AwardProgram program in example.Programs) program.Validate();
             var awards = new AwardsDialog(example, awardHistory, "K1ABC", call => {
                 DxccCountry country = table.Find(call);
                 return country == null ? null : country.Prefix;
             }, cache: awardCache, demo: true);
-            awards.SelectDemoProgram(yesenin);
+            awards.SelectDemoProgram(lake);
             return new Form[] {
                 new LogbookSourceDialog("", history.Path, "LogHX"),
                 new ProfilesDialog(profiles, profiles[0].Options, true),
@@ -581,7 +601,7 @@ namespace JtdxAutoCq
                 new AwardGoalsDialog(diploma),
                 new HamlogJournalDialog(falcon.Title, new HamlogPointProgress(falcon, awardHistory, "K1ABC")),
                 new HamlogAccountDialog("K1ABC", ""),
-                new HamlogPlanDialog(saratov),
+                new HamlogPlanDialog(lake),
                 new HamlogAdditionalRulesDialog(yesenin.EffectiveRules.Contacts, yesenin.EffectiveRules.Contacts.Additional,
                     yesenin.EffectiveRules.Contacts.Adjustments, yesenin.EffectiveRules.Contacts.ShortcutDay,
                     yesenin.EffectiveRules.Contacts.ShortcutContacts),

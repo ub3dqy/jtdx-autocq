@@ -81,6 +81,7 @@ namespace JtdxAutoCq
         }
         internal bool UsesPointRules { get { return UsesTemplate && Template.HasPointRules; } }
         internal bool UsesOnlineRules { get { return UsesTemplate && Template.HasOnlineRules; } }
+        internal bool UsesGeographicSearch { get { return UsesTemplate && Template.GeographicSearch; } }
         internal bool UsesLocalTargets { get { return Goals.Count != 0 && (String.IsNullOrEmpty(Url) || ManualSearch && Template == null); } }
         internal bool HasSearchRules { get { return UsesLocalTargets || UsesPointRules || UsesOnlineRules; } }
         internal DateTime? From
@@ -372,6 +373,10 @@ namespace JtdxAutoCq
         internal readonly AwardProgram Program;
         readonly DateTime? from, until;
         readonly GoalProgress[] goals;
+        readonly HashSet<string> geographicWorked;
+        readonly string region;
+        readonly string own;
+        readonly Func<string, string> dxcc;
         internal readonly HamlogPointProgress Points;
         internal readonly HamlogOnlineProgress Online;
 
@@ -405,7 +410,21 @@ namespace JtdxAutoCq
         {
             Program = program;
             from = program.From; until = program.Until;
+            this.own = own;
+            this.dxcc = dxcc;
             goals = program.Goals.Select(goal => new GoalProgress(goal, dxcc)).ToArray();
+            if (program.UsesGeographicSearch)
+            {
+                region = program.Template.MonitoringRegion;
+                geographicWorked = new HashSet<string>(StringComparer.Ordinal);
+                foreach (LogbookQso row in history.Records)
+                    if (row.BelongsTo(own)) RecordGeographic(row.Call, row.Band, row.Mode, row.StartedUtc ?? row.EndedUtc);
+                if (program.Hamlog != null && program.Hamlog.Callsign == own && program.Hamlog.Credits != null)
+                    foreach (HamlogCredit credit in program.Hamlog.Credits)
+                        if (!credit.Observation) RecordGeographic(credit.Call, credit.Band, credit.Mode, credit.DayUtc);
+                // Reserve repeats from the logbook. Progress in an RDA award comes from HAMLOG.
+                history = LogbookHistory.Empty;
+            }
             if (program.UsesOnlineRules)
             {
                 Online = new HamlogOnlineProgress(program, history, own, dxcc);
@@ -441,20 +460,47 @@ namespace JtdxAutoCq
         internal int LoggedFor(int index) { return goals[index].Count; }
         internal bool Available(string band, string mode, DateTime time)
         {
-            return CanSelectForSearch(time) && (Online != null ? Online.Available(band, mode, time)
+            return CanSelectForSearch(time) && (geographicWorked != null ? JtdxAdif.BandNames.Contains(band) && (mode == "FT8" || mode == "FT4")
+                : Online != null ? Online.Available(band, mode, time)
                 : Points != null ? Points.Available(band, mode, time)
                 : Program.UsesLocalTargets && goals.Any(goal => !goal.Complete && goal.OnBand(band, mode)));
         }
         internal bool Needs(string call, string band, string mode, DateTime time, string grid = null)
         {
+            if (geographicWorked != null)
+            {
+                if (!Available(band, mode, time) || call == own || dxcc == null || String.IsNullOrEmpty(call)) return false;
+                string entity = dxcc(call);
+                return HamlogAwardAreas.Russian(entity) && HamlogAwardAreas.MatchesMonitoringRegion(region, call, entity)
+                    && !geographicWorked.Contains(GeographicKey(call, band, mode));
+            }
             return CanSelectForSearch(time) && (Online != null ? Online.Needs(call, band, mode, time, grid)
                 : Points != null ? Points.CandidatePoints(call, band, mode, time, grid) > 0
                 : Program.UsesLocalTargets && goals.Any(goal => goal.Needs(call, band, mode)));
         }
+        static string GeographicKey(string call, string band, string mode)
+        { return call + "|" + band + "|" + HamlogPointProgress.ModeGroup(mode); }
+
+        void RecordGeographic(string call, string band, string mode, DateTime? time)
+        {
+            if (time.HasValue && Within(time)) geographicWorked.Add(GeographicKey(call, band, mode));
+        }
+
+        internal void Record(LogbookQso contact)
+        {
+            if (geographicWorked != null)
+                RecordGeographic(contact.Call, contact.Band, contact.Mode, contact.StartedUtc ?? contact.EndedUtc);
+            else if (Online != null) Online.Record(contact);
+            else if (Points != null && contact.StartedUtc.HasValue)
+                Points.Record(contact.Call, contact.Band, contact.Mode, contact.StartedUtc.Value, contact.County, contact.Locator);
+        }
+
         internal void Record(string call, string band, string mode, DateTime? time)
         {
             if (!Within(time)) return;
-            if (Program.UsesLocalTargets)
+            if (geographicWorked != null)
+                RecordGeographic(call, band, mode, time);
+            else if (Program.UsesLocalTargets)
                 foreach (GoalProgress goal in goals) goal.Record(call, band, mode);
             else if (Points != null && time.HasValue) Points.Record(call, band, mode, time.Value);
         }
@@ -481,31 +527,24 @@ namespace JtdxAutoCq
         {
             AwardProgress[] matches = programs.Where(program => program.Needs(call, band, mode, now, grid)).ToArray();
             if (matches.Length == 0) return "Станция не подходит для выбранных дипломов на текущем диапазоне и в этом виде работы.";
-            string names = String.Join(", ", matches.Select(program => program.Program.Title + (program.Points == null ? ""
+            string names = String.Join(", ", matches.Select(program => program.Program.Title + (program.Points == null || program.Program.UsesGeographicSearch ? ""
                 : " (+" + program.Points.CandidatePoints(call, band, mode, now, grid).ToString("0.##") + " очк.)")));
             string square = matches.Any(program => program.Online != null && program.Program.Template.Rule == HamlogRule.Grid)
                 ? " Незачтённый квадрат " + AwardLocator.Parse(grid) + "." : "";
-            var districts = matches.Where(program => program.Online != null).Select(program => program.Online.NeededDistrict(call, grid))
-                .Where(county => county != null).Distinct().ToArray();
-            string district = districts.Length == 0 ? "" : " Незачтённые районы RDA " + String.Join(", ", districts) + ".";
-            return "Подходит для " + names + "." + square + district;
+            string geographic = matches.Any(program => program.Program.UsesGeographicSearch) ? " Зачёт определяет HAMLOG." : "";
+            return "Подходит для " + names + "." + square + geographic;
         }
         internal void Record(string call, DateTime at)
         {
             foreach (AwardProgress program in programs)
-                if (program.Program.UsesLocalTargets) program.Record(call, band, mode, at);
+                if (program.Program.UsesLocalTargets || program.Program.UsesGeographicSearch) program.Record(call, band, mode, at);
         }
 
         internal void Record(LogbookQso contact)
         {
             // Use the recorded start date for awards with daily repeat rules.
             if (!contact.StartedUtc.HasValue || contact.Band != band || contact.Mode != mode || !contact.BelongsTo(own)) return;
-            foreach (AwardProgress program in programs)
-            {
-                if (program.Online != null) program.Online.Record(contact);
-                else if (program.Points != null)
-                    program.Points.Record(contact.Call, band, mode, contact.StartedUtc.Value, contact.County, contact.Locator);
-            }
+            foreach (AwardProgress program in programs) program.Record(contact);
         }
     }
 }

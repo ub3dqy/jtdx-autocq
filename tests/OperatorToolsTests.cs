@@ -545,7 +545,7 @@ static class OperatorToolsTests
                 "A portable variant, a prohibited mode or a new UTC day was counted incorrectly.");
         });
 
-        run("District awards use HAMLOG's next tier and require an unambiguous new district", () => {
+        run("District awards use HAMLOG's next tier and search by region", () => {
             const string own = "K1ABC";
             DateTime now = new DateTime(2026, 11, 24, 12, 0, 0, DateTimeKind.Utc);
             var award = new AwardProgram { Title = "Example RDA award", Url = "https://hamlog.online/club/demo/7/",
@@ -567,20 +567,22 @@ static class OperatorToolsTests
             });
             var progress = new AwardProgress(award, history, own, call => "UA");
             Check(progress.Online.Required == 2 && progress.Online.Confirmed == 1
-                && progress.Needs("R3QBB", "40m", "FT8", now, "KO92")
-                && !progress.Needs("R3QBB", "40m", "FT8", now, "KO93")
-                && !progress.Needs("R3QAA", "40m", "FT8", now, "KO91")
-                && !progress.Needs("R3QCC", "40m", "FT8", now, "KO93")
-                && !progress.Needs("R3QDD", "40m", "FT8", now, "KO94")
+                && progress.Needs("R3QBB", "40m", "FT8", now)
+                && progress.Needs("R3QBB", "40m", "FT8", now, "KO93")
+                && !progress.Needs("R3QAA", "20m", "FT8", now, "KO91")
+                && progress.Needs("R3QCC", "40m", "FT8", now, "KO93")
+                && progress.Needs("R3QDD", "40m", "FT8", now, "KO94")
                 && !progress.Needs("R3QEE/AM", "40m", "FT8", now, "KO95")
-                && !progress.Needs("R3QFF", "40m", "FT8", now, "KO92"),
-                "A worked, retired, unverified or ambiguous district was selected.");
-            progress.Online.Record(new LogbookQso { Call = "R3QBB", Band = "40m", Mode = "FT8", Locator = "KO92", StartedUtc = now });
-            Check(!progress.Available("40m", "FT8", now) && !progress.Complete,
-                "A logged district should stop further calls toward the tier while it awaits confirmation.");
+                && progress.Needs("R3QFF", "40m", "FT8", now, "KO92")
+                && !progress.Needs("R4CAA", "40m", "FT8", now, "KO92"),
+                "The search used a district or grid boundary instead of the area and repeat history.");
+            progress.Record(new LogbookQso { Call = "R3QBB", Band = "40m", Mode = "FT8", Locator = "KO92", StartedUtc = now });
+            Check(progress.Available("40m", "FT8", now) && !progress.Needs("R3QBB", "40m", "FT8", now)
+                && progress.Online.Confirmed == 1 && !progress.Complete,
+                "A local QSO was counted by HAMLOG or did not reserve a repeat.");
         });
 
-        run("Point awards keep searching for required districts after their main threshold is met", () => {
+        run("Regional monitoring waits for HAMLOG to meet the secondary district threshold", () => {
             const string own = "K1ABC";
             DateTime now = new DateTime(2026, 11, 24, 0, 0, 0, DateTimeKind.Utc);
             var award = new AwardProgram { Title = "Example city award", Url = "https://hamlog.online/club/demo/77/", Selected = true,
@@ -609,13 +611,13 @@ static class OperatorToolsTests
                 Locator = "LO45", County = "TA-02", StartedUtc = now.AddYears(-1) };
             var search = new AwardSearch(new AwardCatalog { Programs = new List<AwardProgram> { award } },
                 new LogbookHistory("example.adi", new List<LogbookQso> { old }), own, "40m", "FT8", call => "UA");
-            Check(search.Available(now) == 1 && search.Score("R4PBA", now, "LO45") == 1
-                && search.Score("R4PBA", now, "LO46") == 0 && search.Score("R4PAA", now, "LO44") == 0,
-                "After the main target, the search selected a used or unknown district or missed the last district.");
+            Check(search.Available(now) == 1 && search.Score("R4PBA", now) == 1
+                && search.Score("R4PBA", now, "LO46") == 1 && search.Score("R4PAA", now, "LO44") == 1,
+                "Regional search depended on the locator or excluded a new band.");
             search.Record(new LogbookQso { Call = "R4PBA", Station = own, Band = "40m", Mode = "FT8",
                 Locator = "LO45", StartedUtc = now });
-            Check(search.Available(now) == 0 && award.Hamlog.Points == 2 && award.Hamlog.Credits.Count == 2,
-                "The confirmed total was modified or the pending district did not stop the search.");
+            Check(search.Score("R4PBA", now) == 0 && search.Available(now) == 1 && award.Hamlog.Points == 2 && award.Hamlog.Credits.Count == 2,
+                "Logging the station did not reserve a repeat, or a local contact changed the HAMLOG result.");
         });
 
         run("Mandatory district contacts and separate score multipliers survive the preferences round trip", () => {
@@ -751,7 +753,7 @@ static class OperatorToolsTests
                 && !score.Available("40m", "FT8", boundary.AddDays(1)), "Local days and publication dates were treated as UTC days.");
         });
 
-        run("An RDA subset accepts only listed districts and keeps the activator out of hunter search", () => {
+        run("A regional search covers the region while HAMLOG credit keeps the published district subset", () => {
             const string own = "K1ABC";
             DateTime now = new DateTime(2026, 11, 24, 20, 0, 0, DateTimeKind.Utc);
             var award = new AwardProgram { Title = "Example river bank", Url = "https://hamlog.online/club/demo/80/",
@@ -775,9 +777,10 @@ static class OperatorToolsTests
                 new LogbookQso { Call = "R4CAC", Station = own, County = "SA-20", Locator = "LO43", StartedUtc = now.AddYears(-1) }
             });
             var progress = new AwardProgress(award, history, own, call => call == own ? "K" : "UA");
-            Check(progress.Needs("R4CAB", "80m", "FT8", now, "LO43")
-                && !progress.Needs("R4CAC", "80m", "FT8", now, "LO43")
-                && !progress.Needs("R4CAA", "80m", "FT8", now, "LO42"), "The search selected the wrong bank or an already credited district.");
+            Check(progress.Needs("R4CAB", "80m", "FT8", now)
+                && progress.Needs("R4CAC", "80m", "FT8", now)
+                && !progress.Needs("R4PAA", "80m", "FT8", now)
+                && !progress.Needs("R4CAA", "40m", "FT4", now), "The search used a district boundary or forgot an already credited contact.");
             Check(!new AwardProgress(award, history, "R4CAA", call => "UA").CanSelectForSearch(now),
                 "A regional activator could start the hunter rule.");
         });
@@ -1143,11 +1146,36 @@ static class OperatorToolsTests
                 && on80.Score("R3AAA", at) == 0, "A repeat used the wrong band or searched outside the published region.");
             var unverified = catalog.Copy();
             unverified.Programs[0].Hamlog = null;
-            Check(new AwardSearch(unverified, LogbookHistory.Empty, "K1AAA", "80m", "FT8", dxcc).Available(at) == 0,
-                "Without HAMLOG credit an old prefix or country rule became eligible.");
+            var withoutResult = new AwardSearch(unverified, LogbookHistory.Empty, "K1AAA", "80m", "FT8", dxcc);
+            Check(withoutResult.Score("R3PAA", at) == 1 && withoutResult.Score("R3AAA", at) == 0,
+                "A missing credit lookup blocked regional search or exposed an old broad country rule.");
         });
 
-        run("Bryansk searches for a known new digital district instead of repeating a credited district", () => {
+        run("Nationwide RDA and single-region awards choose stations by callsign and use HAMLOG totals", () => {
+            const string own = "K1ABC";
+            DateTime at = new DateTime(2026, 11, 25, 12, 0, 0, DateTimeKind.Utc);
+            var national = new AwardProgram { Title = "RDA", Url = "https://hamlog.online/club/demo/96/", Selected = true,
+                DownloadedRules = new HamlogRulePlan { Kind = "rda-search", Required = 20 } };
+            var tula = HamlogAward.Gunsmiths.Create();
+            tula.Selected = true;
+            var catalog = new AwardCatalog { Programs = new List<AwardProgram> { national, tula } };
+            foreach (AwardProgram program in catalog.Programs) program.Validate();
+            Func<string, string> dxcc = call => call.StartsWith("R0") ? "UA9" : call.StartsWith("UA2") ? "UA2"
+                : call.StartsWith("R3") ? "UA" : call.StartsWith("RI1") ? "R1FJ" : "DL";
+            var search = new AwardSearch(catalog, LogbookHistory.Empty, own, "40m", "FT8", dxcc);
+            Check(search.Score("R3PAA", at) == 2 && search.Score("R3PAA/P", at) == 2
+                && search.Score("R3SAA", at) == 1 && search.Score("R0SAA", at) == 1 && search.Score("UA2FAA", at) == 1
+                && search.Score("RI1FJ", at) == 0 && search.Score("DL1AAA", at, "KO85") == 0, "The nationwide or Tula search used a wrong territory.");
+            search.Record(new LogbookQso { Call = "R3PAA", Band = "40m", Mode = "FT8", Station = own, StartedUtc = at });
+            Check(search.Score("R3PAA", at) == 0 && !search.Reason("R3PBB", at).Contains("очк."),
+                "A local contact was repeated or presented as confirmed credit.");
+            national.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, "<span class='award-dashboard-value'>20 / 20</span>",
+                HamlogRow("R3A-123-SWL", "24 Nov 2026", "40M", "FT8", "+20")), national.Template, own, at);
+            Check(new AwardSearch(catalog, LogbookHistory.Empty, own, "40m", "FT8", dxcc).Score("UA2FAA", at) == 0,
+                "HAMLOG's latest complete standing did not close the nationwide search.");
+        });
+
+        run("Bryansk credit distinguishes digital contacts from older CW rows", () => {
             DateTime at = new DateTime(2026, 11, 24, 12, 0, 0, DateTimeKind.Utc);
             var program = HamlogAward.Bryansk.Create();
             program.Hamlog = new HamlogStanding { Callsign = "K1AAA", CheckedUtc = at, Required = 27, Points = 2,

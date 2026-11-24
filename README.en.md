@@ -73,13 +73,13 @@ Double-click an award to see its search rules. For Saratov Land, the editor show
 
 Select a reviewed award whose search is unavailable to see the reason below the list. For example, a river award needs the reference of the river the station is activating.
 
-For RDA district awards, AutoCQ looks for districts you still need. It matches the callsign and received locator to a district in your main logbook or HAMLOG credit.
+Nationwide RDA searches cover European Russia, Asiatic Russia and Kaliningrad. For regional awards, AutoCQ selects callsigns in the relevant region. HAMLOG checks contacts, calculates credit and issues awards.
 
 Some awards give extra points on particular dates or for certain callsigns. For the Yesenin award, contacts score more points from October 1 to 7, and three contacts on October 3 are enough to qualify. Double-click the award and open **«Зачёт и надбавки»** (Required contacts and bonuses) to see those conditions.
 
 After an interruption, **«Продолжить загрузку»** (Resume download) uses documents already downloaded. The AutoCQ log shows the reason for the interruption.
 
-![Choosing an award and viewing RDA district credit](docs/awards-demo.png)
+![Choosing a regional award in AutoCQ](docs/awards-demo.png)
 
 The same menu lets you save settings under a name and check **«Итоги сеанса»** (Session results). The results show final confirmations and which records were found in your main logbook. If a callsign remains in the left list, select it and click **«Почему пропущена?»** (Why was this station skipped?).
 

@@ -2483,6 +2483,39 @@ class AutoCqTests
                             "The manual exception changed the configured targets");
                     }
                 });
+                Run("Ordinary CQ accepts a manual station on the other TX period and continues after QSO", () => {
+                    foreach (bool statusFirst in new[] { true, false })
+                    {
+                        var commands = new List<string>();
+                        var e = new AutoCqEngine { UseNativeSelection = true };
+                        e.RequestCq = () => commands.Add("CQ");
+                        e.RequestHalt = () => commands.Add("HALT");
+                        e.OnStatus(S(false, ""), At);
+                        e.Start(At);
+                        DateTime deadline = e.SessionDeadline;
+                        e.Tick(At.AddSeconds(1), true);
+                        Assert(commands.SequenceEqual(new[] { "CQ" }), "The fixture did not issue the first CQ");
+
+                        const string selected = "DL3ZZB";
+                        RadioStatus manual = S(true, selected); manual.TxFirst = false;
+                        if (statusFirst) e.OnStatus(manual, At.AddSeconds(2.12));
+                        e.OnLine(ManualSelection(At.AddSeconds(2.1), selected), At.AddSeconds(2.15));
+                        if (!statusFirst) e.OnStatus(manual, At.AddSeconds(2.2));
+                        Assert(e.Armed && !e.Monitoring && !e.CqTxFirst && e.SessionDeadline == deadline
+                            && commands.SequenceEqual(new[] { "CQ" }), "Manual takeover halted or duplicated the selected exchange");
+
+                        e.OnLine(Tx(At.AddSeconds(15), selected, "RR73"), At.AddSeconds(15));
+                        e.OnLine("QSO logged: " + selected, At.AddSeconds(15.1));
+                        e.OnLine(Rx(At.AddSeconds(30), selected, "73"), At.AddSeconds(44.2));
+                        e.OnLine(DecodeFinished(At.AddSeconds(44.3)), At.AddSeconds(44.3));
+                        e.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(44.4));
+                        RadioStatus receive = S(false, ""); receive.TxFirst = false;
+                        e.OnStatus(receive, At.AddSeconds(44.5));
+                        e.Tick(At.AddSeconds(45), true);
+                        Assert(e.Armed && e.ConfirmedCount == 1 && commands.SequenceEqual(new[] { "CQ", "CQ" }),
+                            "The CQ program did not continue in the selected period after the manual QSO");
+                    }
+                });
                 Run("An old automatic status does not interrupt a confirmed manual monitoring call", () => {
                     List<string> commands; AutoCqEngine e = MonitorActive(out commands);
                     DateTime deadline = e.SessionDeadline;

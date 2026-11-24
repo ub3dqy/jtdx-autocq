@@ -9,15 +9,36 @@ namespace JtdxAutoCq
 {
     public sealed class HamlogRulePlan
     {
-        public string Kind, FromUtc, UntilUtc, BonusUntilUtc;
+        public string Kind, FromUtc, UntilUtc, BonusUntilUtc, SearchRegion;
         public int Required, MemberPoints, ExtraPoints, AlternativeRequired, RcpwOnlineAfterPoints, RcpwSpecialPoints;
-        public bool HfOnly, VhfBonus, NoMultipliers, RcpwDoubleDistrictZero;
+        public bool HfOnly, VhfBonus, NoMultipliers, RcpwDoubleDistrictZero, ClubMembersMayHunt;
+        public bool ClubHamlogModeRates, ClubHamlogNo160mBonus;
         public string[] Calls = new string[0];
+        public string[] ClubOnlyActivatorAreas = new string[0];
         public HamlogBonusGroup[] BonusGroups = new HamlogBonusGroup[0];
         public HamlogContactCriteria Contacts;
         internal bool Club { get { return Kind == "sky-hunter"; } }
         internal bool Rcpw { get { return Kind == "rcpw-hunter"; } }
         internal bool ContactAward { get { return Kind == "contact-points" && Contacts != null; } }
+        internal bool RdaOnly { get { return Kind == "rda-search"; } }
+        internal string MonitoringRegion
+        {
+            get
+            {
+                if (!String.IsNullOrEmpty(SearchRegion)) return SearchRegion;
+                if (!ContactAward || Contacts.Countries.Length != 0 || !String.IsNullOrEmpty(Contacts.Roster)) return null;
+                if (Contacts.RestrictsCounties) return HamlogAwardAreas.Region(Contacts.CountyPrefix);
+                string[] regions = BonusGroups.Where(group => group.Area).SelectMany(group => group.Targets)
+                    .Select(HamlogAwardAreas.Region).Distinct().ToArray();
+                return regions.Length == 1 ? regions[0] : null;
+            }
+        }
+        internal bool GeographicSearch
+        {
+            get { return RdaOnly || MonitoringRegion != null || ContactAward && (Contacts.RestrictsCounties
+                || Contacts.Additional.Any(condition => condition.ByCounty)
+                || BonusGroups.Any(group => group.Area && group.Targets.Any(HamlogCountyIndex.IsCounty))); }
+        }
         internal bool Districts { get { return ContactAward && Contacts.Repeat == HamlogContactCriteria.District; } }
         internal bool Locators { get { return ContactAward && Contacts.Repeat == HamlogContactCriteria.Locator; } }
         internal bool UsesRcpwRoster { get { return Rcpw || ContactAward && Contacts.Roster == "rcpw"; } }
@@ -36,6 +57,10 @@ namespace JtdxAutoCq
                 || RcpwOnlineAfterPoints != other.RcpwOnlineAfterPoints || RcpwSpecialPoints != other.RcpwSpecialPoints
                 || RcpwDoubleDistrictZero != other.RcpwDoubleDistrictZero
                 || HfOnly != other.HfOnly || VhfBonus != other.VhfBonus || NoMultipliers != other.NoMultipliers
+                || ClubMembersMayHunt != other.ClubMembersMayHunt
+                || !ClubOnlyActivatorAreas.SequenceEqual(other.ClubOnlyActivatorAreas)
+                || (SearchRegion ?? "") != (other.SearchRegion ?? "") || ClubHamlogModeRates != other.ClubHamlogModeRates
+                || ClubHamlogNo160mBonus != other.ClubHamlogNo160mBonus
                 || (FromUtc ?? "") != (other.FromUtc ?? "")
                 || (UntilUtc ?? "") != (other.UntilUtc ?? "") || (BonusUntilUtc ?? "") != (other.BonusUntilUtc ?? "")
                 || !Calls.SequenceEqual(other.Calls) || (Contacts == null ? other.Contacts != null : !Contacts.SameAs(other.Contacts))) return false;
@@ -46,6 +71,20 @@ namespace JtdxAutoCq
 
         internal void Validate()
         {
+            FromUtc = (FromUtc ?? "").Trim();
+            UntilUtc = (UntilUtc ?? "").Trim();
+            SearchRegion = (SearchRegion ?? "").Trim();
+            if (SearchRegion.Length != 0 && HamlogAwardAreas.Region(SearchRegion) != SearchRegion)
+                throw new InvalidDataException("Проверьте код области для поиска.");
+            DateTime? from = AwardCatalog.ReadTime(FromUtc), until = AwardCatalog.ReadTime(UntilUtc, true);
+            if (from.HasValue && until.HasValue && from >= until)
+                throw new InvalidDataException("Дата окончания должна быть позже даты начала.");
+            if (RdaOnly)
+            {
+                if (Required < 1 || Required > 10000)
+                    throw new InvalidDataException("Проверьте порог зачёта HAMLOG.");
+                return;
+            }
             if (!Points && Kind != "single-station")
                 throw new InvalidDataException("Неизвестный способ зачёта диплома.");
             if (RcpwOnlineAfterPoints != 0 && (!Rcpw || RcpwOnlineAfterPoints < MemberPoints || RcpwOnlineAfterPoints > ExtraPoints)
@@ -57,6 +96,10 @@ namespace JtdxAutoCq
             Calls = Calls.Select(Callsign.Parse).Distinct(StringComparer.Ordinal).ToArray();
             if (Calls.Any(call => call == null))
                 throw new InvalidDataException("Проверьте позывные в списке.");
+            ClubOnlyActivatorAreas = (ClubOnlyActivatorAreas ?? new string[0]).Distinct(StringComparer.Ordinal).ToArray();
+            if (!Club && (ClubOnlyActivatorAreas.Length != 0 || ClubMembersMayHunt || ClubHamlogModeRates || ClubHamlogNo160mBonus)
+                || ClubOnlyActivatorAreas.Any(area => !HamlogAwardAreas.Known(area)))
+                throw new InvalidDataException("Проверьте территории активаторов клуба.");
             if (Points ? Required < 1 || Required > 10000 || MemberPoints < 1 || MemberPoints > 1000
                 || ExtraPoints < 1 || ExtraPoints > 1000 || (HfOnly || NoMultipliers) && VhfBonus
                 : Required != 1 || Calls.Length != 1)
@@ -83,11 +126,6 @@ namespace JtdxAutoCq
                         : group.Targets.Any(call => String.IsNullOrEmpty(call) || Callsign.Parse(call) != call || !named.Add(call))))
                     throw new InvalidDataException("Проверьте очки, позывные и районы в дополнительных группах.");
             }
-            FromUtc = (FromUtc ?? "").Trim();
-            UntilUtc = (UntilUtc ?? "").Trim();
-            DateTime? from = AwardCatalog.ReadTime(FromUtc), until = AwardCatalog.ReadTime(UntilUtc, true);
-            if (from.HasValue && until.HasValue && from >= until)
-                throw new InvalidDataException("Дата окончания должна быть позже даты начала.");
             if (Rcpw)
             {
                 BonusUntilUtc = (BonusUntilUtc ?? "").Trim();
@@ -260,7 +298,7 @@ namespace JtdxAutoCq
 
     internal static class HamlogPlanCompiler
     {
-        internal const int Version = 7;
+        internal const int Version = 8;
         const string Day = @"\d{1,2} [а-яё]+ \d{4}";
         const string Points = @"\s*(?:[-–—]\s*)?(?<count>\d{1,4})\s*оч(?:ков|ка|ко)\.?";
         static readonly Regex Sky = Pattern(

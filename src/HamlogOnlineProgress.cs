@@ -138,9 +138,6 @@ namespace JtdxAutoCq
             return AwardCounty(call, reportedCounties.Find(call, grid));
         }
 
-        internal string NeededDistrict(string call, string grid)
-        { return districts == null ? null : CountyAt(call, AwardLocator.Parse(grid)); }
-
         bool InRegion(string call, string county, string prefix, HashSet<string> series)
         {
             if (county != null) return county.StartsWith(prefix, StringComparison.Ordinal);

@@ -298,8 +298,8 @@ namespace JtdxAutoCq
         bool finishing;
         MonitorTargets monitorTargets;
         SessionContact sessionContact;
-        string manualMonitorCall, incomingMonitorCall, unconfirmedMonitorCall;
-        DateTime sessionStartedAt, monitorSelectionDeadline;
+        string manualMonitorCall, incomingMonitorCall, unconfirmedManualCall;
+        DateTime sessionStartedAt, manualSelectionDeadline;
         static readonly Regex TxMessage = new Regex(@"\b(?:Transmitting|Retransmitting)\s+.*?\b(?:FT8|FT4):\s*(.+)$", RegexOptions.CultureInvariant);
         static readonly Regex RxMessage = new Regex(@"^\d{8}_\d{6}\s+[+-]?\d+\s+[+-]?[\d.,]+\s+\d+\s+\S+\s+(.+)$", RegexOptions.CultureInvariant);
         static readonly Regex ReplySelected = new Regex(@"double click on call processed: (\S+); EnableTx On\b", RegexOptions.CultureInvariant);
@@ -323,7 +323,7 @@ namespace JtdxAutoCq
             sessionSwitchMinutes = Options.SwitchPeriodMinutes;
             SessionDeadline = now.AddMinutes(Options.RunMinutes);
             sessionStartedAt = now;
-            unconfirmedMonitorCall = null;
+            unconfirmedManualCall = null;
             if (Options.MonitorEnabled || awards != null)
             {
                 if (awards == null && Options.MonitorDxcc.Length + Options.MonitorCalls.Length + Options.MonitorMasks.Length == 0)
@@ -385,7 +385,7 @@ namespace JtdxAutoCq
             manualCq = null; hunting = finishing = false; ResetCqRound();
             monitorTargets = null;
             Awards = null;
-            unconfirmedMonitorCall = null;
+            unconfirmedManualCall = null;
             ResetContact();
             sentAcknowledgedReports.Clear();
             Notice(reason);
@@ -402,7 +402,7 @@ namespace JtdxAutoCq
         {
             string previousCall = Status == null ? "" : CleanCall(Status.DxCall);
             string nextCall = CleanCall(status.DxCall);
-            bool previousTxConfirmed = unconfirmedMonitorCall == null;
+            bool previousTxConfirmed = unconfirmedManualCall == null;
             bool wasEnabled = previousTxConfirmed && Status != null && Status.TxEnabled;
             bool wasTransmitting = previousTxConfirmed && Status != null && Status.Transmitting;
             bool nativeIdleSelection = Status != null && String.IsNullOrEmpty(Status.DxCall) && !String.IsNullOrEmpty(status.DxCall)
@@ -430,21 +430,23 @@ namespace JtdxAutoCq
             bool outsideMonitorCall = Monitoring && nextCall.Length > 0
                 && nextCall != selectedQueuedCall && nextCall != pendingOwner;
             bool txActive = status.TxEnabled || status.Transmitting;
-            if (outsideMonitorCall && txActive)
+            bool uncommandedCqSelection = !Monitoring && !radioChanged && !status.Watchdog && nextCall.Length > 0
+                && (nextCall != previousCall || unconfirmedManualCall == nextCall)
+                && nextCall != selectedQueuedCall && nextCall != pendingOwner && nextCall != replyTarget && nextCall != waitingCall
+                && (!permittedPeriod || selectedQueuedCall != null && !Awaiting73 && !ReverseExchangePending);
+            if (outsideMonitorCall && txActive || uncommandedCqSelection)
             {
-                // JTDX sends status from its Enable Tx handler before writing
-                // the double-click log entry. Do not cancel a manual call while
-                // that entry is still in flight. Only the fresh log entry can
-                // authorize this one-off exception to the monitoring targets.
+                // The Enable Tx status can arrive before the corresponding double-click line.
+                // Treat a new target as an operator handoff only after that line confirms it.
                 if (!CanCall(nextCall))
                 { Stop("JTDX выбрал станцию из исключений DXCC. Автомат выключен.", true); return; }
-                if (unconfirmedMonitorCall != nextCall)
-                { unconfirmedMonitorCall = nextCall; monitorSelectionDeadline = now.AddSeconds(1); }
+                if (unconfirmedManualCall != nextCall)
+                { unconfirmedManualCall = nextCall; manualSelectionDeadline = now.AddSeconds(1); }
                 return;
             }
             // A later status for the accepted call or for receive supersedes
             // an unconfirmed TX status, including one for the previous target.
-            unconfirmedMonitorCall = null;
+            unconfirmedManualCall = null;
             if (outsideMonitorCall) return;
             if (Monitoring && status.TxEnabled
                 && !pending && nextCall.Length == 0)
@@ -613,8 +615,9 @@ namespace JtdxAutoCq
                 due=now;
                 replyDuringCq=Status!=null && Status.TxEnabled && String.IsNullOrEmpty(Status.DxCall);return;
             }
-            Match selected = Monitoring || resumedAcknowledgementCall != null ? ReplySelected.Match(line) : Match.Empty;
-            if (selected.Success && Monitoring) AdoptManualMonitorCall(selected.Groups[1].Value, RadioTime(line), now);
+            Match selected = line.IndexOf("double click on call processed:", StringComparison.Ordinal) >= 0
+                ? ReplySelected.Match(line) : Match.Empty;
+            if (selected.Success) AdoptManualJtdxCall(selected.Groups[1].Value, RadioTime(line), now);
             if (selected.Success && CleanCall(selected.Groups[1].Value) == resumedAcknowledgementCall)
             {
                 lastRemoteFinalCall = resumedAcknowledgementCall;
@@ -844,18 +847,20 @@ namespace JtdxAutoCq
                 : "Выбрана станция " + row.Call + ". Вызов после текущей связи и ответов на ваш позывной.");
         }
 
-        void AdoptManualMonitorCall(string call, DateTime? selectedAt, DateTime now)
+        void AdoptManualJtdxCall(string call, DateTime? selectedAt, DateTime now)
         {
             call = Callsign.Parse(call);
-            if (!Monitoring || call == null || call == selectedQueuedCall || call == pendingOwner
+            if (Status == null || call == null || call == selectedQueuedCall || call == pendingOwner || call == replyTarget || call == waitingCall
                 || call == CleanCall(Status.DeCall) || !CanCall(call) || finishing || now >= SessionDeadline
                 || !selectedAt.HasValue || selectedAt.Value < sessionStartedAt
                 || selectedAt.Value > now.AddSeconds(1) || now - selectedAt.Value > TimeSpan.FromSeconds(3)) return;
-            if (unconfirmedMonitorCall != null && call != unconfirmedMonitorCall) return;
+            if (unconfirmedManualCall != null && call != unconfirmedManualCall) return;
             CompleteConfirmedContact();
-            ResetContact(); ResetCqRound();
-            pending = false; loggedCall = null; unexplainedStop = null; manualCq = null;
-            unconfirmedMonitorCall = null;
+            bool haltInFlight = cqHaltExpected || stoppingRetry != null;
+            ResetContact(); ResetCqRound(keepPendingHalt: haltInFlight);
+            cqHaltExpected = haltInFlight;
+            pending = hunting = false; loggedCall = null; unexplainedStop = null; manualCq = null;
+            unconfirmedManualCall = null;
             manualMonitorCall = selectedQueuedCall = lastContact = call;
             Cqs.Retry(call); Cqs.Attempt(call, now);
             commandOutstanding = true; commandDeadline = now.AddSeconds(6); replyTarget = call;
@@ -864,7 +869,8 @@ namespace JtdxAutoCq
                 SetSessionPeriod(Status.TxFirst, now);
                 commandOutstanding = false; replyTarget = null; everEnabled = true;
             }
-            Notice("Ручной вызов " + call + " в JTDX. После связи или лимита вызовов продолжу мониторинг.");
+            Notice("Ручной вызов " + call + " в JTDX. После связи или лимита вызовов продолжу "
+                + (Monitoring ? "мониторинг." : "автоматическую работу."));
         }
 
         public void AddQueuedCall(string call, DateTime now)
@@ -1360,10 +1366,15 @@ namespace JtdxAutoCq
                 {commandOutstanding=false;expectedPeriod=null;pending=false;}
             }
             if (!connectionFresh) { Stop("Потеряна связь с JTDX: автомат выключен.", true); return; }
-            if (unconfirmedMonitorCall != null)
+            if (unconfirmedManualCall != null)
             {
-                if (now >= monitorSelectionDeadline)
-                    Stop("JTDX включил передачу для " + unconfirmedMonitorCall + " без подтверждения выбора. Мониторинг выключен.", true);
+                if (now >= manualSelectionDeadline)
+                {
+                    if (!Monitoring && Status.TxFirst != sessionPeriod) StopForRadioStatus(Status, true);
+                    else
+                        Stop("JTDX включил передачу для " + unconfirmedManualCall + " без подтверждения выбора. "
+                            + (Monitoring ? "Мониторинг выключен." : "Автомат выключен."), true);
+                }
                 return;
             }
             if (stoppingRetry != null)

@@ -16,8 +16,8 @@ using System.Xml;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.34.0")]
-[assembly: AssemblyFileVersion("0.9.34.0")]
+[assembly: AssemblyVersion("0.9.35.0")]
+[assembly: AssemblyFileVersion("0.9.35.0")]
 [assembly: AssemblyTitle(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyProduct(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyCompany(JtdxAutoCq.AppBrand.Author)]
@@ -202,7 +202,7 @@ namespace JtdxAutoCq
 
     public sealed partial class MainForm : Form
     {
-        const string ModuleVersion = "0.9.34";
+        const string ModuleVersion = "0.9.35";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = JtdxPatcher.PatchedHash;
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -1159,7 +1159,7 @@ namespace JtdxAutoCq
                     // A user double-click is logged after JTDX sends its status.
                     // Drain the log on both sides of UDP polling so that the
                     // engine sees that explicit choice before validating TX.
-                    if (engine.Monitoring) tail.Read(line => engine.OnLine(line, DateTime.UtcNow));
+                    if (engine.Armed) tail.Read(line => engine.OnLine(line, DateTime.UtcNow));
                     bridge.Poll(); tail.Read(line => engine.OnLine(line, DateTime.UtcNow));
                     bool running = JtdxPatcher.IsRunning();
                     jtdxPresent = running;
