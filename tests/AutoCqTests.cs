@@ -681,7 +681,6 @@ class AutoCqTests
                     {
                         var commands = new List<string>();
                         var e = new AutoCqEngine { UseNativeSelection = true };
-                        e.Waiting.AnswerWorkedB4 = true;
                         int reads = 0;
                         e.WorkedCallsOnBandMode = (band, mode, own) => {
                             reads++;
@@ -709,7 +708,6 @@ class AutoCqTests
                 Run("Repeat callers remain available when every fresh caller is already worked", () => {
                     var commands = new List<string>(); var e = new AutoCqEngine { UseNativeSelection = true };
                     e.WorkedCallsOnBandMode = (band, mode, own) => new[] { "W2ABC", "W3ABC" };
-                    e.Waiting.AnswerWorkedB4 = true;
                     e.Options.PriorityDxcc = new[] { "K" }; e.IsPriorityCall = call => call == "W3ABC";
                     e.RequestCallerReply = d => commands.Add(d.Message);
                     e.OnStatus(S(true, ""), At); e.Start(At); e.OnLine(Tx(At, "CQ", "FN20"), At);
@@ -721,7 +719,6 @@ class AutoCqTests
                 });
                 Run("A newly logged QSO immediately lowers a repeat caller's priority", () => {
                     List<string> commands; AutoCqEngine e = Active(out commands);
-                    e.Waiting.AnswerWorkedB4 = true;
                     e.Options.PriorityDxcc = new[] { "K" }; e.IsPriorityCall = call => call == "W1AW";
                     e.RequestCallerReply = d => commands.Add(d.Message);
                     Finish(e, At); e.Tick(At.AddSeconds(2), true);
@@ -733,7 +730,6 @@ class AutoCqTests
                 });
                 Run("A confirmed QSO without a log entry still lowers a repeat caller's priority", () => {
                     List<string> commands; AutoCqEngine e = Active(out commands);
-                    e.Waiting.AnswerWorkedB4 = true;
                     e.Options.PriorityDxcc = new[] { "K" }; e.IsPriorityCall = call => call == "W1AW";
                     e.RequestCallerReply = d => commands.Add(d.Message);
                     e.OnLine(Tx(At, "W1AW", "RR73"), At);
@@ -1007,50 +1003,51 @@ class AutoCqTests
                     Assert(q.Rows.Count==1 && !q.Rows[0].Available,"Manual call fabricated a native decode");
                 });
                 Run("A logged station is removed and duplicate caller decodes do not re-add it", () => {
-                    List<string> c;AutoCqEngine e=Active(out c);e.OnDecode(D(At.AddSeconds(15),"W2ABC","FN20"),At.AddSeconds(29));
-                    e.OnLine("QSO logged: W2ABC",At.AddSeconds(30));e.OnDecode(D(At.AddSeconds(45),"W2ABC","FN20"),At.AddSeconds(59));
-                    Assert(e.Waiting.Rows.Count==0,"Completed station re-entered the queue");e.Waiting.Add("W2ABC");Assert(e.Waiting.Rows.Count==1,"Operator could not explicitly re-add it");
+                    List<string> commands; AutoCqEngine e = Active(out commands);
+                    DecodedMessage call = D(At.AddSeconds(15), "W2ABC", "FN20");
+                    e.OnDecode(call, At.AddSeconds(29));
+                    e.OnLine("QSO logged: W2ABC", At.AddSeconds(30));
+                    e.OnDecode(call, At.AddSeconds(59));
+                    Assert(e.Waiting.Rows.Count == 0, "An old decode of a worked station re-entered the queue");
+                    e.Waiting.Add("W2ABC");
+                    Assert(e.Waiting.Rows.Count == 1, "Operator could not explicitly re-add the station");
                 });
                 Run("No-answer entry stays paused until a fresh subsequent call or operator retry", () => {
                     CallerQueue q=new CallerQueue();RadioStatus s=S(true,"");q.SetContext(s);q.Observe(D(At.AddSeconds(15),"W2ABC","FN20"),s,null,At.AddSeconds(29));q.Pause("W2ABC","Нет ответа",At.AddSeconds(59));
                     q.Observe(D(At.AddSeconds(45),"W2ABC","FN20"),s,null,At.AddSeconds(60));Assert(q.Next(s)==null,"Old decode reactivated a failed call");q.Observe(D(At.AddSeconds(75),"W2ABC","FN20"),s,null,At.AddSeconds(89));Assert(q.Next(s)!=null,"Fresh call did not reactivate the station");
                 });
-                Run("I4ZZA regression: Reply B4 allows a fresh addressed call after a logged QSO", () => {
-                    foreach (bool answerWorked in new[] { false, true })
-                    {
-                        DateTime workedAt = new DateTime(2025, 11, 14, 9, 20, 0, DateTimeKind.Utc);
-                        DateTime cqAt = workedAt.AddMinutes(6.5);
-                        RadioStatus idle = S(true, ""); idle.DeCall = "K1ABC"; idle.Frequency = 21074000;
-                        var commands = new List<string>();
-                        var engine = new AutoCqEngine { UseNativeSelection = true };
-                        engine.Options.PriorityDxcc = new[] { "KL" };
-                        engine.RequestCq = () => commands.Add("CQ");
-                        engine.RequestHalt = () => commands.Add("HALT");
-                        engine.RequestCallerReply = d => commands.Add(d.Message);
-                        engine.Waiting.AnswerWorkedB4 = answerWorked;
-                        engine.OnStatus(idle, workedAt);
-                        engine.OnLine("20251114_092000.137(0)  QSO logged: I4ZZA", workedAt);
-                        engine.Start(cqAt);
-                        engine.OnLine("20251114_092630.052(0)  Transmitting 21.074 MHz + 1809Hz FT8: CQ K1ABC KO85", cqAt);
-                        var tx = S(true, ""); tx.DeCall = idle.DeCall; tx.Frequency = idle.Frequency; tx.Transmitting = true;
-                        engine.OnStatus(tx, cqAt.AddSeconds(1));
-                        engine.OnStatus(idle, cqAt.AddSeconds(14)); engine.Tick(cqAt.AddSeconds(14), true);
-                        engine.OnLine("Halt Tx triggered at RX: UDP request ", cqAt.AddSeconds(14.1));
-                        var receive = S(false, ""); receive.DeCall = idle.DeCall; receive.Frequency = idle.Frequency;
-                        engine.OnStatus(receive, cqAt.AddSeconds(14.1));
-                        DateTime ready = cqAt.AddSeconds(29.435);
-                        var call = new DecodedMessage { IsNew = false, Milliseconds = 34005000, Snr = -6,
-                            DeltaTime = 0.2, DeltaFrequency = 1913, Mode = "~", Message = "K1ABC I4ZZA JN63" };
-                        engine.OnDecode(call, ready);
-                        Assert(engine.Waiting.Rows.Count == 0, "Replay re-added the completed call");
-                        var oldReport = call.Copy(); oldReport.IsNew = true; oldReport.Message = "K1ABC I4ZZA R-18";
-                        engine.OnDecode(oldReport, ready);
-                        Assert(engine.Waiting.Rows.Count == 0, "An acknowledged report reopened the previous QSO");
-                        call.IsNew = true; engine.OnDecode(call, ready);
-                        engine.OnLine(DecodeFinished(ready), ready); engine.Tick(ready, true);
-                        Assert(commands.SequenceEqual(new[] { "HALT", answerWorked ? call.Message : "CQ" }) && engine.Armed,
-                            "The next transmission did not respect Reply B4");
-                    }
+                Run("I4ZZA regression: a fresh repeat call keeps priority over CQ", () => {
+                    DateTime workedAt = new DateTime(2025, 11, 14, 9, 20, 0, DateTimeKind.Utc);
+                    DateTime cqAt = workedAt.AddMinutes(6.5);
+                    RadioStatus idle = S(true, ""); idle.DeCall = "K1ABC"; idle.Frequency = 21074000;
+                    var commands = new List<string>();
+                    var engine = new AutoCqEngine { UseNativeSelection = true };
+                    engine.Options.PriorityDxcc = new[] { "KL" };
+                    engine.RequestCq = () => commands.Add("CQ");
+                    engine.RequestHalt = () => commands.Add("HALT");
+                    engine.RequestCallerReply = d => commands.Add(d.Message);
+                    engine.OnStatus(idle, workedAt);
+                    engine.OnLine("20251114_092000.137(0)  QSO logged: I4ZZA", workedAt);
+                    engine.Start(cqAt);
+                    engine.OnLine("20251114_092630.052(0)  Transmitting 21.074 MHz + 1809Hz FT8: CQ K1ABC KO85", cqAt);
+                    var tx = S(true, ""); tx.DeCall = idle.DeCall; tx.Frequency = idle.Frequency; tx.Transmitting = true;
+                    engine.OnStatus(tx, cqAt.AddSeconds(1));
+                    engine.OnStatus(idle, cqAt.AddSeconds(14)); engine.Tick(cqAt.AddSeconds(14), true);
+                    engine.OnLine("Halt Tx triggered at RX: UDP request ", cqAt.AddSeconds(14.1));
+                    var receive = S(false, ""); receive.DeCall = idle.DeCall; receive.Frequency = idle.Frequency;
+                    engine.OnStatus(receive, cqAt.AddSeconds(14.1));
+                    DateTime ready = cqAt.AddSeconds(29.435);
+                    var call = new DecodedMessage { IsNew = false, Milliseconds = 34005000, Snr = -6,
+                        DeltaTime = 0.2, DeltaFrequency = 1913, Mode = "~", Message = "K1ABC I4ZZA JN63" };
+                    engine.OnDecode(call, ready);
+                    Assert(engine.Waiting.Rows.Count == 0, "Replay re-added the completed call");
+                    var oldReport = call.Copy(); oldReport.IsNew = true; oldReport.Message = "K1ABC I4ZZA R-18";
+                    engine.OnDecode(oldReport, ready);
+                    Assert(engine.Waiting.Rows.Count == 0, "An acknowledged report reopened the previous QSO");
+                    call.IsNew = true; engine.OnDecode(call, ready);
+                    engine.OnLine(DecodeFinished(ready), ready); engine.Tick(ready, true);
+                    Assert(commands.SequenceEqual(new[] { "HALT", call.Message }) && engine.Armed,
+                        "A fresh repeat call was passed over for CQ");
                 });
                 Run("Native clear and reconnect invalidate Reply data until the station is heard again", () => {
                     CallerQueue q=new CallerQueue();RadioStatus s=S(true,"");q.SetContext(s);q.Observe(D(At.AddSeconds(15),"W2ABC","FN20"),s,null,At.AddSeconds(29));q.Invalidate();Assert(q.Next(s)==null && q.Rows.Count==1,"Cleared decode was actionable");
@@ -1559,7 +1556,6 @@ class AutoCqTests
                         engine.RequestCallerReply = decode => commands.Add(decode.Message);
                         engine.RequestHalt = () => commands.Add("HALT");
                         engine.RequestCq = () => commands.Add("CQ");
-                        engine.Waiting.AnswerWorkedB4 = true;
                         engine.OnStatus(S(false, ""), At);
                         engine.Start(At);
                         DecodedMessage oldReport = D(At.AddSeconds(15), "W1AW", "-09");
@@ -1587,7 +1583,7 @@ class AutoCqTests
                         engine.OnDecode(oldReport, At.AddSeconds(91));
                         Assert(engine.Waiting.Find("W1AW") == null, "A repeated decode requeued the finished exchange");
                         engine.OnDecode(D(At.AddSeconds(105), "W1AW", "FN20"), At.AddSeconds(119));
-                        Assert(engine.Waiting.Find("W1AW") != null, "A fresh call was rejected despite Answer B4");
+                        Assert(engine.Waiting.Find("W1AW") != null, "A fresh call was rejected after the previous contact finished");
                     }
                 });
                 Run("Two initial calls stop at the decoded RX boundary without a third frame", () => {
@@ -2342,19 +2338,64 @@ class AutoCqTests
                             "An award target took precedence over the incoming call after a manual QSO");
                     }
                 });
-                Run("Monitoring applies Answer B4 to a new incoming call after a completed QSO", () => {
-                    foreach (bool answerB4 in new[] { false, true })
+                Run("Monitoring answers another fresh call from a station it worked during the session", () => {
+                    List<string> commands; AutoCqEngine e = MonitorActive(out commands);
+                    e.RequestCallerReply = d => commands.Add("CALLER " + d.Message);
+                    e.OnDecode(D(At.AddSeconds(15), "DL3ZZB", "JO62"), At.AddSeconds(29)); e.Tick(At.AddSeconds(29.1), true);
+                    e.OnStatus(S(true, "DL3ZZB"), At.AddSeconds(29.2));
+                    e.OnLine(Tx(At.AddSeconds(30), "DL3ZZB", "RR73"), At.AddSeconds(30));
+                    e.OnDecode(D(At.AddSeconds(45), "DL3ZZB", "73"), At.AddSeconds(59));
+                    e.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(59.1));
+                    e.OnStatus(S(false, "DL3ZZB"), At.AddSeconds(59.2)); e.Tick(At.AddSeconds(59.3), true);
+                    e.OnDecode(D(At.AddSeconds(75), "DL3ZZB", "JO62"), At.AddSeconds(89)); e.Tick(At.AddSeconds(89.1), true);
+                    Assert(e.Monitoring && commands.SequenceEqual(Enumerable.Repeat("CALLER K1ABC DL3ZZB JO62", 2)),
+                        "Monitoring skipped a new call from the completed contact");
+                });
+                Run("After our final 73 every active mode answers an allowed repeat before sending another call", () => {
+                    foreach (string operation in new[] { "cq", "monitor", "awards" })
                     {
-                        List<string> commands; AutoCqEngine e = MonitorActive(out commands); e.Waiting.AnswerWorkedB4 = answerB4;
+                        var commands = new List<string>();
+                        var e = new AutoCqEngine { UseNativeSelection = true, CanCall = call => call != "JA1AAA",
+                            DxccForCall = call => call.StartsWith("R") ? "UA" : null };
+                        e.Options.ExcludedDxcc = new[] { "JA" };
+                        e.Options.MonitorEnabled = operation == "monitor";
+                        e.Options.MonitorDxcc = new[] { "UA" };
+                        e.RequestCq = () => commands.Add("CQ");
+                        e.RequestHalt = () => commands.Add("HALT");
+                        e.RequestReply = d => commands.Add("TARGET " + d.Message);
                         e.RequestCallerReply = d => commands.Add("CALLER " + d.Message);
-                        e.OnDecode(D(At.AddSeconds(15), "DL3ZZB", "JO62"), At.AddSeconds(29)); e.Tick(At.AddSeconds(29.1), true);
-                        e.OnStatus(S(true, "DL3ZZB"), At.AddSeconds(29.2));
-                        e.OnLine(Tx(At.AddSeconds(30), "DL3ZZB", "RR73"), At.AddSeconds(30));
-                        e.OnDecode(D(At.AddSeconds(45), "DL3ZZB", "73"), At.AddSeconds(59));
-                        e.OnLine("Halt Tx triggered at RX: FIN, end of QSO, Autolog", At.AddSeconds(59.1));
-                        e.OnStatus(S(false, "DL3ZZB"), At.AddSeconds(59.2)); e.Tick(At.AddSeconds(59.3), true);
-                        e.OnDecode(D(At.AddSeconds(75), "DL3ZZB", "JO62"), At.AddSeconds(89)); e.Tick(At.AddSeconds(89.1), true);
-                        Assert(e.Monitoring && commands.Count == (answerB4 ? 2 : 1), "Incoming monitoring ignored the Answer B4 setting");
+                        e.OnStatus(operation == "cq" ? S(true, "R3PAA") : S(false, ""), At);
+                        e.OnLine("QSO logged: DL3ZZB", At);
+                        AwardSearch search = null;
+                        if (operation == "awards")
+                        {
+                            var program = HamlogAward.Gunsmiths.Create();
+                            program.Selected = true;
+                            program.Hamlog = new HamlogStanding { Callsign = "K1ABC", CheckedUtc = At, Required = 100 };
+                            var catalog = new AwardCatalog { Programs = new List<AwardProgram> { program } };
+                            search = new AwardSearch(catalog, LogbookHistory.Empty, "K1ABC", "20m", "FT8", e.DxccForCall);
+                        }
+                        e.Start(At, search);
+                        if (operation != "cq")
+                        {
+                            var target = CqD(At.AddSeconds(15), "R3PAA"); target.IsNew = false;
+                            e.OnDecode(target, At.AddSeconds(29)); e.Tick(At.AddSeconds(29), true);
+                            Assert(commands.Count == 1 && commands[0].StartsWith("TARGET "), "The fixture did not start a monitored QSO");
+                            e.OnStatus(S(true, "R3PAA"), At.AddSeconds(29.1));
+                            commands.Clear();
+                        }
+                        e.OnLine(Tx(At.AddSeconds(30), "R3PAA", "R-09"), At.AddSeconds(30));
+                        e.OnDecode(D(At.AddSeconds(45), "R3PAA", "RR73"), At.AddSeconds(59));
+                        e.OnLine(Tx(At.AddSeconds(60), "R3PAA", "73"), At.AddSeconds(60));
+                        e.OnDecode(D(At.AddSeconds(75), "JA1AAA", "PM95"), At.AddSeconds(89));
+                        e.OnDecode(D(At.AddSeconds(75), "DL3ZZB", "JO62"), At.AddSeconds(89.1));
+                        var next = CqD(At.AddSeconds(75), "R3PBB"); next.IsNew = false;
+                        e.OnDecode(next, At.AddSeconds(89.2));
+                        e.OnLine(DecodeFinished(At.AddSeconds(89.3)), At.AddSeconds(89.3)); e.Tick(At.AddSeconds(89.4), true);
+                        e.OnLine("Halt Tx triggered at RX: UDP request", At.AddSeconds(89.5));
+                        e.OnStatus(S(false, "R3PAA"), At.AddSeconds(89.6)); e.Tick(At.AddSeconds(89.7), true);
+                        Assert(e.Armed && e.ConfirmedCount == 1 && commands.SequenceEqual(new[] { "HALT", "CALLER K1ABC DL3ZZB JO62" }),
+                            "An excluded station or new outgoing call displaced an eligible repeat: " + operation);
                     }
                 });
                 Run("A queued caller remains eligible when it repeats after the monitor timer expires", () => {

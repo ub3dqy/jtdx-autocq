@@ -16,8 +16,8 @@ using System.Xml;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.23.0")]
-[assembly: AssemblyFileVersion("0.9.23.0")]
+[assembly: AssemblyVersion("0.9.24.0")]
+[assembly: AssemblyFileVersion("0.9.24.0")]
 [assembly: AssemblyTitle(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyProduct(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyCompany(JtdxAutoCq.AppBrand.Author)]
@@ -202,7 +202,7 @@ namespace JtdxAutoCq
 
     public sealed partial class MainForm : Form
     {
-        const string ModuleVersion = "0.9.23";
+        const string ModuleVersion = "0.9.24";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = JtdxPatcher.PatchedHash;
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -770,10 +770,10 @@ namespace JtdxAutoCq
         void UpdateListHint()
         {
             listHint.Text = lists.SelectedIndex==2 ? "После пяти минут станцию снова можно вызвать по свежему сообщению. При остановке мониторинга список очищается."
-                : engine.Monitoring && lists.SelectedIndex==0 ? "Входящие вызовы принимаются вне фильтра мониторинга. После очереди программа вернётся к поиску целей."
+                : engine.Monitoring && lists.SelectedIndex==0 ? "Сначала ответы на ваш позывной, затем поиск целей. Исключения DXCC действуют."
                 : engine.Monitoring ? "Можно вручную позвать любую станцию: выберите её слева в JTDX или здесь и нажмите «Позвать выбранную»."
                 : lists.SelectedIndex == 1 ? "Свежие CQ, 73, RRR и RR73 из левого окна JTDX. Двойной щелчок выбирает станцию."
-                : "После ответов на ваш позывной AutoCQ вызывает добавленные вручную станции напрямую.";
+                : "Сначала ответы на ваш позывной, затем прямые вызовы из ручной очереди. Исключения DXCC действуют.";
         }
         string SelectedCqCall()
         {
@@ -999,7 +999,6 @@ namespace JtdxAutoCq
                     if (ini.Get("Configuration", "Seq" + phase + "Count", "false") != "true" || ini.Get("Configuration", "Seq" + phase + "CounterValue", "0") != count.ToString())
                         throw new InvalidOperationException("Счётчики JTDX отличаются от выбранных в модуле. Закройте JTDX, повторите «1. Подготовить» и снова запустите JTDX.");
                 }
-                engine.Waiting.AnswerWorkedB4 = ini.Get("Common", "AnswerWorkedB4", "false") == "true";
                 tail.Reset(); direction = settings.Direction();
             }
             AwardSearch search = null;

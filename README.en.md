@@ -17,8 +17,8 @@ You could let it work for an hour, answering callers and looking for another sta
 - **Keep a queue.** Remember callers while you are busy. Manually added callsigns are called directly after the current contact and available incoming callers.
 - **Make a manual call while monitoring.** Choose an interesting station outside the target list. After that contact, AutoCQ resumes monitoring with the same settings and time remaining.
 - **Watch for wanted stations.** Match DXCC entities, callsigns and patterns against fresh CQ, 73, RRR or RR73. Return to receive after the contact or attempt limit.
-- **Look for contacts for HAMLOG awards.** For Murom Falcon, AutoCQ checks credited points with HAMLOG, shows eligible contacts from LogHX and looks for stations when you need more points. For other programs, enter targets in the app or import them from a file.
-- **Answer callers while monitoring.** Stations calling you take priority over searching for another target, even when they are outside your target list.
+- **Look for contacts for HAMLOG awards.** AutoCQ checks HAMLOG credit for built-in awards and looks for the contacts you still need, such as uncredited grid squares for My Russia.
+- **Answer incoming calls in every mode.** A station calling you takes priority over the next CQ or outgoing call. Fresh calls from stations you have already worked can join the queue. AutoCQ skips stations on your DXCC exclusion list.
 - **Update from the application.** Notify you about new releases and show download percentage, transferred size, speed and estimated time remaining. Install when you choose.
 - **Show monitoring retry pauses.** List unanswered stations with a countdown to their next eligible attempt. Stopping monitoring clears the list.
 
@@ -55,7 +55,7 @@ Open **«Цели мониторинга»** (Monitoring targets), select DXCC e
 
 When another station calls you, AutoCQ answers regardless of the monitoring targets. Calls received during a QSO stay in the queue: the current contact finishes first, then AutoCQ answers callers and resumes monitoring. This also works when a new call arrives alongside the final 73. The one-contact-per-target limit and a failed-search pause do not block an incoming caller; DXCC exclusions still apply.
 
-![Answering a caller outside the monitoring targets](docs/monitor-callers-demo.png)
+![Answering a repeat caller while skipping a station on the DXCC exclusion list](docs/monitor-callers-demo.png)
 
 If JTDX ends a call because the frequency is occupied or the other station answers someone else, AutoCQ returns to receive. Monitoring keeps its original end time.
 

@@ -1,6 +1,6 @@
 # Using AutoCQ
 
-Guide for AutoCQ 0.9.23 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
+Guide for AutoCQ 0.9.24 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
 
 AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.
 
@@ -105,13 +105,13 @@ If the other station sends 73, RRR or RR73 before reports are exchanged, the cal
 
 ### When a station calls you
 
-Monitoring targets determine whom AutoCQ searches for and calls itself. A station addressing your callsign is answered even if its country, callsign or pattern is outside those targets. Incoming callers take priority over searching for a new target and over a saved selection made with the Call selected button.
+AutoCQ answers stations calling you when running CQ, monitoring or searching for award contacts. A station on your DXCC exclusion list is marked as excluded in the queue. Other callers get a reply ahead of the next CQ or outgoing call.
 
-![AutoCQ answers DL1AAA outside the target list while another caller waits](docs/monitor-callers-demo.png)
+![AutoCQ answers a repeat call from DL1AAA and marks JA2AAA as excluded](docs/monitor-callers-demo.png)
 
-Callers received while you are busy stay in the queue until the current QSO finishes. A final 73 and a new call can arrive in the same period: AutoCQ keeps both messages and answers the next station. If the station you selected has not answered and someone else calls you, AutoCQ switches after the receive period finishes. It does not interrupt an active transmission or a QSO with a responding station.
+If you are busy, callers wait in the queue until your current QSO finishes. Say you send 73 and someone calls you in the following receive slot. AutoCQ answers that station first, even if it hears an award target in the same slot. If the station you have called has yet to answer, AutoCQ can switch to an incoming caller once the receive slot is complete.
 
-A station not yet worked on this band and mode comes first. DXCC priorities and queue order apply within the remaining groups. DXCC exclusions remain in force. JTDX's «Отв. B4» (Answer B4) setting controls fresh repeat calls from stations already worked during the session.
+When several stations call in the same slot, AutoCQ gives priority to stations you still need on that band and mode. It also uses your DXCC priorities and queue order. A fresh call from a station you have worked can enter the AutoCQ queue with JTDX's «Отв. B4» (Answer B4) enabled or disabled.
 
 The one-contact-per-target limit and five-minute pause after an unsuccessful search apply to selecting targets yourself. They do not prevent answering an incoming caller. After the QSO or attempt limit, AutoCQ checks other callers and resumes monitoring with the same targets and time remaining. It does not call CQ in this mode.
 
@@ -177,7 +177,7 @@ Open **«Журнал и дипломы → Дипломы HAMLOG»** (Logbook a
 
 For My Russia, AutoCQ reads the grid locator from a recent JTDX decode. Each credited square counts once across all bands. For Legendary Gunsmiths of Tula, another QSO with the same station on a different band can count. FT8 and FT4 belong to the same digital mode group on a given band. For RDA district awards, AutoCQ needs a known district from earlier HAMLOG credit or from your own logbook if it contains that information.
 
-If a station calls you while the search is running, AutoCQ puts it in the regular queue. This also works after a QSO you started by hand. AutoCQ goes back to listening for award stations when the exchange finishes. Among stations it calls on its own, priority goes to those that help with more than one selected award.
+After any automatic or manual QSO, AutoCQ checks the incoming queue first. When the queue is clear, it goes back to listening for award stations. Among the stations it calls on its own, priority goes to those that help with more than one selected award.
 
 If HAMLOG did not return a result for an award, AutoCQ shows it in the log and searches for the awards it could check. You can check credit again after uploading new contacts to HAMLOG.
 

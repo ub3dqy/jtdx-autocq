@@ -121,7 +121,6 @@ namespace JtdxAutoCq
         readonly Dictionary<string,DateTime> removedThrough = new Dictionary<string,DateTime>();
         string context;
         public Action Changed = delegate { };
-        public bool AnswerWorkedB4 { get; set; }
         public ReadOnlyCollection<WaitingStation> Rows { get { return rows.AsReadOnly(); } }
         public void Load(IEnumerable<WaitingStation> saved)
         {
@@ -234,7 +233,7 @@ namespace JtdxAutoCq
             if (row == null)
             {
                 if (!decode.IsNew || call == Callsign.Clean(activeCall) || currentDx) return false;
-                if (worked && (!AnswerWorkedB4 || time <= workedAt || payload.StartsWith("R+", StringComparison.Ordinal)
+                if (worked && (time <= workedAt || payload.StartsWith("R+", StringComparison.Ordinal)
                     || payload.StartsWith("R-", StringComparison.Ordinal))) return false;
                 DateTime removed;if(removedThrough.TryGetValue(call,out removed) && time<=removed)return false;
                 rows.Add(cached); Changed(); return true;

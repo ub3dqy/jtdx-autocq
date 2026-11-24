@@ -102,15 +102,19 @@ static class RenderScreenshots
         {
             ((Timer)Field(form,"timer")).Stop();
             var engine=(AutoCqEngine)Field(form,"engine");
-            engine.Options.MonitorDxcc=new[]{"JA","CE"};
+            engine.Options.MonitorDxcc=new[]{"CE"};
+            engine.Options.ExcludedDxcc=new[]{"JA"};
             ((CheckBox)Field(form,"monitor")).Checked=true;
-            DateTime now=DateTime.UtcNow;engine.Start(now);
+            Invoke(form,"CountryTable");
+            DateTime now=DateTime.UtcNow;
+            engine.OnLine("QSO logged: DL1AAA",now.AddMinutes(-1));
+            engine.Start(now);
             DateTime slot=now.Date.AddSeconds(Math.Floor(now.TimeOfDay.TotalSeconds/15)*15);
-            foreach(string call in new[]{"DL1AAA","W2ABC"})
+            foreach(string call in new[]{"JA2AAA","DL1AAA"})
                 engine.OnDecode(new DecodedMessage{IsNew=true,Milliseconds=(uint)slot.TimeOfDay.TotalMilliseconds,Snr=-11,DeltaTime=0.2,DeltaFrequency=1700,Mode="~",Message="K1ABC "+call+" JO62"},now);
-            Invoke(form,"Log","ДЕМО: фильтр JA и CE; DL1AAA и W2ABC сами вызывают K1ABC.");
+            Invoke(form,"Log","DL1AAA вызывает вас повторно. JA2AAA входит в исключения DXCC.");
             engine.Tick(now,true);
-            if(!engine.Monitoring || engine.IncomingMonitorCall!="DL1AAA")throw new Exception("Incoming monitoring reply was skipped.");
+            if(!engine.Monitoring || engine.IncomingMonitorCall!="DL1AAA")throw new Exception("The repeat caller was skipped or an excluded call was selected.");
             ((TabControl)Field(form,"lists")).SelectedIndex=0;Invoke(form,"UpdateUi");
             Save(form,Path.Combine(directory,"monitor-callers-demo.png"));
         }

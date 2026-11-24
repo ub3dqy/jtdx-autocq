@@ -1,9 +1,9 @@
-# AutoCQ 0.9.23
+# AutoCQ 0.9.24
 
 ## Русский
 
-- Перед поиском AutoCQ сверяет зачёт выбранных дипломов с HAMLOG. Для «Моей России» он ищет незачтённые QTH-квадраты. Для «Легендарных оружейников Тулы» и других готовых дипломов применяет их правила повторных связей.
-- Входящие вызовы идут в обычную очередь и во время поиска для дипломов. Если другая станция позвала вас в том же периоде, в котором завершилось ручное QSO, AutoCQ сначала отвечает ей, а затем возвращается к поиску.
+- Входящие вызовы имеют приоритет в режиме CQ, обычном мониторинге и поиске для дипломов. Если вас позвали сразу после вашего 73, AutoCQ ответит раньше следующего CQ или вызова цели.
+- AutoCQ принимает свежий повторный вызов от уже сработанной станции при любом положении «Отв. B4» в JTDX. Станции из списка исключений DXCC пропускаются во всех режимах.
 
 **Как обновиться.** Откройте **«Обновления»**, скачайте выпуск и закройте JTDX перед установкой. Затем нажмите **«Обновить и перезапустить»**. При работе с LogHX запускайте JTDX значком в журнале.
 
@@ -11,8 +11,8 @@
 
 ## English
 
-- AutoCQ checks HAMLOG credit for the selected awards before it starts searching. For My Russia it looks for uncredited grid squares. For Legendary Gunsmiths of Tula and other built-in awards it follows their repeat-contact rules.
-- Incoming calls go through the regular queue during award searches. If a station calls in the same slot as the final sign-off of a manual QSO, AutoCQ answers it, then goes back to listening for award stations.
+- Incoming calls take priority during CQ, monitoring and award searches. A station that calls immediately after you send 73 gets a reply before the next CQ or outgoing call.
+- AutoCQ accepts fresh repeat calls from stations you have worked with JTDX's Answer B4 enabled or disabled. It skips stations on the DXCC exclusion list in every mode.
 
 **Updating.** Open **«Обновления»** (Updates), download the release, and close JTDX before installation. Click **«Обновить и перезапустить»** (Update and restart). If you use LogHX, launch JTDX from its icon.
 
