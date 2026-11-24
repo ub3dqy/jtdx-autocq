@@ -137,6 +137,7 @@ namespace JtdxAutoCq
                 case HamlogRule.Grid: return grid;
                 case HamlogRule.Bryansk: return county;
                 case HamlogRule.Stations:
+                case HamlogRule.EventStation:
                 case HamlogRule.Arck35: return call;
                 case HamlogRule.Bands: return band;
                 default: return call + "|" + band + "|" + modeGroup;
@@ -156,6 +157,8 @@ namespace JtdxAutoCq
                         : call.IndexOf('/') < 0 && call.StartsWith(award.Station, StringComparison.Ordinal) && dxcc(call) == "ES") ? 1 : 0;
                 case HamlogRule.Bands:
                     return call == award.Station && award.Bands.Contains(band) ? 1 : 0;
+                case HamlogRule.EventStation:
+                    return call == award.Station ? 1 : 0;
                 case HamlogRule.Tula:
                     return InRegion(call, county, "TL-", TulaSeries) ? 1 : 0;
                 case HamlogRule.Tatarstan:

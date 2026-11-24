@@ -268,12 +268,13 @@ static class OperatorToolsTests
             var history = new LogbookHistory("example.adi", new List<LogbookQso> {
                 new LogbookQso { Call = "W2ABD", Station = "K1ABC", Band = "20m", Mode = "FT8", StartedUtc = now },
             });
-            using (var dialog = new AwardsDialog(catalog, history, "K1ABC", call => null, true))
+            using (var dialog = new AwardsDialog(catalog, history, "K1ABC", call => null))
             {
                 var grid = dialog.Controls.OfType<DataGridView>().Single();
                 var state = dialog.Controls.OfType<ComboBox>().Single(box => box.AccessibleName == "Состояние");
                 var section = dialog.Controls.OfType<ComboBox>().Single(box => box.AccessibleName == "Раздел");
-                var query = dialog.Controls.OfType<TextBox>().Single();
+                var query = dialog.Controls.OfType<TextBox>().Single(box => box.AccessibleName == "Название или клуб");
+                Check(dialog.Controls.OfType<Button>().Count() == 3, "The award list gained more than three main buttons.");
                 Func<string[]> visible = () => grid.Rows.Cast<DataGridViewRow>().Select(row => ((AwardProgram)row.Tag).Id).ToArray();
                 Func<string, DataGridViewCell> checkCell = id => grid.Rows.Cast<DataGridViewRow>()
                     .Single(row => ((AwardProgram)row.Tag).Id == id).Cells[0];
@@ -316,6 +317,83 @@ static class OperatorToolsTests
                 "A completed award contributed a target, or the deadline closed the remaining award early.");
             Check(search.Available(end) == 0 && search.Score("R3PAA", end) == 0,
                 "A cached selection still contributed targets after the exact expiration time.");
+        });
+
+        run("Downloaded club rules create award targets from the published points, dates and repeats", () => {
+            const string url = "https://hamlog.online/club/nebo/19/";
+            const string document = "Связи на диплом засчитываются с 14 февраля 2026 г. Срок действия диплома — постоянный. "
+                + "Засчитываются радиосвязи с радиолюбителями всех стран мира на диапазонах 1,8 - 28 MHz и УКВ. "
+                + "Необходимо набрать 45 очков За радиосвязи с Почётными членами клуба «Рыцари неба» R2AKN (R3A-014), "
+                + "а также специальным позывным W2ABC начисляется 15 очков. За QSO c членами клуба «Рыцари неба» начисляется 7 очков. "
+                + "Для перечисленных выше корреспондентов вводится множитель для следующих видов излучения: "
+                + "CW -2 SSB-1,5 DIGI — 1 За QSO на диапазоне 160 метров — 1,5 "
+                + "Повторные связи с одним и тем же членом клуба в одни сутки засчитываются на разных диапазонах, "
+                + "а на одном — разными видами излучения (все DIGI считаются за один вид). Диплом выдаётся.";
+            HamlogRulePlan plan = HamlogPlanCompiler.Compile(url, document);
+            Check(plan != null && plan.Required == 45 && plan.MemberPoints == 7 && plan.ExtraPoints == 15
+                && plan.FromUtc == "2026-02-14" && plan.Calls.SequenceEqual(new[] { "R2AKN", "W2ABC" }),
+                "The compiler lost a published detail or treated a district code as a callsign.");
+            Check(HamlogPlanCompiler.Compile(url, document.Replace("DIGI — 1", "DIGI — 3")) == null,
+                "A different scoring rule was guessed.");
+            DateTime at = new DateTime(2026, 11, 24, 12, 0, 0, DateTimeKind.Utc);
+            var program = new AwardProgram { Title = "Example", Url = url, DownloadedRules = plan,
+                Hamlog = new HamlogStanding { Callsign = "K1ABC", CheckedUtc = at, Required = 45 } };
+            program.Validate();
+            var history = new LogbookHistory("example.adi", new List<LogbookQso> {
+                new LogbookQso { Call = "W2ABC", Station = "K1ABC", Band = "20m", Mode = "FT8", StartedUtc = at }
+            });
+            var progress = new AwardProgress(program, history, "K1ABC", call => null);
+            Check(progress.Points.CandidatePoints("W2ABC", "160m", "FT8", at) == 22.5m
+                && progress.Points.CandidatePoints("RA3RPW", "20m", "FT8", at) == 7m,
+                "The downloaded plan used a hardcoded bonus or club score.");
+            Check(!progress.Needs("W2ABC", "20m", "FT4", at) && progress.Needs("W2ABC", "20m", "FT4", at.AddDays(1))
+                && !progress.Needs("W2ABD", "20m", "FT8", at), "An ineligible call or duplicate digital QSO became a target.");
+        });
+
+        run("Catalog refresh and re-reading conditions preserve an edited rule and keep the new original", () => {
+            string url = "https://hamlog.online/club/nebo/29/";
+            Func<int, HamlogRulePlan> plan = points => new HamlogRulePlan {
+                Kind = "sky-hunter", Required = 95, MemberPoints = points, ExtraPoints = 20, Calls = new[] { "W2ABC" }
+            };
+            var saved = new AppPreferences();
+            var award = new AwardProgram { Title = "Old", Url = url, PublicEntry = true,
+                DownloadedRules = plan(10), EditedRules = plan(11) };
+            award.Validate();
+            saved.Awards.Programs.Add(award);
+            var newEntry = new AwardProgram { Title = "Updated", Url = url, PublicEntry = true };
+            newEntry.Validate();
+            DateTime now = DateTime.UtcNow;
+            saved.Awards.ApplyPublicCatalog(new HamlogCatalogSnapshot(new[] { newEntry }), now);
+            AwardProgram refreshed = saved.Awards.Programs.Single(item => item.Url == url);
+            refreshed.ApplyDocument(new HamlogRuleResult { Status = "downloaded", CheckedUtc = now, Plan = plan(12) });
+            var storage = new AppPreferencesStore(TestWorkspace.Create());
+            storage.Save(saved);
+            AwardProgram loaded = storage.Load().Awards.Programs.Single(item => item.Url == url);
+            Check(loaded.Title == "Updated" && loaded.HasEditedRules && loaded.EffectiveRules.MemberPoints == 11
+                && loaded.DownloadedRules.MemberPoints == 12, "A catalog refresh or restart replaced a manual edit.");
+            using (var editor = new HamlogPlanDialog(loaded))
+            {
+                const System.Reflection.BindingFlags access = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+                var member = (NumericUpDown)typeof(HamlogPlanDialog).GetField("member", access).GetValue(editor);
+                Check(member.Value == 11, "The editor did not display the active manual values.");
+                member.Value = 13;
+                typeof(HamlogPlanDialog).GetMethod("Save", access).Invoke(editor, null);
+                Check(editor.Edited.MemberPoints == 13 && loaded.EditedRules.MemberPoints == 11, "The editor did not return an independent edit.");
+                typeof(HamlogPlanDialog).GetMethod("LoadValues", access).Invoke(editor, new object[] { loaded.DownloadedRules, false });
+                Check(member.Value == 12, "Restore did not display the original values.");
+                typeof(HamlogPlanDialog).GetMethod("Save", access).Invoke(editor, null);
+                loaded.EditedRules = editor.Edited;
+            }
+            Check(loaded.EffectiveRules.MemberPoints == 12 && !loaded.HasEditedRules, "Reverting did not restore the downloaded rules.");
+            saved.Awards.Programs.Single(item => item.Url == url).EditedRules = plan(11);
+            using (var dialog = new AwardsDialog(saved.Awards, LogbookHistory.Empty, "K1ABC", call => null))
+            {
+                typeof(AwardsDialog).GetMethod("ShowPreservedEdits", System.Reflection.BindingFlags.Instance
+                    | System.Reflection.BindingFlags.NonPublic).Invoke(dialog, null);
+                string notice = dialog.Controls.OfType<TextBox>().Single(box => box.Multiline).Text;
+                Check(notice.Contains("Ручные правки сохранены") && notice.Contains("Updated"),
+                    "The update did not list the awards with saved manual edits.");
+            }
         });
 
         run("Award monitoring chooses a station benefiting two programs and counts actual logged contacts", () => {

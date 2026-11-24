@@ -146,7 +146,7 @@ static class RenderScreenshots
             var screens = (Form[])Invoke(form,"OperatorToolsDemoForms");
             string[] names = { "logbook-source-demo.png", "profiles-demo.png", "dxcc-targets-demo.png",
                 "station-reason-demo.png", "session-summary-demo.png", "awards-demo.png", "award-goals-demo.png",
-                "award-points-journal-demo.png", "hamlog-account-demo.png" };
+                "award-points-journal-demo.png", "hamlog-account-demo.png", "hamlog-plan-demo.png" };
             try
             {
                 for (int index = 0; index < screens.Length; index++)

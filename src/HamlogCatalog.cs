@@ -66,7 +66,8 @@ namespace JtdxAutoCq
 
     internal static class HamlogPublicRequest
     {
-        internal static byte[] Read(string address, string accept, int maximumBytes, CancellationToken cancel, string form = null)
+        internal static byte[] Read(string address, string accept, int maximumBytes, CancellationToken cancel,
+            string form = null, int publicRedirects = 0)
         {
             var url = new Uri(address);
             if (!HamlogLinks.IsPublicHost(url)) throw new InvalidDataException("Ожидалась ссылка HAMLOG.");
@@ -94,20 +95,28 @@ namespace JtdxAutoCq
                     using (Stream body = request.GetRequestStream()) body.Write(data, 0, data.Length);
                 }
                 using (var response = (HttpWebResponse)request.GetResponse())
-                using (Stream input = response.GetResponseStream())
-                using (var output = new MemoryStream())
                 {
+                    if ((int)response.StatusCode >= 300 && (int)response.StatusCode < 400 && publicRedirects > 0 && form == null)
+                    {
+                        string target = HamlogLinks.Resolve(response.Headers[HttpResponseHeader.Location], address);
+                        response.Close();
+                        return target == null || target == address ? null : Read(target, accept, maximumBytes, cancel, null, publicRedirects - 1);
+                    }
                     if (response.StatusCode != HttpStatusCode.OK || response.ContentLength > maximumBytes)
                         throw new IOException("HAMLOG не вернул ожидаемый файл.");
-                    var buffer = new byte[8192];
-                    int count;
-                    while ((count = input.Read(buffer, 0, buffer.Length)) != 0)
+                    using (Stream input = response.GetResponseStream())
+                    using (var output = new MemoryStream())
                     {
-                        cancel.ThrowIfCancellationRequested();
-                        if (output.Length + count > maximumBytes) throw new InvalidDataException("Ответ HAMLOG слишком большой.");
-                        output.Write(buffer, 0, count);
+                        var buffer = new byte[8192];
+                        int count;
+                        while ((count = input.Read(buffer, 0, buffer.Length)) != 0)
+                        {
+                            cancel.ThrowIfCancellationRequested();
+                            if (output.Length + count > maximumBytes) throw new InvalidDataException("Ответ HAMLOG слишком большой.");
+                            output.Write(buffer, 0, count);
+                        }
+                        return output.ToArray();
                     }
-                    return output.ToArray();
                 }
             }
             catch (WebException error)
@@ -115,13 +124,18 @@ namespace JtdxAutoCq
                 cancel.ThrowIfCancellationRequested();
                 using (var response = error.Response as HttpWebResponse)
                 {
-                    if (response != null && (int)response.StatusCode == 429)
-                        throw new IOException("HAMLOG временно ограничил запросы. Повторите позже.");
+                    if (response != null && ((int)response.StatusCode == 429 || response.StatusCode == HttpStatusCode.Forbidden))
+                        throw new HamlogRequestLimited();
                     if (response != null && response.StatusCode == HttpStatusCode.NotFound) return null;
                 }
                 throw new IOException("Не удалось получить ответ от HAMLOG.", error);
             }
         }
+    }
+
+    internal sealed class HamlogRequestLimited : IOException
+    {
+        internal HamlogRequestLimited() : base("HAMLOG ограничил запросы. Уже загруженные положения сохранены.") { }
     }
 
     [DataContract]

@@ -58,11 +58,27 @@ namespace JtdxAutoCq
         public bool OtherLevel;
         public string Section, Sponsor, PublishedFromUtc, PublishedUntilUtc;
         public bool PublicEntry, Withdrawn;
+        public string RuleDocumentStatus;
+        public DateTime RulesCheckedUtc;
+        public int RuleCompilerVersion;
+        public HamlogRulePlan DownloadedRules, EditedRules;
         // The result belongs to the local operator's profile, not a catalog export.
         public HamlogStanding Hamlog;
 
-        internal HamlogAward Template { get { return HamlogAward.Find(Url); } }
-        internal bool UsesTemplate { get { return Template != null && (Goals.Count == 0 || Template.HasOnlineRules); } }
+        internal HamlogRulePlan EffectiveRules { get { return EditedRules ?? DownloadedRules; } }
+        internal HamlogAward Template
+        {
+            get { return HamlogAward.Find(Url) ?? (ManualSearch && Goals.Count != 0 ? null : HamlogAward.FromDocument(this)); }
+        }
+        internal bool HasEditedRules { get { return EditedRules != null || ManualSearch && Goals.Count != 0; } }
+        internal bool UsesTemplate
+        {
+            get
+            {
+                HamlogAward template = Template;
+                return template != null && (Goals.Count == 0 || template.HasOnlineRules || template.DocumentPlan != null);
+            }
+        }
         internal bool UsesPointRules { get { return UsesTemplate && Template.HasPointRules; } }
         internal bool UsesOnlineRules { get { return UsesTemplate && Template.HasOnlineRules; } }
         internal bool UsesLocalTargets { get { return Goals.Count != 0 && (String.IsNullOrEmpty(Url) || ManualSearch && Template == null); } }
@@ -119,6 +135,16 @@ namespace JtdxAutoCq
             Withdrawn = source.Withdrawn;
             Section = source.Section; Sponsor = source.Sponsor;
             PublishedFromUtc = source.PublishedFromUtc; PublishedUntilUtc = source.PublishedUntilUtc;
+        }
+
+        internal void ApplyDocument(HamlogRuleResult result)
+        {
+            if (result.Status != "retry" || RulesCheckedUtc == DateTime.MinValue)
+                RuleDocumentStatus = result.Status;
+            if (result.Status == "retry") return;
+            DownloadedRules = result.Plan;
+            RulesCheckedUtc = result.CheckedUtc;
+            RuleCompilerVersion = HamlogPlanCompiler.Version;
         }
     }
 
@@ -193,6 +219,14 @@ namespace JtdxAutoCq
                     row.Id = old.Id;
                     if (old.HasIssued == true || !row.HasIssued.HasValue) row.HasIssued = old.HasIssued;
                     if (row.CatalogKey == old.CatalogKey) row.Hamlog = old.Hamlog;
+                    if (row.CatalogKey == old.CatalogKey)
+                    {
+                        row.DownloadedRules = old.DownloadedRules;
+                        row.EditedRules = old.EditedRules;
+                        row.RuleDocumentStatus = old.RuleDocumentStatus;
+                        row.RulesCheckedUtc = old.RulesCheckedUtc;
+                        row.RuleCompilerVersion = old.RuleCompilerVersion;
+                    }
                     row.SetPublication(old);
                     if (old.PublicEntry) row.Title = old.Title;
                     if (row.Goals.Count == 0)
@@ -232,7 +266,8 @@ namespace JtdxAutoCq
                 {
                     row.SetPublication(publication);
                     row.Url = publication.Url;
-                    row.Title = row.Template == null ? publication.Title : row.Template.Title;
+                    HamlogAward builtIn = HamlogAward.Find(publication.Url);
+                    row.Title = builtIn == null ? publication.Title : builtIn.Title;
                 }
             }
             Programs = programs;
@@ -301,7 +336,7 @@ namespace JtdxAutoCq
             var known = new Dictionary<string, AwardProgram>(StringComparer.Ordinal);
             foreach (AwardProgram row in Programs)
             {
-                if (!row.UsesOnlineRules) { result.Add(row); continue; }
+                if (!row.UsesOnlineRules || HamlogAward.Find(row.Url) == null) { result.Add(row); continue; }
                 HamlogAward award = row.Template;
                 AwardProgram prior;
                 if (known.TryGetValue(award.Url, out prior))

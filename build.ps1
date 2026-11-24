@@ -34,7 +34,9 @@ $versionSource += [Environment]::NewLine + '[assembly: System.Reflection.Assembl
 [IO.File]::WriteAllText($patchVersion,$versionSource,(New-Object Text.UTF8Encoding($false)))
 & $compiler /nologo /target:exe /platform:x64 /main:JtdxAutoCq.PatchProgram /optimize+ /codepage:65001 "/out:$patcher" "/resource:$stub,queue-reply.bin" /r:System.Core.dll (Join-Path $source 'JtdxPatcher.cs') (Join-Path $source 'AppBrand.cs') $patchVersion
 if ($LASTEXITCODE -ne 0) { throw 'Built-in JTDX patcher compilation failed.' }
-$resources = @("/resource:$icon,AutoCQ.ico", "/resource:$stub,queue-reply.bin", "/resource:$helper,Update-AutoCQ.ps1", "/resource:$patcher,JTDX-AutoCQ-Patch.exe", "/resource:$logReader,LogHxReader.exe")
+$pdfReader = & (Join-Path $PSScriptRoot 'tools/Build-PdfRulesReader.ps1') -Directory $build -Compiler $compiler
+$resources = @("/resource:$icon,AutoCQ.ico", "/resource:$stub,queue-reply.bin", "/resource:$helper,Update-AutoCQ.ps1", "/resource:$patcher,JTDX-AutoCQ-Patch.exe", "/resource:$logReader,LogHxReader.exe",
+    "/resource:$pdfReader,PdfRulesReader.zip")
 
 & $compiler /nologo /target:winexe /main:JtdxAutoCq.Program /optimize+ /codepage:65001 "/out:$program" "/win32icon:$icon" @resources @references @files
 if ($LASTEXITCODE -ne 0) { throw 'AutoCQ compilation failed.' }

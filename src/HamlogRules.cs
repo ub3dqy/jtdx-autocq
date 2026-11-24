@@ -12,7 +12,7 @@ namespace JtdxAutoCq
         internal readonly string Source, Text;
         internal readonly byte[] Pdf;
 
-        HamlogRules(string source, string text, byte[] pdf)
+        internal HamlogRules(string source, string text, byte[] pdf)
         { Source = source; Text = text; Pdf = pdf; }
 
         static readonly Regex Links = Pattern(@"<a\b[^>]*\bhref\s*=\s*([""'])(.*?)\1[^>]*>(.*?)</a>");
@@ -34,7 +34,7 @@ namespace JtdxAutoCq
                 HamlogRules rules = ReadDocument(known, cancel);
                 if (rules != null) return rules;
             }
-            byte[] page = HamlogPublicRequest.Read(url, "text/html", 3 * 1024 * 1024, cancel);
+            byte[] page = HamlogPublicRequest.Read(url, "text/html", 3 * 1024 * 1024, cancel, publicRedirects: 3);
             string advertised = page == null ? null : FindPublishedLink(Encoding.UTF8.GetString(page), url);
             if (advertised != null && advertised != known)
             {
@@ -47,7 +47,7 @@ namespace JtdxAutoCq
         static HamlogRules ReadDocument(string address, CancellationToken cancel)
         {
             byte[] data = HamlogPublicRequest.Read(address, "application/pdf, text/html;q=0.9, text/plain;q=0.7",
-                24 * 1024 * 1024, cancel);
+                24 * 1024 * 1024, cancel, publicRedirects: 3);
             return data == null ? null : ParseDocument(address, data);
         }
 
@@ -71,7 +71,7 @@ namespace JtdxAutoCq
                 if (target == null || target == award) continue;
                 string title = PlainText(link.Groups[3].Value);
                 if (Regex.IsMatch(new Uri(target).AbsolutePath, @"/rules(?:\.pdf|/)?\z", RegexOptions.IgnoreCase)
-                    || Regex.IsMatch(title, @"\b(?:rules|regulations|условия|положение)\b", RegexOptions.IgnoreCase))
+                    || Regex.IsMatch(title, @"\b(?:rules|regulations|award criteria|условия|положение)\b", RegexOptions.IgnoreCase))
                     return target;
             }
             return null;

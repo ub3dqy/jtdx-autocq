@@ -1,10 +1,10 @@
-# AutoCQ 0.9.26
+# AutoCQ 0.9.27
 
 ## Русский
 
-- Дипломы можно искать по названию или организатору и отбирать по разделу и состоянию. Дипломы со встроенными правилами теперь в общем списке. Выберите «Доступны для поиска», чтобы быстро их найти. Дополнительное меню, которое могло вызывать ошибку ContextMenuStrip, убрано.
-- У выполненных, выданных и просроченных дипломов в столбце выбора стоит прочерк. AutoCQ исключает их из поиска, в том числе когда срок истекает прямо во время сеанса.
-- «Из файла» открывает подготовленный список дипломов или целей в формате JSON. Общий каталог загружается кнопкой «Загрузить каталог».
+- Обновление каталога загружает опубликованные положения. По распознанным условиям AutoCQ сам готовит правила поиска. Поддерживается серия «Рыцари неба», в том числе «Небесные ангелы», «Начальник АлСиба» и «Рекорд Гиннеса».
+- Двойной щелчок по диплому открывает правила поиска. Их можно поправить, сохранить или вернуть исходные значения. При обновлении каталога модуль перечисляет дипломы, в которых сохранил ручные правки.
+- Внизу окна три кнопки. Отметки сохраняются при закрытии, а поиск запускается командой «Журнал и дипломы → Мониторинг дипломов».
 
 **Как обновиться.** Откройте **«Обновления»**, скачайте выпуск и закройте JTDX перед установкой. Затем нажмите **«Обновить и перезапустить»**. При работе с LogHX запускайте JTDX значком в журнале.
 
@@ -12,9 +12,9 @@
 
 ## English
 
-- Search for awards by title or organizer and filter by section and status. Awards with built-in rules are now in the main list. Choose Available for search to find them. The separate menu that could cause a ContextMenuStrip error has been removed.
-- Completed, issued and expired awards show a dash in the search column. AutoCQ excludes them when choosing targets, including when a deadline passes during a session.
-- From file opens a prepared JSON list of awards or targets. Load catalog downloads the public catalog.
+- Updating the catalog downloads published conditions. AutoCQ prepares search rules from documents it recognizes, including Heavenly Angels, Head of AlSib and Guinness Record from the Knights of the Sky club.
+- Double-click an award to view its search rules, save your edits, or restore the original values. Updating the catalog retains manual edits and lists the affected awards.
+- The awards window has three main buttons. Closing it saves your selection. Start the search from Logbook and awards → Award monitoring.
 
 **Updating.** Open **«Обновления»** (Updates), download the release, and close JTDX before installation. Click **«Обновить и перезапустить»** (Update and restart). If you use LogHX, launch JTDX from its icon.
 

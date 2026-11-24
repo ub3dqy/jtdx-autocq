@@ -18,9 +18,10 @@ static class TestPackage
             if(!File.Exists(Path.Combine(directory,"docs/bug-report-demo.png")))throw new Exception("Missing bug report screenshot.");
             foreach (string file in new[] { "frequency-stop-demo.png", "signoff-retry-demo.png", "logbook-source-demo.png", "profiles-demo.png", "dxcc-targets-demo.png",
                 "station-reason-demo.png", "session-summary-demo.png", "awards-demo.png", "award-goals-demo.png",
-                "hamlog-account-demo.png", "award-catalog.md" })
+                "hamlog-account-demo.png", "hamlog-plan-demo.png", "award-catalog.md", "pdfpig-license.md", "dotnet-license.md" })
                 if (!File.Exists(Path.Combine(directory, "docs", file))) throw new Exception("Missing " + file);
             if (JtdxPatcher.Resource("LogHxReader.exe").Length == 0) throw new Exception("Missing embedded LogHX reader.");
+            if (JtdxPatcher.Resource("PdfRulesReader.zip").Length == 0) throw new Exception("Missing embedded PDF rules reader.");
             foreach(string name in new[]{"JTDX-AutoCQ-Patch.exe","Update-AutoCQ.ps1","USER-GUIDE.md","USER-GUIDE.en.md","README.md","README.en.md","CONTRIBUTING.md",
                 "docs/user-guide.ru.html","docs/user-guide.en.html","docs/guide.css","docs/autocq-demo.png","docs/setup-demo.png","docs/updates-demo.png","docs/monitor-demo.png","docs/monitor-timeouts-demo.png","docs/monitor-manual-demo.png","docs/monitor-callers-demo.png","docs/about-demo.png","docs/updates-download-demo.png"})
                 if(!File.Exists(Path.Combine(directory,name)))throw new Exception("The release is missing "+name);

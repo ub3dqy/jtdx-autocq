@@ -26,7 +26,7 @@ namespace JtdxAutoCq
         public string[] ConfirmedSquares = new string[0];
     }
 
-    internal enum HamlogRule { Legacy, Grid, Stations, Bands, Tula, Tatarstan, Bryansk, Vysotsky, Marathon, Arck35 }
+    internal enum HamlogRule { Legacy, Grid, Stations, Bands, Tula, Tatarstan, Bryansk, Vysotsky, Marathon, Arck35, SkyHunter, EventStation }
 
     internal sealed class HamlogAward
     {
@@ -66,11 +66,12 @@ namespace JtdxAutoCq
         internal readonly HamlogRule Rule;
         internal readonly string Station;
         internal readonly string[] Bands;
-        internal bool HasPointRules { get { return this == Murom; } }
-        internal bool HasOnlineRules { get { return Rule != HamlogRule.Legacy; } }
+        internal readonly HamlogRulePlan DocumentPlan;
+        internal bool HasPointRules { get { return this == Murom || Rule == HamlogRule.SkyHunter; } }
+        internal bool HasOnlineRules { get { return Rule != HamlogRule.Legacy && Rule != HamlogRule.SkyHunter; } }
 
         HamlogAward(string title, string path, string from, string until, int required, HamlogRule rule = HamlogRule.Legacy,
-            string station = "", string[] bands = null)
+            string station = "", string[] bands = null, HamlogRulePlan plan = null)
         {
             Title = title;
             Url = "https://hamlog.online/" + path;
@@ -80,6 +81,7 @@ namespace JtdxAutoCq
             Rule = rule;
             Station = station;
             Bands = bands ?? new string[0];
+            DocumentPlan = plan;
         }
 
         static HamlogAward Vk5Esm(string level, string id, string bands)
@@ -93,6 +95,14 @@ namespace JtdxAutoCq
         {
             if (String.IsNullOrEmpty(url)) return null;
             return Templates.FirstOrDefault(award => award.Url == url || award.HasOnlineRules && award.Url + "rules/" == url);
+        }
+
+        internal static HamlogAward FromDocument(AwardProgram program)
+        {
+            HamlogRulePlan plan = program.EffectiveRules;
+            if (plan == null || String.IsNullOrEmpty(program.Url)) return null;
+            return new HamlogAward(program.Title, new Uri(program.Url).AbsolutePath.TrimStart('/'), plan.FromUtc, plan.UntilUtc, plan.Required,
+                plan.Club ? HamlogRule.SkyHunter : HamlogRule.EventStation, plan.Club ? "" : plan.Calls[0], plan: plan);
         }
 
         internal AwardProgram Create()
@@ -260,11 +270,15 @@ namespace JtdxAutoCq
         static readonly Regex Digital = new Regex(@"^(?:DIGI(?:TAL)?|FT[48]|JT\w+|Q65|FST4\w*|MSK144|JS8|RTTY\w*|PSK\w*|MFSK\w*|OLIVIA|CONTESTI|VARA\w*|HELL\w*|SSTV|THOR\w*|DOMINO\w*|ROS|PACKET|PKT|AMTOR\w*|MT63|FSK\w*|WSPR)$",
             RegexOptions.CultureInvariant);
         static readonly HashSet<string> IneligibleBands = new HashSet<string> { "2190m", "630m", "560m" };
+        static readonly HashSet<string> SkyHf = new HashSet<string>("160m 80m 60m 40m 30m 20m 17m 15m 12m 10m".Split(' '));
+        static readonly HashSet<string> SkyVhf = new HashSet<string> { "6m", "4m", "2m" };
         readonly DateTime? from, until;
         readonly HashSet<string> recorded = new HashSet<string>(StringComparer.Ordinal);
         readonly List<HamlogCredit> pending = new List<HamlogCredit>();
         readonly string own;
         readonly bool logbookAvailable;
+        readonly HamlogRulePlan plan;
+        readonly HashSet<string> bonus;
 
         internal readonly HamlogStanding Standing;
         internal readonly int Required;
@@ -283,6 +297,8 @@ namespace JtdxAutoCq
             this.own = Callsign.Clean(own);
             logbookAvailable = history.Path != null;
             var template = program.Template;
+            plan = template.DocumentPlan;
+            bonus = plan == null ? Bonus : new HashSet<string>(plan.Calls, StringComparer.Ordinal);
             Required = template.Required;
             from = program.From;
             until = program.Until;
@@ -335,14 +351,17 @@ namespace JtdxAutoCq
         static string ContactKey(string call, string band, string mode, DateTime time)
         { return call + "|" + time.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "|" + band + "|" + ModeGroup(mode); }
 
-        static decimal Credit(string call, string band, string mode)
+        decimal Credit(string call, string band, string mode)
         {
             string group = ModeGroup(mode);
             if (String.IsNullOrEmpty(band) || IneligibleBands.Contains(band) || !JtdxAdif.BandNames.Contains(band)
-                || (group != "DIGI" && group != "SSB" && group != "CW")) return 0;
-            bool special = Bonus.Contains(call);
+                || (group != "DIGI" && group != "SSB" && group != "CW")
+                || plan != null && !SkyHf.Contains(band) && (plan.HfOnly || !SkyVhf.Contains(band))) return 0;
+            bool special = bonus.Contains(call);
             if (!special && !Membership.ContainsKey(call)) return 0;
-            return (special ? 10 : 6) * (group == "CW" ? 2m : group == "SSB" ? 1.5m : 1m) * (band == "160m" ? 1.5m : 1m);
+            int points = plan == null ? special ? 10 : 6 : special ? plan.ExtraPoints : plan.MemberPoints;
+            bool bandBonus = band == "160m" || plan != null && plan.VhfBonus && SkyVhf.Contains(band);
+            return points * (group == "CW" ? 2m : group == "SSB" ? 1.5m : 1m) * (bandBonus ? 1.5m : 1m);
         }
 
         internal decimal CandidatePoints(string call, string band, string mode, DateTime time)
@@ -352,7 +371,7 @@ namespace JtdxAutoCq
         }
 
         internal bool Available(string band, string mode, DateTime time)
-        { return CanSearch && Within(time) && Membership.Keys.Concat(Bonus).Any(call => CandidatePoints(call, band, mode, time) > 0); }
+        { return CanSearch && Within(time) && Membership.Keys.Concat(bonus).Any(call => CandidatePoints(call, band, mode, time) > 0); }
 
         internal void Record(string call, string band, string mode, DateTime time)
         {

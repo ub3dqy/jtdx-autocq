@@ -17,7 +17,7 @@ You could let it work for an hour, answering callers and looking for another sta
 - **Keep a queue.** Remember callers while you are busy. Manually added callsigns are called directly after the current contact and available incoming callers.
 - **Make a manual call while monitoring.** Choose an interesting station outside the target list. After that contact, AutoCQ resumes monitoring with the same settings and time remaining.
 - **Watch for wanted stations.** Match DXCC entities, callsigns and patterns against fresh CQ, 73, RRR or RR73. Return to receive after the contact or attempt limit.
-- **Work with the HAMLOG award catalog.** Load the catalog, search by title or sponsor, and filter by section and status. AutoCQ checks HAMLOG credit for awards with built-in rules and looks for the contacts you still need.
+- **Work with HAMLOG awards.** Download the catalog and published conditions. AutoCQ prepares rules from the documents it recognizes, checks your HAMLOG credit, and looks for the contacts you still need.
 - **Answer incoming calls in every mode.** A station calling you takes priority over the next CQ or outgoing call. Fresh calls from stations you have already worked can join the queue. AutoCQ skips stations on your DXCC exclusion list.
 - **Update from the application.** Notify you about new releases and show download percentage, transferred size, speed and estimated time remaining. Install when you choose.
 - **Show monitoring retry pauses.** List unanswered stations with a countdown to their next eligible attempt. Stopping monitoring clears the list.
@@ -67,7 +67,7 @@ Spotted an interesting station outside your targets? While monitoring is listeni
 
 Open **«Журнал и дипломы»** (Logbook and awards) to select your LogHX logbook or an ADIF export from another program. AutoCQ uses that history, including voice and contacts made through other software. In **«Подбор целей DXCC»** (Find DXCC targets), select a band and tick the entities that you still need on that band.
 
-In **«Дипломы HAMLOG»** (HAMLOG awards), click **«Загрузить каталог»** (Load catalog). Use **«Из кабинета»** (From my account) to bring in your issued-award records. Choose **«Состояние → Доступны для поиска»** (Status → Available for search), tick the awards you want, and click **«Начать поиск»** (Start search). Completed and expired awards show a dash in the search column. Open **«Положение»** (Award rules) to read the published requirements. [How to load awards and start a search](USER-GUIDE.en.md#search-for-hamlog-award-contacts)
+In **«Дипломы HAMLOG»** (HAMLOG awards), click **«Обновить каталог»** (Update catalog). AutoCQ downloads published conditions and prepares rules when it recognizes them. Tick the awards you want, close the window, and choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring). Double-click an award to view or edit its search rules. [How to prepare awards and start monitoring](USER-GUIDE.en.md#search-for-hamlog-award-contacts)
 
 ![Award filters and availability for monitoring](docs/awards-demo.png)
 
@@ -126,6 +126,8 @@ A free GitHub account is required to post in Issues or Discussions. If you post 
 SHA-256 of the extracted `jtdx-2.2.160-32A-rc10-win64.exe` installer:
 `67276B42561E3D1722BACABBA39B8B467C21BDFB73E4EEBFD832AB6152122574`.
 Each AutoCQ release includes its archive checksum in `SHA256SUMS.txt`; the built-in updater verifies it automatically.
+
+The award document reader uses PdfPig and .NET libraries. [PdfPig license](docs/pdfpig-license.md) · [.NET license](docs/dotnet-license.md)
 
 ## For developers
 

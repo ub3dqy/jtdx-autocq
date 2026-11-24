@@ -1,6 +1,6 @@
 # Award catalog import
 
-AutoCQ reads a UTF-8 JSON file through **«Журнал и дипломы → Дипломы HAMLOG → Из файла…»**. Use **«Загрузить каталог»** (Load catalog) to bring in the public catalog from HAMLOG. **«Из кабинета…»** (From my account) reads a saved HAMLOG awards page and also accepts a matching AutoCQ JSON export if available. The saved HTML supplies positive issuance records for the selected callsign. For a standalone search list, leave `url` blank and include your own targets in `goals`.
+AutoCQ reads a UTF-8 JSON file through **«Импортировать список из файла…»** (Import list from file) in the award table's right-click menu. **«Обновить каталог»** (Update catalog) loads the public HAMLOG catalog and its published conditions. **«Выполненные из кабинета…»** reads a saved HAMLOG awards page or a matching AutoCQ JSON export. The saved HTML supplies confirmed issuance records for the selected callsign. For a standalone search list, leave `url` blank and include your own targets in `goals`.
 
 ```json
 {
