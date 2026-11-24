@@ -17,7 +17,7 @@ You could let it work for an hour, answering callers and looking for another sta
 - **Keep a queue.** Remember callers while you are busy. Manually added callsigns are called directly after the current contact and available incoming callers.
 - **Make a manual call while monitoring.** Choose an interesting station outside the target list. After that contact, AutoCQ resumes monitoring with the same settings and time remaining.
 - **Watch for wanted stations.** Match DXCC entities, callsigns and patterns against fresh CQ, 73, RRR or RR73. Return to receive after the contact or attempt limit.
-- **Work with HAMLOG awards.** Download the catalog and published conditions. AutoCQ prepares rules from the documents it recognizes, checks your HAMLOG credit, and looks for the contacts you still need.
+- **Work with HAMLOG awards.** AutoCQ downloads the catalog and rules, checks your credit, and looks for the contacts you still need for an award, including its next open tier.
 - **Answer incoming calls in every mode.** A station calling you takes priority over the next CQ or outgoing call. Fresh calls from stations you have already worked can join the queue. AutoCQ skips stations on your DXCC exclusion list.
 - **Update from the application.** Notify you about new releases and show download percentage, transferred size, speed and estimated time remaining. Install when you choose.
 - **Show monitoring retry pauses.** List unanswered stations with a countdown to their next eligible attempt. Stopping monitoring clears the list.
@@ -69,9 +69,11 @@ Open **«Журнал и дипломы»** (Logbook and awards) to select your 
 
 In **«Дипломы HAMLOG»** (HAMLOG awards), click **«Обновить каталог»** (Update catalog). If **«Разобрать скачанное»** (Process downloaded rules) appears after an AutoCQ update, click it to process your saved documents first. Filter for awards available for search, tick the awards you want, close the window, and choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring). Double-click an award to see its conditions. Supported RCPW awards show the rates for contacts during and after the activity period. [How to prepare awards and start monitoring](USER-GUIDE.en.md#search-for-hamlog-award-contacts)
 
+Select a reviewed award whose search is unavailable to see the reason below the list. For example, a river award needs the reference of the river the station is activating.
+
 After an interruption, **«Продолжить загрузку»** (Resume download) uses documents already downloaded. The AutoCQ log shows the reason for the interruption.
 
-![Award catalog filters and the resume download button](docs/awards-demo.png)
+![Award catalog filters and an explanation for the selected award](docs/awards-demo.png)
 
 The same menu lets you save settings under a name and check **«Итоги сеанса»** (Session results). The results show final confirmations and which records were found in your main logbook. If a callsign remains in the left list, select it and click **«Почему пропущена?»** (Why was this station skipped?).
 

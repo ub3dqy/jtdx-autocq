@@ -87,9 +87,9 @@ namespace JtdxAutoCq
             if (generalCall && !visible) return;
 
             string recipient = Callsign.Clean(words[0]);
-            string ownBase = BaseCall(own);
-            string recipientBase = BaseCall(recipient);
-            bool thirdParty = recipientBase != ownBase && BaseCall(call) != ownBase && recipient != call
+            string ownBase = Callsign.BaseCall(own);
+            string recipientBase = Callsign.BaseCall(recipient);
+            bool thirdParty = recipientBase != ownBase && Callsign.BaseCall(call) != ownBase && recipient != call
                 && (words[0] == "<...>" || Callsign.Parse(recipient) != null);
             string signoff = !generalCall && thirdParty && words.Length == 3
                 && (words[2] == "73" || words[2] == "RRR" || words[2] == "RR73") ? words[2] : null;
@@ -137,14 +137,6 @@ namespace JtdxAutoCq
         }
 
         static readonly char[] DecodeAnnotations = { '^', '*', '?', 'a' };
-
-        // JTDX compares the longest part of a portable callsign with its own base call.
-        static string BaseCall(string call)
-        {
-            int slash = call.IndexOf('/');
-            if (slash < 0) return call;
-            return call.Length - slash >= slash ? call.Substring(slash + 1) : call.Substring(0, slash);
-        }
 
         static string[] MessageWords(DecodedMessage decode)
         {

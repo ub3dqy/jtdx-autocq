@@ -153,7 +153,8 @@ static class RenderScreenshots
                 try
                 {
                     for (int index = 0; index < screens.Length; index++)
-                        Save(screens[index], Path.Combine(directory, names[index]), showOffscreen: names[index] == "awards-demo.png");
+                        Save(screens[index], Path.Combine(directory, names[index]),
+                            showOffscreen: names[index] == "awards-demo.png" || names[index] == "hamlog-plan-demo.png");
                 }
                 finally { foreach (Form screen in screens) screen.Dispose(); }
             }

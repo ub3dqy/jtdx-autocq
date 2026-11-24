@@ -11,21 +11,30 @@ namespace JtdxAutoCq
     {
         public string Kind, FromUtc, UntilUtc, BonusUntilUtc;
         public int Required, MemberPoints, ExtraPoints, AlternativeRequired;
-        public bool HfOnly, VhfBonus;
+        public bool HfOnly, VhfBonus, NoMultipliers;
         public string[] Calls = new string[0];
         public HamlogBonusGroup[] BonusGroups = new HamlogBonusGroup[0];
+        public HamlogContactCriteria Contacts;
         internal bool Club { get { return Kind == "sky-hunter"; } }
         internal bool Rcpw { get { return Kind == "rcpw-hunter"; } }
-        internal bool Points { get { return Club || Rcpw; } }
-        internal bool Requires(int value) { return value == Required || Rcpw && value == AlternativeRequired; }
+        internal bool ContactAward { get { return Kind == "contact-points" && Contacts != null; } }
+        internal bool UsesRcpwRoster { get { return Rcpw || ContactAward && Contacts.Roster == "rcpw"; } }
+        internal bool Points { get { return Club || Rcpw || ContactAward; } }
+        internal bool MultiLevel { get { return ContactAward && Contacts.Levels != null && Contacts.Levels.Length > 1; } }
+        internal bool Requires(int value)
+        {
+            return value == Required || (Rcpw || ContactAward) && AlternativeRequired > 0 && value == AlternativeRequired
+                || ContactAward && Contacts.Levels != null && Contacts.Levels.Contains(value);
+        }
 
         internal bool SameAs(HamlogRulePlan other)
         {
             if (other == null || Kind != other.Kind || Required != other.Required || MemberPoints != other.MemberPoints
                 || ExtraPoints != other.ExtraPoints || AlternativeRequired != other.AlternativeRequired
-                || HfOnly != other.HfOnly || VhfBonus != other.VhfBonus || (FromUtc ?? "") != (other.FromUtc ?? "")
+                || HfOnly != other.HfOnly || VhfBonus != other.VhfBonus || NoMultipliers != other.NoMultipliers
+                || (FromUtc ?? "") != (other.FromUtc ?? "")
                 || (UntilUtc ?? "") != (other.UntilUtc ?? "") || (BonusUntilUtc ?? "") != (other.BonusUntilUtc ?? "")
-                || !Calls.SequenceEqual(other.Calls)) return false;
+                || !Calls.SequenceEqual(other.Calls) || (Contacts == null ? other.Contacts != null : !Contacts.SameAs(other.Contacts))) return false;
             var groups = other.BonusGroups ?? new HamlogBonusGroup[0];
             return BonusGroups.Length == groups.Length && BonusGroups.Zip(groups, (a, b) =>
                 a.Area == b.Area && a.Points == b.Points && a.Targets.SequenceEqual(b.Targets)).All(equal => equal);
@@ -35,22 +44,33 @@ namespace JtdxAutoCq
         {
             if (!Points && Kind != "single-station")
                 throw new InvalidDataException("Неизвестный способ зачёта диплома.");
-            if (Calls == null || (!Rcpw && Calls.Length < 1) || Calls.Length > 80 || Rcpw && Calls.Length != 0)
+            if (Calls == null || Calls.Length > 80 || Rcpw && Calls.Length != 0
+                || Calls.Length == 0 && !Rcpw && !Club && !ContactAward)
                 throw new InvalidDataException("Укажите позывные станций.");
             Calls = Calls.Select(Callsign.Parse).Distinct(StringComparer.Ordinal).ToArray();
             if (Calls.Any(call => call == null))
                 throw new InvalidDataException("Проверьте позывные в списке.");
             if (Points ? Required < 1 || Required > 10000 || MemberPoints < 1 || MemberPoints > 1000
-                || ExtraPoints < 1 || ExtraPoints > 1000 || HfOnly && VhfBonus : Required != 1 || Calls.Length != 1)
+                || ExtraPoints < 1 || ExtraPoints > 1000 || (HfOnly || NoMultipliers) && VhfBonus
+                : Required != 1 || Calls.Length != 1)
                 throw new InvalidDataException("Проверьте число очков или позывных в условиях диплома.");
             BonusGroups = BonusGroups ?? new HamlogBonusGroup[0];
-            if (BonusGroups.Length > 12 || !Club && BonusGroups.Length != 0)
+            if (BonusGroups.Length > 12 || !Club && !ContactAward && BonusGroups.Length != 0)
                 throw new InvalidDataException("Проверьте дополнительные группы станций.");
+            if (Club && Calls.Length == 0 && BonusGroups.Length == 0)
+                throw new InvalidDataException("Укажите бонусный позывной или территорию.");
+            if (ContactAward)
+            {
+                if (AlternativeRequired < 0 || AlternativeRequired > Required || MultiLevel && AlternativeRequired != 0)
+                    throw new InvalidDataException("Проверьте дополнительный порог зачёта.");
+                Contacts.Validate(Required, Calls, BonusGroups.Length != 0);
+            }
             var named = new HashSet<string>(Calls, StringComparer.Ordinal);
             var areas = new HashSet<string>(StringComparer.Ordinal);
             foreach (HamlogBonusGroup group in BonusGroups)
             {
                 if (group == null || group.Points < 1 || group.Points > 1000 || group.Targets == null || group.Targets.Length == 0
+                    || ContactAward && !group.Area
                     || (group.Area ? group.Targets.Any(area => !HamlogAwardAreas.Known(area) || !areas.Add(area))
                         : group.Targets.Any(call => String.IsNullOrEmpty(call) || Callsign.Parse(call) != call || !named.Add(call))))
                     throw new InvalidDataException("Проверьте очки, позывные и районы в дополнительных группах.");
@@ -80,9 +100,54 @@ namespace JtdxAutoCq
         public string[] Targets = new string[0];
     }
 
+    public sealed class HamlogContactCriteria
+    {
+        internal const string BandMode = "band-mode", DayBandMode = "day-band-mode", EveryQso = "every-qso",
+            Call = "call", Band = "band", Day = "day";
+        public string Repeat, BonusFromUtc, BonusUntilUtc, Roster;
+        public bool GroupModes, PortableAliases, AcceptObserverCredit;
+        public string[] Countries = new string[0];
+        public string[] Bands = new string[0];
+        public string[] Modes = new string[0];
+        public int[] Levels = new int[0];
+
+        internal void Validate(int required, string[] calls, bool areaGroups)
+        {
+            if (Repeat != BandMode && Repeat != DayBandMode && Repeat != EveryQso && Repeat != Call && Repeat != Band && Repeat != Day)
+                throw new InvalidDataException("Проверьте условия повторных связей.");
+            Countries = (Countries ?? new string[0]).Distinct(StringComparer.Ordinal).ToArray();
+            Bands = (Bands ?? new string[0]).Distinct(StringComparer.Ordinal).ToArray();
+            Modes = (Modes ?? new string[0]).Distinct(StringComparer.Ordinal).ToArray();
+            Levels = (Levels ?? new int[0]).Distinct().OrderBy(level => level).ToArray();
+            if (Countries.Any(country => !Regex.IsMatch(country ?? "", @"\A[A-Z0-9]{1,8}\z"))
+                || Bands.Any(band => !JtdxAdif.BandNames.Contains(band))
+                || Modes.Any(mode => mode != "DIGI" && mode != "SSB" && mode != "CW")
+                || Countries.Length == 0 && calls.Length == 0 && String.IsNullOrEmpty(Roster) && !areaGroups
+                || !String.IsNullOrEmpty(Roster) && Roster != "arck" && Roster != "arck-dx" && Roster != "rcpw"
+                || PortableAliases && (calls.Length == 0 || calls.Any(call => call.Contains("/")))
+                || Levels.Length != 0 && (Levels.First() < 1 || Levels.Last() != required))
+                throw new InvalidDataException("Проверьте территории, диапазоны и степени диплома.");
+            DateTime? from = AwardCatalog.ReadTime(BonusFromUtc), until = AwardCatalog.ReadTime(BonusUntilUtc);
+            if (from.HasValue != until.HasValue || from.HasValue && from >= until)
+                throw new InvalidDataException("Проверьте начало и окончание периода для специальных позывных.");
+        }
+
+        internal bool SameAs(HamlogContactCriteria other)
+        {
+            return other != null && Repeat == other.Repeat && GroupModes == other.GroupModes && PortableAliases == other.PortableAliases
+                && AcceptObserverCredit == other.AcceptObserverCredit
+                && (Roster ?? "") == (other.Roster ?? "")
+                && (BonusFromUtc ?? "") == (other.BonusFromUtc ?? "") && (BonusUntilUtc ?? "") == (other.BonusUntilUtc ?? "")
+                && Countries.SequenceEqual(other.Countries) && Bands.SequenceEqual(other.Bands)
+                && Modes.SequenceEqual(other.Modes) && Levels.SequenceEqual(other.Levels);
+        }
+
+        internal string NamedCall(string call) { return PortableAliases ? Callsign.BaseCall(call) : call; }
+    }
+
     internal static class HamlogPlanCompiler
     {
-        internal const int Version = 2;
+        internal const int Version = 3;
         const string Day = @"\d{1,2} [а-яё]+ \d{4}";
         const string Points = @"\s*(?:[-–—]\s*)?(?<count>\d{1,4})\s*оч(?:ков|ка|ко)\.?";
         static readonly Regex Sky = Pattern(
@@ -168,10 +233,23 @@ namespace JtdxAutoCq
 
         internal static HamlogRulePlan Compile(string url, string text)
         {
+            string note;
+            return CompileWithReview(url, text, out note);
+        }
+
+        internal static HamlogRulePlan CompileWithReview(string url, string text, out string note)
+        {
+            note = null;
             if (String.IsNullOrWhiteSpace(text)) return null;
             string cleaned = text.Replace("\u00ad", "").Replace("\u0002", "").Replace('ĸ', 'к');
             cleaned = Regex.Replace(cleaned, @"(?<=[а-яё])-\r?\n[ \t]*(?=[а-яё])", "", RegexOptions.IgnoreCase);
             string normalized = Regex.Replace(cleaned, @"\s+", " ");
+            HamlogReviewedEntry reviewed = HamlogReviewedPlans.Find(url, normalized);
+            if (reviewed != null)
+            {
+                note = reviewed.Note;
+                return reviewed.Plan;
+            }
             HamlogRulePlan rule = null;
             if (url.StartsWith(HamlogLinks.Origin + "club/nebo/", StringComparison.Ordinal)
                 || url.StartsWith(HamlogLinks.Origin + "club/nebo-agpa/", StringComparison.Ordinal)

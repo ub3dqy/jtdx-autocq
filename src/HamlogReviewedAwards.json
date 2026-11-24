@@ -1,0 +1,2002 @@
+[
+  {
+    "Url": "https://hamlog.online/club/nebo/d8d510138cd9b80870cd3a3ac826b9bc/",
+    "Title": "Buran's brother",
+    "TextSha256": "8fce9d691145afc1cda13611a02f8cadee13eb0be8ddd94a339bd6fb42cf7c0a",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2025-11-01",
+      "UntilUtc": "",
+      "Required": 40,
+      "MemberPoints": 3,
+      "ExtraPoints": 6,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR",
+        "UA9CES",
+        "LZ06RN",
+        "R2AKN",
+        "R4CQ",
+        "RA6F",
+        "LZ1ZF",
+        "AC1ZF"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/d5b5e9ed966090f82f446da65b8e7c70/",
+    "Title": "Our 'Chaika' is 88",
+    "TextSha256": "bb06e3280dbfd20d391938796f1fe02d91f78ef388a46cd37a59e5805dd9f809",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2025-03-02",
+      "UntilUtc": "",
+      "Required": 88,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": false,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR",
+        "UA9CES",
+        "RA3RPW",
+        "R2AKN",
+        "R4CQ",
+        "RA6F",
+        "LZ1ZF",
+        "AC1ZF",
+        "LZ06RN",
+        "LZ80ZZ"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/f9ca1cfdb5860c84157792d61f6308d9/",
+    "Title": "The right route",
+    "TextSha256": "636b3b466116d63bc4f7f27b275167c63efcf55c50ddc61ed994cb57e4f3c3b2",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2024-03-18",
+      "UntilUtc": "",
+      "Required": 120,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": false,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR",
+        "UA9CES",
+        "LZ05RN",
+        "LZ55ZF",
+        "EV6C",
+        "RA6F"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/b0e7ad331882166cbe084df94774de34/",
+    "Title": "Twice Hero",
+    "TextSha256": "8789b942168036119e629dde04eb4c7e4074b57d69979e6f458c1bc36461295f",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2024-02-15",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": false,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR",
+        "UA9CES",
+        "LZ05RN",
+        "LZ55ZF",
+        "EV6C",
+        "EW8LL",
+        "EV6W",
+        "R2AKN"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-agpa/cc5a46ee61e919ebf2c7dab53b7b6a58/",
+    "Title": "Kursk - Michael Gurevich",
+    "TextSha256": "f6fa7275c65e78472392c5ed887afbbd69bd61edaf230377e375abed8e3bd815",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2024-01-15",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": false,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR",
+        "UA9CES",
+        "LZ05RN",
+        "LZ55ZF"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-agpa/d06f417c573b4ba66c05cdf632cebb71/",
+    "Title": "Novokuznetsk - Boris Volynov",
+    "TextSha256": "c69fc12dd833a432329e9024b3460daecc99e693ccd1c7b7857a325845dff75f",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2023-12-02",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": false,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR",
+        "UA9CES",
+        "LZ04RN"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/c2408025004a06b917011926794ff6da/",
+    "Title": "Constellation Virgo",
+    "TextSha256": "4670f2f37b640491007ee5cf51001296a7a26da941960739db9e5edad13e5d32",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2023-03-04",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": false,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR",
+        "RA3RPW",
+        "UA9CES"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 15,
+          "Targets": [
+            "LZ21MIG"
+          ],
+          "Area": false
+        }
+      ]
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/a60b1b4198f59bdb167e24862921d4ad/",
+    "Title": "The feat of a paratrooper",
+    "TextSha256": "eb35e5325490b802dff7ef4f002ddd74319fc3d3eab8f5be1c1e24071bf19542",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2023-02-15",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": false,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 15,
+          "Targets": [
+            "LZ21MIG",
+            "LZ78ZZ",
+            "LZ04RN",
+            "EW1D",
+            "EV6C",
+            "EW8LL",
+            "EW3FH",
+            "EW3WF",
+            "EU1XD",
+            "EW3TT",
+            "EW1EB",
+            "EW2CQ",
+            "EV6W",
+            "EU7DD",
+            "EW3ADK",
+            "EU1ZZ"
+          ],
+          "Area": false
+        },
+        {
+          "Points": 5,
+          "Targets": [
+            "DXCC EU"
+          ],
+          "Area": true
+        }
+      ]
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/d860a31ea2cc6bf2db8b0babc9bd4bda/",
+    "Title": "Cradle of the Sky Knights",
+    "TextSha256": "3491720c1caa409181a07b54f70334084196bf27978b553bffcfc90f3510fbd7",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2023-02-04",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": false,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR",
+        "LZ21MIG"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "LP"
+          ],
+          "Area": true
+        }
+      ]
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/af35eb72006c223f679916c77ea61922/",
+    "Title": "Legendary Bureau",
+    "TextSha256": "9c8c36dbf2ae7af262da226a1ed2ccb1d36d6831995dd36c4eab3c81936e8f5b",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2023-01-23",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/d79614d4600df96c2641385477d66e75/",
+    "Title": "Muromets' heirs",
+    "TextSha256": "8571822ab661d0598e4a844247800d9f87fd1c1bc02472b6a7428946b97b4efd",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-12-17",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/d37afb779b262d643ee4ca0474c52b82/",
+    "Title": "FoxBat in the Bulgarian sky",
+    "TextSha256": "91cb6e47b01596b56f0d49e7a882b3b487d59b7ad4ae38da4a201f2bfed7e2aa",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-12-01",
+      "UntilUtc": "",
+      "Required": 25,
+      "MemberPoints": 1,
+      "ExtraPoints": 5,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR",
+        "LZ25MIG"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/b5a7e3878b87be3ec59a6cd6c5186fa7/",
+    "Title": "Aviation of Bulgaria 110 years",
+    "TextSha256": "4f182f70c17bc57fcb991f1bffbe12c5e867c6a98153ce12c9796ec41d4ede02",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-10-15",
+      "UntilUtc": "",
+      "Required": 110,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 15,
+          "Targets": [
+            "LZ110BA",
+            "LZ105IN"
+          ],
+          "Area": false
+        }
+      ]
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-agpa/b71bcf75781773b229145d2de37d393b/",
+    "Title": "Pisa - Galileo Galilei",
+    "TextSha256": "aa496e834e65d5ca17629eed2f1b3f151539ceb15023845c245bdfdfec9565bc",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-10-01",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/dd25477d61d095144e07b3eb00141e06/",
+    "Title": "Bulgarian Star of Apollo",
+    "TextSha256": "922d8c7b352633fba6d80a7cba838b1dbfe384f1512994adb9e98808b27dae22",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-09-12",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 15,
+          "Targets": [
+            "LZ105IN"
+          ],
+          "Area": false
+        }
+      ]
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/cbc77f4c0efd3e40eab154f769094331/",
+    "Title": "Triad",
+    "TextSha256": "606ff11041bc693cad47141598ab5e3504e4cc3329b31611d0841dc6a051a2c4",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-09-01",
+      "UntilUtc": "",
+      "Required": 75,
+      "MemberPoints": 4,
+      "ExtraPoints": 10,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/cd8a644acadd46392d662eda9f1e07ac/",
+    "Title": "Bulgaria's first pilot",
+    "TextSha256": "51291a48f4a37927aa4e7d4988767f7b2b602076291ff0297a19a7862de124c0",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-08-22",
+      "UntilUtc": "",
+      "Required": 110,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/c8098c33fcbeb97e0889f3d5adc979db/",
+    "Title": "I choose a ram",
+    "TextSha256": "75e1c0d036305c924dce8096c9f5d05fad83853fc90a8e01b210f921e7bfa1b6",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-08-12",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-agpa/e26e005627f46f2b9bc89dfeb4f3f394/",
+    "Title": "Magas - Sulambek Oskanov",
+    "TextSha256": "52fe15721a54d5900a70c554f8f5b2e4e8b4fc2ef4dc4dd63d9c2b6caea7c3d6",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-08-01",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-agpa/d47c9ae32eb30be38ece8681caa5e71f/",
+    "Title": "Syktyvkar - Petr Istomin",
+    "TextSha256": "1ecb762d31b54b2ce5534933a82830c62dfb6629c60cd79df6c26ffbba412f0a",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-07-16",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/bc22335dafa20b284c5eb7ea1361aad2/",
+    "Title": "Record great circle",
+    "TextSha256": "bedb9949ba936f65535100aa856f50ae45f53c75f0a9ec546149b927a96a4997",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-07-09",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/dd84f337e05bea0bc7ed6708eb882ff6/",
+    "Title": "Escape to sky",
+    "TextSha256": "91e53ffbd6b7ab0b5807026b67bfa85b8894e2fcfe1f2e1edb802b727aecbaba",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-07-02",
+      "UntilUtc": "",
+      "Required": 105,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/fd3d25f0f5e7de1b31c0adce668a646c/",
+    "Title": "Gold star of Tatarstan",
+    "TextSha256": "5f891165b29d7ac857f1ad60a5a49143ca7d581ec5fd06fdff8710893f362ec9",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-07-02",
+      "UntilUtc": "",
+      "Required": 110,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/b05702fea59e3dbe3d598fb94de460fb/",
+    "Title": "They made the Earth round!",
+    "TextSha256": "d83eeae8492bb4d233fdf334517fca4408ba831d8f84c3f6a84241a3b07f5716",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-06-18",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-agpa/b31f04e16d61b50e9886dcad6b4a7b7e/",
+    "Title": "La Reunion - Roland Garros",
+    "TextSha256": "f3e1978f68834cb007d38c0dde1ec2a77e674fc1fe3625c7c00262d89b37ecd0",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-06-01",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-agpa/ba5a77600475fd92dce558b9453a7d2a/",
+    "Title": "Mahachkala - Amet-Han Sultan",
+    "TextSha256": "76b8126f228bfabde2621a4c7dde318e7dae8a89865b56f44152ee41e2d5f530",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2022-05-14",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": true,
+      "NoMultipliers": false,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-agpa/ee168e23ba86b71888066c6cf969c411/",
+    "Title": "Lisbon Humberto Delgado",
+    "TextSha256": "b8fcfeca87f9294a14e3ca5caec0d27837fc253836d3b4bd66014e2dc93d64fe",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2021-05-15",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": true,
+      "VhfBonus": false,
+      "NoMultipliers": true,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 15,
+          "Targets": [
+            "R4CQ",
+            "R2AKN",
+            "RA3TD",
+            "UX8IX"
+          ],
+          "Area": false
+        },
+        {
+          "Points": 5,
+          "Targets": [
+            "DXCC CT"
+          ],
+          "Area": true
+        }
+      ]
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-cosmodromes/bd1be21488376cacddb85a08ca846523/",
+    "Title": "CWA - Baikonur",
+    "TextSha256": "8b8810c113489c632a84e2135bfcff46b496bd938c8120b3dd6088e6fb21dfe7",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2021-04-01",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": true,
+      "VhfBonus": false,
+      "NoMultipliers": true,
+      "Calls": [
+        "R1961GP",
+        "R1961AG",
+        "U4MIR"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 15,
+          "Targets": [
+            "R4CQ",
+            "R2AKN",
+            "RA3TD",
+            "UX8IX"
+          ],
+          "Area": false
+        },
+        {
+          "Points": 5,
+          "Targets": [
+            "DXCC UN"
+          ],
+          "Area": true
+        }
+      ]
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-agpa/dd1b9cc955602196ef877641bc43c692/",
+    "Title": "Hyderabad Rajiv Gandhi",
+    "TextSha256": "dc051bd3af17cae7b953ced29a2c93d25f246a70f160bc861ce3f0c376481570",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2021-03-01",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": true,
+      "VhfBonus": false,
+      "NoMultipliers": true,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 15,
+          "Targets": [
+            "R4CQ",
+            "R2AKN",
+            "RA3TD"
+          ],
+          "Area": false
+        },
+        {
+          "Points": 5,
+          "Targets": [
+            "DXCC VU"
+          ],
+          "Area": true
+        }
+      ]
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-agpa/a00e3377838d3697cea28a17de671f24/",
+    "Title": "Kyiv Oleg Antonov",
+    "TextSha256": "92f2d01688781cd9f5142da24a3f002df7df09d97c3be3012be4f9837bb22715",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2021-02-01",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": true,
+      "VhfBonus": false,
+      "NoMultipliers": true,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 15,
+          "Targets": [
+            "R4CQ",
+            "R2AKN",
+            "RA3TD"
+          ],
+          "Area": false
+        },
+        {
+          "Points": 5,
+          "Targets": [
+            "DXCC UR"
+          ],
+          "Area": true
+        }
+      ]
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-cosmodromes/c60109991a2b456fbcd1deb53136daa4/",
+    "Title": "CWA - Svobodny",
+    "TextSha256": "814d5264c7a5fe86e01dfb9470d2ef60f131007430b9d25f6dcb20b7b1dbfe41",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2021-01-01",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": true,
+      "VhfBonus": false,
+      "NoMultipliers": true,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 15,
+          "Targets": [
+            "R4CQ",
+            "R2AKN",
+            "RA3TD"
+          ],
+          "Area": false
+        },
+        {
+          "Points": 20,
+          "Targets": [
+            "AM"
+          ],
+          "Area": true
+        }
+      ]
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-agpa/b97a0e9e698bd38d5f9a8d6c02274612/",
+    "Title": "Wroclav Kopernik",
+    "TextSha256": "84eb6e73f24eca5e94f414a24f4fb8ed5ea86947cdf5091f7f47e1f9b2450ae3",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2020-12-01",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 10,
+      "HfOnly": true,
+      "VhfBonus": false,
+      "NoMultipliers": true,
+      "Calls": [],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "DXCC SP"
+          ],
+          "Area": true
+        }
+      ]
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-agpa/d432d5a7090c40799532cae3265767c6/",
+    "Title": "Moscow Vnukovo VKO",
+    "TextSha256": "7db711e9d906061793d06ee3df3e6066f4b1b9b6f78bbc8305d965e39979556c",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2020-11-01",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 10,
+      "HfOnly": true,
+      "VhfBonus": false,
+      "NoMultipliers": true,
+      "Calls": [],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "MA",
+            "MO"
+          ],
+          "Area": true
+        }
+      ]
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-agpa/f6c6990f9ddbd31066f1b7c257d21106/",
+    "Title": "Belgrad BEG",
+    "TextSha256": "ece21005fca66b1f3116ab9856ee47db9574497ff12371040c0a5256a918e077",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2020-10-01",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": true,
+      "VhfBonus": false,
+      "NoMultipliers": true,
+      "Calls": [
+        "U4MIR"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 15,
+          "Targets": [
+            "R4CQ",
+            "R2AKN",
+            "RA3TD"
+          ],
+          "Area": false
+        },
+        {
+          "Points": 5,
+          "Targets": [
+            "DXCC YU"
+          ],
+          "Area": true
+        }
+      ]
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/romania/ce6666711abaa4e7ab5831a23b5370ca/",
+    "Title": "National Day of Romania, the Great Union of 1918",
+    "TextSha256": "eae276bb2b112719a0ded7e09f2cb9bc674c9fc29f876ef8202b957486ae1151",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-11-20",
+      "UntilUtc": "2026-12-01",
+      "Required": 2,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "AlternativeRequired": 0,
+      "Calls": [
+        "YQ0U"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "PortableAliases": false,
+        "AcceptObserverCredit": false,
+        "Levels": [],
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "Roster": ""
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/global/australia/vk5/d9c32d6a590730ae948b99d677106973/",
+    "Title": "VK5ESM - Recognising Australian Fire and Rescue Volunteers",
+    "TextSha256": "93e97568bc829bfebd98b0948d546f11569ec8cb4c7a17ade576e30a4d234934",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-11-01",
+      "UntilUtc": "",
+      "Required": 75,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "AlternativeRequired": 0,
+      "Calls": [
+        "VK5ESM"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "day-band-mode",
+        "GroupModes": false,
+        "PortableAliases": false,
+        "AcceptObserverCredit": false,
+        "Levels": [
+          5,
+          10,
+          15,
+          25,
+          50,
+          75
+        ],
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "Roster": ""
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/global/australia/vk5/e766e96a35afca0a42fe8fa1de3337a7/",
+    "Title": "Working with VK5IPA Award",
+    "TextSha256": "6e01e80231334825c2120fc09d363fc7e60d55fac203c710529913906b4a6b85",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2025-11-01",
+      "UntilUtc": "",
+      "Required": 75,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "AlternativeRequired": 0,
+      "Calls": [
+        "VK5IPA"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "every-qso",
+        "GroupModes": false,
+        "PortableAliases": false,
+        "AcceptObserverCredit": false,
+        "Levels": [
+          5,
+          10,
+          15,
+          25,
+          50,
+          75
+        ],
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "Roster": ""
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/global/australia/vk5/bec052d0267d112fdce37030f1a27bd2/",
+    "Title": "Working with VK5COP Award",
+    "TextSha256": "e781089aa508addf8e7dc4c0dbfecabeb2fdd93ba62ab6ec38c345dc377fc186",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2025-11-01",
+      "UntilUtc": "",
+      "Required": 75,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "AlternativeRequired": 0,
+      "Calls": [
+        "VK5COP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "every-qso",
+        "GroupModes": false,
+        "PortableAliases": false,
+        "AcceptObserverCredit": false,
+        "Levels": [
+          5,
+          10,
+          15,
+          25,
+          50,
+          75
+        ],
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "Roster": ""
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/hamlog/c044fe7ab565ce742956a61399182c21/",
+    "Title": "America 250",
+    "TextSha256": "7301091b080e41451ab59019a625eaf5944fd1fa8a89c476ddef6c845f065a2c",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-01-01",
+      "UntilUtc": "2026-12-31",
+      "Required": 250,
+      "MemberPoints": 5,
+      "ExtraPoints": 10,
+      "AlternativeRequired": 0,
+      "Calls": [
+        "K2A",
+        "K2B",
+        "K2C",
+        "K2D",
+        "K2E",
+        "K2F",
+        "K2G",
+        "K2H",
+        "K2I",
+        "K2J",
+        "K2K",
+        "K2L",
+        "K2M"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "PortableAliases": false,
+        "AcceptObserverCredit": false,
+        "Levels": [],
+        "Countries": [
+          "K",
+          "KL",
+          "KH6"
+        ],
+        "Bands": [],
+        "Modes": [],
+        "BonusFromUtc": "2026-07-01T13:00:00Z",
+        "BonusUntilUtc": "2026-07-08T04:00:00Z",
+        "Roster": ""
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/e5bedf3569ca0fc504226202a800cec3/",
+    "Title": "W-DX-ARCK-2026",
+    "TextSha256": "22f543b0ace35caa6faada342a97727b544660fb91d4f430fd6fcacb2f6fe66a",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-01-15",
+      "UntilUtc": "2026-12-31",
+      "Required": 20,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "AlternativeRequired": 0,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "PortableAliases": false,
+        "AcceptObserverCredit": false,
+        "Levels": [],
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "Roster": "arck-dx"
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/a8ba4abc627f80e663256998df6ec158/",
+    "Title": "New Year with ARCK 2026",
+    "TextSha256": "22f543b0ace35caa6faada342a97727b544660fb91d4f430fd6fcacb2f6fe66a",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-01-01",
+      "UntilUtc": "2026-12-31",
+      "Required": 60,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "AlternativeRequired": 30,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "PortableAliases": false,
+        "AcceptObserverCredit": false,
+        "Levels": [],
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "Roster": "arck"
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/romania/f24c7911436923905b38a12318226d8a/",
+    "Title": "Romanian Navy Day Award",
+    "TextSha256": "b8b603f2932c3595f2d1538e294faa3580273e016aa365807b2d34cd2a74d101",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-08-01",
+      "UntilUtc": "2026-08-31",
+      "Required": 1,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "AlternativeRequired": 0,
+      "Calls": [
+        "YO4KMU"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "call",
+        "GroupModes": false,
+        "PortableAliases": false,
+        "AcceptObserverCredit": false,
+        "Levels": [],
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "Roster": ""
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/b36e9022cae17bc40663b28fad850bd5/",
+    "Title": "RP81PW",
+    "TextSha256": "77484175a50cca8caffaa2c914ceb9606990426d9917949e6e7fc8981b5d7774",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-05-01",
+      "UntilUtc": "2026-05-09T15:00:00Z",
+      "Required": 5,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "AlternativeRequired": 3,
+      "Calls": [
+        "RP81PW"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "PortableAliases": false,
+        "AcceptObserverCredit": false,
+        "Levels": [],
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "Roster": ""
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/13col/",
+    "Title": "13 Colonies - K2K from NH - 2025",
+    "TextSha256": "0fe02a618eb12edf9508237e602b80a56cfa1210ce1542cf55611b8cb2e76ee6",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2025-07-01T13:00:00Z",
+      "UntilUtc": "2025-07-08T04:00:00Z",
+      "Required": 2,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "AlternativeRequired": 0,
+      "Calls": [
+        "K2K"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "PortableAliases": false,
+        "AcceptObserverCredit": false,
+        "Levels": [],
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "Roster": ""
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/romania/ebd034a326cdea780103e78cc21c99fc/",
+    "Title": "Diploma ITU 160",
+    "TextSha256": "62ef0b1f6a2c196a76fc2f8ddff7359ba7d32a386731d4691b83b773f4fc2386",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2025-05-16",
+      "UntilUtc": "2025-05-23",
+      "Required": 4,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "AlternativeRequired": 0,
+      "Calls": [
+        "YO160ITU"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band",
+        "GroupModes": false,
+        "PortableAliases": false,
+        "AcceptObserverCredit": false,
+        "Levels": [
+          2,
+          3,
+          4
+        ],
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "Roster": ""
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r9j/a74f7355e2269c70402c375b85edf63e/",
+    "Title": "310 Years of Lokosovo Village",
+    "TextSha256": "ff90553bd4757fa0522ea40741def92f0df2f94118798d0cc090bedd6dd88b9e",
+    "Plan": {
+      "Kind": "single-station",
+      "FromUtc": "2026-06-05",
+      "UntilUtc": "2026-06-30",
+      "Required": 1,
+      "Calls": [
+        "R310SL"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/safonovo/ac8015d9efb0ee0a0fad25b40c07e34b/",
+    "Title": "Stelvio Pass",
+    "TextSha256": "820834f0bf0b8ae74bf5e9c4375a3423b709cba88ff3da61405180fb05cc2e48",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-07-01",
+      "UntilUtc": "",
+      "Required": 75,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "AlternativeRequired": 0,
+      "Calls": [],
+      "BonusGroups": [
+        {
+          "Points": 15,
+          "Targets": [
+            "DXCC I"
+          ],
+          "Area": true
+        },
+        {
+          "Points": 10,
+          "Targets": [
+            "DXCC OE",
+            "DXCC F",
+            "DXCC S5",
+            "DXCC HB"
+          ],
+          "Area": true
+        },
+        {
+          "Points": 3,
+          "Targets": [
+            "DXCC UA",
+            "DXCC UA2",
+            "DXCC UA9",
+            "DXCC R1FJ"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "PortableAliases": false,
+        "AcceptObserverCredit": false,
+        "Levels": [],
+        "Countries": [],
+        "Bands": [
+          "160m",
+          "80m",
+          "60m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m"
+        ],
+        "Modes": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "Roster": ""
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/a314795318fbabe48847f56916abb0bb/",
+    "Title": "RCPW - New Year",
+    "TextSha256": "c8c1a23568b739086e3717b49f683d49e79e0d10529405f5781b9f8087b0fa76",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-01-01",
+      "UntilUtc": "",
+      "Required": 50,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "AlternativeRequired": 25,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "call",
+        "GroupModes": false,
+        "PortableAliases": false,
+        "AcceptObserverCredit": false,
+        "Levels": [],
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "Roster": "rcpw"
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/mfca/b6b4c38e6a51b3f3ae4e309b5230c4e9/",
+    "Title": "MFCA Club Station Diploma",
+    "TextSha256": "8c4cc0b158dbfddde5e4bb53c34ef25b0ec3243b15a6fda3335bee5980dac032",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "1997-04-01",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "AlternativeRequired": 0,
+      "Calls": [
+        "OE6XMF"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "day",
+        "GroupModes": false,
+        "PortableAliases": true,
+        "AcceptObserverCredit": false,
+        "Levels": [
+          25,
+          50,
+          100
+        ],
+        "Countries": [],
+        "Bands": [
+          "160m",
+          "80m",
+          "60m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m"
+        ],
+        "Modes": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "Roster": ""
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/a0661723bc319500cd50686abcef2325/",
+    "Title": "W-ARCK-DIGI",
+    "TextSha256": "8fcc2f2656bea201b972c900545eb01107dd1c3c8bb273d68e40a24e26285c16",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2022-01-15",
+      "UntilUtc": "",
+      "Required": 50,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "AlternativeRequired": 0,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band",
+        "GroupModes": false,
+        "PortableAliases": false,
+        "AcceptObserverCredit": true,
+        "Levels": [],
+        "Countries": [],
+        "Bands": [],
+        "Modes": [
+          "DIGI"
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "Roster": "arck"
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/def81f9d5f75ba354a0c36baac9f0d7a/",
+    "Title": "ARCK 31 years",
+    "TextSha256": "7f228156aa6289717b95e7cc6dbbb26c301093d6789443a08df7afa9393e4f27",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2022-01-15",
+      "UntilUtc": "",
+      "Required": 31,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "AlternativeRequired": 0,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "call",
+        "GroupModes": false,
+        "PortableAliases": false,
+        "AcceptObserverCredit": true,
+        "Levels": [],
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "Roster": "arck"
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/c51c6841e0f207abebf647ad1995a724/",
+    "Title": "30 years of ARCK",
+    "TextSha256": "e9a564e7917572dd1a166e06d28292ddadad93a9e1bb302cfe064aca93c928ef",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2021-01-15",
+      "UntilUtc": "",
+      "Required": 30,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "AlternativeRequired": 0,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "call",
+        "GroupModes": false,
+        "PortableAliases": false,
+        "AcceptObserverCredit": true,
+        "Levels": [],
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "Roster": "arck"
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/be968b29fbef4cfa081dbf3930915d11/",
+    "Title": "DX ARCK 30",
+    "TextSha256": "e9a564e7917572dd1a166e06d28292ddadad93a9e1bb302cfe064aca93c928ef",
+    "Plan": null,
+    "Note": "Действуют отдельный список зарубежных членов ARCK и зачёт по диапазону и группе видов. Для поиска нужен именно указанный в положении список позывных."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/d257fdd461e0d99a3f9be84e865aad0c/",
+    "Title": "YL-ARCK-30",
+    "TextSha256": "e9a564e7917572dd1a166e06d28292ddadad93a9e1bb302cfe064aca93c928ef",
+    "Plan": null,
+    "Note": "Для зачёта нужны операторы YL клуба ARCK или RZ4PXO. HAMLOG засчитал несколько позывных за пределами списка, напечатанного в положении."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/a633010373a458bfda1092f0226dd402/",
+    "Title": "ARCK-30",
+    "TextSha256": "e9a564e7917572dd1a166e06d28292ddadad93a9e1bb302cfe064aca93c928ef",
+    "Plan": null,
+    "Note": "Положение задаёт порог 30 или 15 связей в зависимости от континента. Для автоматического выбора требуется подтвердить, какие именно повторы допускает эта карточка."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/efcb71a1d1b62c6b143e299cc0690f2a/",
+    "Title": "ARCK SWL 30",
+    "TextSha256": "e9a564e7917572dd1a166e06d28292ddadad93a9e1bb302cfe064aca93c928ef",
+    "Plan": null,
+    "Note": "Нужно два наблюдения SWL. Засчитывается один наблюдатель на разных диапазонах или два разных. Обычный исходящий QSO такого наблюдения не подтверждает."
+  },
+  {
+    "Url": "https://hamlog.online/club/hcdx/da3efcfb45955b4a8fe4eab1f10d5220/",
+    "Title": "WHCG - Worked HC Grids",
+    "TextSha256": "741a0ce9a185eeef997ffebf93aa447899d55f4230da3bd015ff6cf9bcabd504",
+    "Plan": null,
+    "Note": "Для 5, 12 или 20 разных квадратов Эквадора нужно подтверждение HQSL. Засчитываются связи с одного DXCC соискателя. Для выбора требуется локатор конкретной станции."
+  },
+  {
+    "Url": "https://hamlog.online/club/rdrc/a51570881179b74de579fe5b90bddd8b/",
+    "Title": "RDRC HAMLOG members callsigns award",
+    "TextSha256": "63e589a233e9fb2d41555790edaf3b7ef58c59d040f05e7b52af0bc9ec95c263",
+    "Plan": null,
+    "Note": "Засчитываются только позывные специальной группы РЦРК в HAMLOG, по одному на позывной. Для поиска нужен перечень участников именно этой группы и список разрешённых цифровых видов."
+  },
+  {
+    "Url": "https://hamlog.online/club/rdrc/cd6f36084a9ba476a5a937409c8cca5a/",
+    "Title": "Long distance digital QSO",
+    "TextSha256": "c2149fd20c830c3a87d629cfa742911c3c54ef61472dcce2f8fcca6c6b601ddf",
+    "Plan": null,
+    "Note": "Диплом требует 100 связей на расстоянии более 10 000 км. Для автоматического выбора нужна достоверная пара локаторов и вид работы для конкретной степени."
+  },
+  {
+    "Url": "https://hamlog.online/neca/",
+    "Title": "New England County Award (NECA)",
+    "TextSha256": "673a0709a34849360daf0dec86cf0dad00bec9a48207c951d37adbd1b9466466",
+    "Plan": null,
+    "Note": "Нужны подтверждённые округа Новой Англии. Для степеней учитываются сочетания округа, диапазона и группы видов. Из обычного декода FT8 округ неизвестен."
+  },
+  {
+    "Url": "https://hamlog.online/gb/",
+    "Title": "All England, All Scotland, All Wales and All Ireland awards",
+    "TextSha256": "ba8569f7e5ffae69ad4ba4b0c98b776b9cba927895f187f128cc503b69742f3f",
+    "Plan": null,
+    "Note": "В карточке четыре самостоятельных зачёта. Нужны округа Англии и Северной Ирландии, районы Шотландии или подразделения Уэльса. Позывной даёт только часть этих сведений."
+  },
+  {
+    "Url": "https://hamlog.online/raem/",
+    "Title": "RAEM",
+    "TextSha256": "dfe7698012f6e0f0f707dc886ff6335c1fd56ded97ae806fa5f1c5e05c1a1726",
+    "Plan": null,
+    "Note": "Охотнику нужны 68 очков за связи телеграфом на КВ. Для автоматического поиска в AutoCQ доступны FT8 и FT4."
+  },
+  {
+    "Url": "https://hamlog.online/club/nbawards/a3e30e716c67c2a711009390a1bd5170/",
+    "Title": "Worked All New Brunswick",
+    "TextSha256": "6f6b50544f61453566a09da9eec03c7357e4af62fcaf744ca77ecd5acdcc8e29",
+    "Plan": null,
+    "Note": "Четыре степени требуют 3, 5, 10 или 15 разных округов Нью-Брансуика. Для выбора станции нужен округ на момент передачи."
+  },
+  {
+    "Url": "https://hamlog.online/club/urvag/e4d3b3357a5e9ed2e35ef58fad625117/",
+    "Title": "The Canarian Islands municipalities",
+    "TextSha256": "2f3d5a9d5cab13ad587ce88296efb7739880e08686fd773716ef5029671620f1",
+    "Plan": null,
+    "Note": "Учитываются муниципалитеты Канарских островов по кодам DME. Для высшей степени дополнительно нужна связь с EA8URU."
+  },
+  {
+    "Url": "https://hamlog.online/13colonies/",
+    "Title": "13 Colonies",
+    "TextSha256": "b8520be15a751bacaf48d47028f9a9c2fa6a4d234f2707f323c3f1cb6dda93e1",
+    "Plan": null,
+    "Note": "Документ по ссылке HAMLOG описывает магазин. Условия и точное время ежегодного события публикуют организаторы 13 Colonies."
+  },
+  {
+    "Url": "https://hamlog.online/sia/",
+    "Title": "Scottish Islands Award (SIA)",
+    "TextSha256": "ef0c42bbe9f42d558ab94baff9a5da4b2711f1e1a02c1992d8c86d115bca5571",
+    "Plan": null,
+    "Note": "Нужен идентификатор шотландского острова, с которого оператор работает сейчас. Один и тот же позывной может появляться с разных островов."
+  },
+  {
+    "Url": "https://hamlog.online/geo/nbparks/",
+    "Title": "New Brunswick Parks",
+    "TextSha256": "65bf383337b953da82af6957c600a3f74fa1777c6dee18fd6d039b361a8b161a",
+    "Plan": null,
+    "Note": "По этому диплому засчитываются парки Нью-Брансуика. Для автоматического вызова нужен код текущего парка у принятой станции."
+  },
+  {
+    "Url": "https://hamlog.online/geo/nbmilitary/",
+    "Title": "New Brunswick Military History Award",
+    "TextSha256": "ef42b6ac6c6b226a4d0cc08eba11859765700f468c934414af3c6dd3f897e931",
+    "Plan": null,
+    "Note": "Зачёт ведётся по военным историческим объектам Нью-Брансуика. Нужна привязка принятого позывного к текущему объекту."
+  },
+  {
+    "Url": "https://hamlog.online/geo/raza/",
+    "Title": "Russian Anomalous Zones Awards (RAZA)",
+    "TextSha256": "bc87aa3f85eae63abc816bb576e03852865de4786658fe010d3a2955f16fd8c2",
+    "Plan": null,
+    "Note": "Для каждой степени RAZA учитываются активированные референции. Нужен номер объекта, с которого работает корреспондент."
+  },
+  {
+    "Url": "https://hamlog.online/geo/rffa/",
+    "Title": "Russian Robinsons Flora Fauna Award (RFFA)",
+    "TextSha256": "1b2aacef9fb85e7002c16d3ea81f9fab44e2209bc254a4809503883f9988cb24",
+    "Plan": null,
+    "Note": "Для зачёта нужен код природной территории из программы RFFA, где сейчас работает корреспондент."
+  },
+  {
+    "Url": "https://hamlog.online/geo/rra/",
+    "Title": "Russian Robinsons Award (RRA)",
+    "TextSha256": "03bd0ede3676155827599819dfcc62ed964824e5f25c595f622cbd9ff3086bc9",
+    "Plan": null,
+    "Note": "Для зачёта нужен код острова RRA и подтверждение активации на момент связи."
+  },
+  {
+    "Url": "https://hamlog.online/geo/rlha/",
+    "Title": "Russian Robinsons Lighthouse Award (RLHA)",
+    "TextSha256": "0a7772c9f711891b278a6e16b261f601541cd1d26e6246fd7437e1b141bf4228",
+    "Plan": null,
+    "Note": "Степени охотника требуют 10, 20, 30 или 50 разных маяков. Повторная связь с тем же маяком на другом диапазоне новый объект не добавляет."
+  },
+  {
+    "Url": "https://hamlog.online/geo/rafa/",
+    "Title": "Russian AirField Award (RAFA)",
+    "TextSha256": "c971f663bad21c17eb1e7c5414018442bdfb649a076ee19293f5ab6622a2eed6",
+    "Plan": null,
+    "Note": "Для RAFA нужна референция аэродрома. Позывной корреспондента сам по себе аэродром не определяет."
+  },
+  {
+    "Url": "https://hamlog.online/geo/rl/",
+    "Title": "Lakes of Russia (RL)",
+    "TextSha256": "4b866c890abc113106cea56b5513eb878b072c44dff117f9920be10c231c3642",
+    "Plan": null,
+    "Note": "Засчитываются референции озёр. Для проверки, нужен ли корреспондент, AutoCQ должен знать объект его текущей активации."
+  },
+  {
+    "Url": "https://hamlog.online/geo/rb/",
+    "Title": "Bridges of Russia (RB)",
+    "TextSha256": "4b866c890abc113106cea56b5513eb878b072c44dff117f9920be10c231c3642",
+    "Plan": null,
+    "Note": "Засчитываются референции мостов. Даже если позывной уже встречался, нужен код моста именно в этой активации."
+  },
+  {
+    "Url": "https://hamlog.online/geo/rii/",
+    "Title": "Internal islands of Russia (RII)",
+    "TextSha256": "4b866c890abc113106cea56b5513eb878b072c44dff117f9920be10c231c3642",
+    "Plan": null,
+    "Note": "Засчитываются референции внутренних островов России. Для выбора корреспондента нужны номер острова и время активации."
+  },
+  {
+    "Url": "https://hamlog.online/geo/rr/",
+    "Title": "Rivers of Russia (RR)",
+    "TextSha256": "4b866c890abc113106cea56b5513eb878b072c44dff117f9920be10c231c3642",
+    "Plan": null,
+    "Note": "Зачёт ведётся по референциям рек. Для поиска нужна связь между позывным, объектом и временем работы."
+  },
+  {
+    "Url": "https://hamlog.online/geo/mr/",
+    "Title": "Monasteries of Russia (MR)",
+    "TextSha256": "4b866c890abc113106cea56b5513eb878b072c44dff117f9920be10c231c3642",
+    "Plan": null,
+    "Note": "Зачёт ведётся по референциям монастырей. Для выбора позывного нужна текущая подтверждённая активация."
+  },
+  {
+    "Url": "https://hamlog.online/geo/rm/",
+    "Title": "Mountains of Russia (RM)",
+    "TextSha256": "4b866c890abc113106cea56b5513eb878b072c44dff117f9920be10c231c3642",
+    "Plan": null,
+    "Note": "Для зачёта гор России нужен код соответствующей референции. QTH-локатор может относиться к нескольким объектам."
+  },
+  {
+    "Url": "https://hamlog.online/geo/rca/",
+    "Title": "Russian Castle Award (RCA)",
+    "TextSha256": "0b04dfa897175aa23858f0d5be2050c85691b9628b9697d0470cb0064cc8dc2d",
+    "Plan": null,
+    "Note": "Нужны идентификаторы замков RCA и сведения об их текущих активациях."
+  },
+  {
+    "Url": "https://hamlog.online/geo/kia/",
+    "Title": "Karelian Islands Award",
+    "TextSha256": "92b95d7e864b8db240868345029336f87b98f5fcb451697808b82826765006b2",
+    "Plan": null,
+    "Note": "Учитываются конкретные карельские острова. Для поиска нужен номер острова, с которого оператор в эфире."
+  },
+  {
+    "Url": "https://hamlog.online/club/raac/d067b13e5d08c73ab5669d944dca7104/",
+    "Title": "Hermoupolis 200",
+    "TextSha256": "3341a47edb8e665e34be8a3d6d5aad83cd77f0e500d5f42dff43e391deec13f1",
+    "Plan": null,
+    "Note": "Организатор может отклонить QSO, проведённые без оператора. Условия также различают пороги по континенту и дают разовый бонус за CW, SSB и DIGI."
+  },
+  {
+    "Url": "https://hamlog.online/club/safonovo/bb6b90b684e4b62641d2d08fe592c2e3/",
+    "Title": "It's our history",
+    "TextSha256": "e51dd18dffaa5e7d648e2d4a01997ebd3545b5a7bf7847fe3fb980a947e2423e",
+    "Plan": null,
+    "Note": "В положении указано 31 ноября 2026 года. Для поиска по этому диплому нужна подтверждённая дата окончания."
+  },
+  {
+    "Url": "https://hamlog.online/club/romania/a901a037f5ad879462a03bad7ebc75e7/",
+    "Title": "Bucharest 567",
+    "TextSha256": "80740b7c69da8ea721c5dbbcc351add715b4be78daf0c8c38c517b2a402c0d1e",
+    "Plan": null,
+    "Note": "Нужны пять разных станций города Бухареста. По румынскому префиксу нельзя подтвердить город передачи."
+  },
+  {
+    "Url": "https://hamlog.online/club/romania/cb2f3abc7eb44216586c2ec43c7247f3/",
+    "Title": "Lucian Blaga Memorial 2026",
+    "TextSha256": "c094df04774dc7e16bc8bddfca3544282f2c97a024ed44b731fd676950384c7a",
+    "Plan": null,
+    "Note": "Правило требует два QSO с YP0LB. В положении не указано, засчитывается ли повтор на том же диапазоне тем же видом."
+  },
+  {
+    "Url": "https://hamlog.online/club/iddicd/a020ea4fd8699e8ff7a5e5f364688424/",
+    "Title": "National Puppy Day - 2026",
+    "TextSha256": "518b1ee9f7a52a7a85c87846811fc62409e2e109888a500a194ffeb39d11f7c4",
+    "Plan": null,
+    "Note": "Нужна одна связь с K0DOG. Положение указывает, что станция работает в CW и SSB и не выходила в DIGI."
+  },
+  {
+    "Url": "https://hamlog.online/club/romania/fbebe95a5c95a733b329128aceef5206/",
+    "Title": "Day of the Cultural Union of the Ruthenians in Romania",
+    "TextSha256": "d2417a73177b6005f28acf2b44edbf45f0a03725f5024871a84ae90fe39300b0",
+    "Plan": null,
+    "Note": "В карточке HAMLOG указан 2026 год, в приложенном положении — 2025. Нужно уточнить, к какому году относится условие двух разных диапазонов."
+  },
+  {
+    "Url": "https://hamlog.online/club/safonovo/edaa4d1567f0d3294f8241dc16b40302/",
+    "Title": "The Smolensk Dormition Cathedral is 925 years old",
+    "TextSha256": "0e4412701945d15c164911afb01915c6a9281221057c42063c53fb5cd7bfd0f5",
+    "Plan": null,
+    "Note": "Обычные станции шести областей, RY3LAD и отдельные районы RDA дают разные очки. Для зачёта надбавки нужен известный район работы станции."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/a0a8a7abcd6406cf1f37e0869f734250/",
+    "Title": "W-SWL-ARCK-2026",
+    "TextSha256": "22f543b0ace35caa6faada342a97727b544660fb91d4f430fd6fcacb2f6fe66a",
+    "Plan": null,
+    "Note": "Требуются два наблюдения за вашей станцией от членов ARCK. Двусторонний вызов сам по себе наблюдение SWL не подтверждает."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/a8f0512080975199c4960bd895f0cec8/",
+    "Title": "W-ARCK-YL-2026",
+    "TextSha256": "22f543b0ace35caa6faada342a97727b544660fb91d4f430fd6fcacb2f6fe66a",
+    "Plan": null,
+    "Note": "Нужны три связи с операторами YL из ARCK. Требуется отдельный список участниц этой программы."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/c89fe5b3b9fec1d28cad09e68b5b1d0d/",
+    "Title": "ARCK sponsor 2026",
+    "TextSha256": "22f543b0ace35caa6faada342a97727b544660fb91d4f430fd6fcacb2f6fe66a",
+    "Plan": null,
+    "Note": "Нужны разные действующие спонсоры ARCK. Для поиска требуется их актуальный список от клуба."
+  },
+  {
+    "Url": "https://hamlog.online/club/firac/b812d6bceb7960416872fab3b7554f3e/",
+    "Title": "FIRAC OE Diplom - DIGI",
+    "TextSha256": "151ed0a55d9d0e93847565fb4d6a856534028604634cc5df8b9813e804fe5b41",
+    "Plan": null,
+    "Note": "Требуется минимум 30 цифровых связей с членами FIRAC, включая трёх из Австрии. Для подсчёта нужен список членов FIRAC с принадлежностью к странам."
+  },
+  {
+    "Url": "https://hamlog.online/club/firac/ade00abf7b195a8469aa9f19d30d7f9f/",
+    "Title": "FIRAC OE Diplom - SSB, CW",
+    "TextSha256": "151ed0a55d9d0e93847565fb4d6a856534028604634cc5df8b9813e804fe5b41",
+    "Plan": null,
+    "Note": "Каждая степень FIRAC требует трёх членов из Австрии. Для КВ указаны SSB и CW. AutoCQ передаёт только FT8 и FT4."
+  },
+  {
+    "Url": "https://hamlog.online/krv/hunter2025/",
+    "Title": "Hunter",
+    "TextSha256": "06b14e8174b6228aac5742dd8bba24f5397c6473ea521713547769e6e4c4c7df",
+    "Plan": null,
+    "Note": "Нужно по 12 связей в каждый из четырёх сезонов. Позывной с дробью должен относиться к действующей активации клуба; повторы зависят от активации."
+  },
+  {
+    "Url": "https://hamlog.online/club/kazan/d11496c6b535e1991c23fff55906da45/",
+    "Title": "Tatarstan Cup",
+    "TextSha256": "58e4cc999d166c5bf8755b858ff459359d0e112046d30c535214cd4abfbbbb59",
+    "Plan": null,
+    "Note": "Для кубка нужны все 63 района Татарстана (TA-01 — TA-63). Для автоматического поиска требуется подтверждённый район станции на момент связи."
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/ee4eafadbb16d522bb7cea2e26d73dcd/",
+    "Title": "Huge sky",
+    "TextSha256": "81b138fe6377da3a494d353f8f366503a5b638b5b30641e10c5c69f696848a57",
+    "Plan": null,
+    "Note": "Положение различает соискателей и активаторов, включая операторов из Липецкой области. Для скоринга нужно определить роль самого соискателя."
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/db5f65b76fb1ac76fb92212b16cbe83b/",
+    "Title": "Alex Koryakov II",
+    "TextSha256": "a56c7c080f828838e22d82d568ee261cdbcb4b5af5beb5ee3c5a5d21489686b0",
+    "Plan": null,
+    "Note": "Положение даёт 3 очка за связь после дней активности, а в проверенных строках HAMLOG начисляет 5. Требуется уточнить действующую ставку."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r3r/f995b9f5f9c67e789ccaba4907e3d1aa/",
+    "Title": "100 years since the birth of Zoya Kosmodemyanskaya",
+    "TextSha256": "5780e7356c464e607b5a38dc40853fb3ef779077efdda38d6a7fe81682ab7b0a",
+    "Plan": null,
+    "Note": "Для зачёта в ноябре 2023 года нужны 100 очков и обязательная связь с R100ZK. Для 25 очков требуется точный район TB-11. Срок диплома истёк."
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/fefa1ee4a3388da70837bb718adebf99/",
+    "Title": "Landing on the Pole",
+    "TextSha256": "6438dd3620d8e0f0114dd0f728c908b8cf2613c61907e05042af1c87cab98f67",
+    "Plan": null,
+    "Note": "Отдельные очки есть за связи с клубом «Арктика». Для поиска по этому положению нужен список членов клуба."
+  },
+  {
+    "Url": "https://hamlog.online/club/seafarer/e0f00d6e883dd077c974e25044eb756b/",
+    "Title": "Great Russian Travelers",
+    "TextSha256": "a3be009e42cae27f682258033506da8797f1a98e9fcc3850242d577be117dfa8",
+    "Plan": null,
+    "Note": "Засчитываются 3, 6 или 9 связей с RL5G и его дробными позывными по регионам, диапазонам и видам. Для проверки нужен фактический регион каждой активации."
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-cosmodromes/b9b718cdcc3346a8dc0907f863dc4756/",
+    "Title": "CWA - Kourou, French Guiana",
+    "TextSha256": "dcaba2c67055b91b4c249dc07ff3c09805ca2c13b8d0479d578f3c3d5f8a3433",
+    "Plan": null,
+    "Note": "Положение перечисляет только КВ в списке диапазонов и одновременно даёт множитель за УКВ. Нужно уточнить, входит ли УКВ в зачёт."
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-agpa/d20b1d926f47637d95965ca055e1bc8e/",
+    "Title": "Namibe - Yuri Gagarin",
+    "TextSha256": "b4e0e5f2febe8fface9d457d96bdf5c7ad0ad461d46e5bb30bb080eb54eeaced",
+    "Plan": null,
+    "Note": "В начале положения указаны КВ, а в таблице очков есть множитель за УКВ. Требуется согласовать условия диапазонов."
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-agpa/c15c50a0f096d648afeffd5c278ee9c2/",
+    "Title": "Batumi - Aleksander Kartveli",
+    "TextSha256": "cb8544eb45bf93ca8fe31bd69b56d8007aec665ac5ccaabcf6d4f212f93e22e9",
+    "Plan": null,
+    "Note": "Русская и английская части перечисляют диапазоны КВ, а отдельная строка начисляет множитель на УКВ. Нужен подтверждённый список диапазонов."
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo-agpa/cf6add15ae1afb270bf7cdcd3b9cad67/",
+    "Title": "Omsk - Dmitriy Karbyshev",
+    "TextSha256": "e58815bead01dc09595662b7075563f78e08c5aedefd2a93f965b605cc7d4666",
+    "Plan": null,
+    "Note": "Положение описывает диапазоны КВ и отдельно множитель на УКВ. Для полной проверки нужно уточнить условия диапазонов."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/ebbdc9bdff203101a93c2b87e610e314/",
+    "Title": "W-ARCK-SSB",
+    "TextSha256": "8fcc2f2656bea201b972c900545eb01107dd1c3c8bb273d68e40a24e26285c16",
+    "Plan": null,
+    "Note": "Требуются 50 связей телефоном с членами ARCK, с повторами на разных диапазонах. AutoCQ передаёт только FT8 и FT4."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/f0ba36a37ebd3d2aea14e6fd890acd94/",
+    "Title": "W-ARCK-CW",
+    "TextSha256": "8fcc2f2656bea201b972c900545eb01107dd1c3c8bb273d68e40a24e26285c16",
+    "Plan": null,
+    "Note": "Требуются 50 связей телеграфом с членами ARCK, с повторами на разных диапазонах. AutoCQ передаёт только FT8 и FT4."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/d27673fbf2672ec1e3324dc9db953600/",
+    "Title": "ARCK QSO 15000-100000",
+    "TextSha256": "7941a225f3c30d4f9f42e524d6676b4c8c1c4b6b3208b1856bcac1b25e18cf21",
+    "Plan": null,
+    "Note": "Текст объединяет зачёт от 15 000 связей. У проверенной карточки HAMLOG видны степени до 50 000, при этом в названии указано до 100 000. Зачёт использует отдельные крупные таблицы связей."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/ba6b46ba979fdcd8866af85def55097d/",
+    "Title": "ARCK QSO 10-10000",
+    "TextSha256": "7941a225f3c30d4f9f42e524d6676b4c8c1c4b6b3208b1856bcac1b25e18cf21",
+    "Plan": null,
+    "Note": "Для каждой степени нужно своё число связей, повторы считаются по диапазону и группе видов. Требуется загружать большие таблицы официального зачёта и сверять все опубликованные степени."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/eac41642e9c3371d9deffced11f30115/",
+    "Title": "Zodiac Signs - Gemini",
+    "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
+    "Plan": null,
+    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/b3e3f719cdc3f3e1212b7a29de2890cb/",
+    "Title": "Zodiac Signs - Taurus",
+    "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
+    "Plan": null,
+    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/f48dd1850bf8cc3e7b63e97f03bdaf60/",
+    "Title": "Zodiac Signs - Sagittarius",
+    "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
+    "Plan": null,
+    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/b2e388e640f5a534955754c9ab73b271/",
+    "Title": "Zodiac Signs - Scorpio",
+    "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
+    "Plan": null,
+    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/dffeaf786ff44e7f3f21520793415dee/",
+    "Title": "Zodiac Signs - Pisces",
+    "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
+    "Plan": null,
+    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/eb86c9c2a9ac21265992db3fe866e980/",
+    "Title": "Zodiac Signs - Cancer",
+    "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
+    "Plan": null,
+    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/b526cf6d68bcf680607e41228b7f5445/",
+    "Title": "Zodiac Signs - Aries",
+    "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
+    "Plan": null,
+    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/c6edc752d945faf913667f03c615c153/",
+    "Title": "Zodiac Signs - Leo",
+    "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
+    "Plan": null,
+    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/f580edeca020f1afc4a509ec35db27fc/",
+    "Title": "Zodiac Signs - Capricorn",
+    "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
+    "Plan": null,
+    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/c57193e70840aa35162789ca12b3a85c/",
+    "Title": "Zodiac Signs - Virgo",
+    "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
+    "Plan": null,
+    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/ee1612e0e3d02b70c168a1b4c48663b9/",
+    "Title": "Zodiac Signs - Aquarius",
+    "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
+    "Plan": null,
+    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+  },
+  {
+    "Url": "https://hamlog.online/club/arck/cb897934bdb781503274360c9ba613ac/",
+    "Title": "Zodiac Signs - Libra",
+    "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
+    "Plan": null,
+    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+  }
+]

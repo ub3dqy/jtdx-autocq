@@ -449,11 +449,21 @@ namespace JtdxAutoCq
                 DownloadedRules = new HamlogRulePlan { Kind = "rcpw-hunter", FromUtc = "2026-06-22", BonusUntilUtc = "2026-07-01",
                     Required = 100, AlternativeRequired = 50, ExtraPoints = 10, MemberPoints = 5 }
             };
+            var romania = new AwardProgram { Title = "День объединения Румынии", Url = HamlogLinks.Origin + "club/demo/2026/",
+                Sponsor = "AJR DX Radio Alba", Selected = true, RuleDocumentStatus = "downloaded",
+                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2026-11-20", UntilUtc = "2026-12-01",
+                    Required = 2, MemberPoints = 1, ExtraPoints = 1, Calls = new[] { "YQ0U" },
+                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.BandMode }
+                }
+            };
+            var raem = new AwardProgram { Title = "RAEM", Url = HamlogLinks.Origin + "raem/", Sponsor = "СРР", RuleDocumentStatus = "downloaded",
+                RuleNote = "Охотнику нужны 68 очков за связи телеграфом на КВ. Для автоматического поиска в AutoCQ доступны FT8 и FT4."
+            };
             new HamlogRuleCache(awardCache, (url, cancel) => new HamlogRules(url, "Демонстрационный документ", null),
                 (delay, cancel) => { }).Scan(new[] { border }, default(System.Threading.CancellationToken), result => { });
             var custom = new AwardProgram { Title = "Учебный диплом", Url = HamlogLinks.Origin + "club/demo/19/",
                 ManualSearch = true, Goals = new List<AwardGoal> { new AwardGoal { Kind = "call", Value = "W2ABC" } } };
-            foreach (AwardProgram program in new[] { russia, gunsmiths, falcon, tula, arck, counties, angels, border, custom })
+            foreach (AwardProgram program in new[] { russia, gunsmiths, falcon, tula, arck, counties, angels, border, romania, raem, custom })
             {
                 program.PublicEntry = true;
                 program.Section = "Клубные и региональные";
@@ -482,14 +492,14 @@ namespace JtdxAutoCq
                 }).ToList());
             var example = new AwardCatalog {
                 Callsign = "K1ABC", PublicCatalogUtc = DateTime.UtcNow.AddMinutes(-20),
-                Programs = new List<AwardProgram> { russia, gunsmiths, arck, counties, diploma, stations, falcon, tula, angels, border, custom }
+                Programs = new List<AwardProgram> { russia, gunsmiths, arck, counties, diploma, stations, falcon, tula, angels, border, romania, raem, custom }
             };
             foreach (AwardProgram program in example.Programs) program.Validate();
             var awards = new AwardsDialog(example, awardHistory, "K1ABC", call => {
                 DxccCountry country = table.Find(call);
                 return country == null ? null : country.Prefix;
             }, cache: awardCache, demo: true);
-            awards.SelectDemoProgram(border);
+            awards.SelectDemoProgram(raem);
             return new Form[] {
                 new LogbookSourceDialog("", history.Path, "LogHX"),
                 new ProfilesDialog(profiles, profiles[0].Options, true),
@@ -502,7 +512,7 @@ namespace JtdxAutoCq
                 new AwardGoalsDialog(diploma),
                 new HamlogJournalDialog(falcon.Title, new HamlogPointProgress(falcon, awardHistory, "K1ABC")),
                 new HamlogAccountDialog("K1ABC", ""),
-                new HamlogPlanDialog(border),
+                new HamlogPlanDialog(romania),
             };
         }
     }

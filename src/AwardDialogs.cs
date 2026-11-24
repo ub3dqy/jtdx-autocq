@@ -213,6 +213,7 @@ namespace JtdxAutoCq
                 if (!program.UsesLocalTargets)
                     return program.PublicEntry && String.IsNullOrEmpty(program.Url) ? "Ожидает публикации"
                         : String.IsNullOrEmpty(program.Url) ? "Добавьте цели"
+                        : !String.IsNullOrEmpty(program.RuleNote) ? "Проверено · поиск недоступен"
                         : program.RuleDocumentStatus == "downloaded" ? "Условия пока не распознаны"
                         : program.RuleDocumentStatus == "unreadable" ? "Текст PDF не прочитан"
                         : program.RuleDocumentStatus == "missing" ? "Положение недоступно"
@@ -349,10 +350,10 @@ namespace JtdxAutoCq
             }
             if (!program.UsesLocalTargets)
             {
-                details.Text = context + (String.IsNullOrEmpty(program.Url)
+                details.Text = context + (program.RuleNote ?? (String.IsNullOrEmpty(program.Url)
                     ? program.PublicEntry ? "HAMLOG пока не опубликовал страницу этой программы."
                     : "Откройте правила поиска двойным щелчком, чтобы задать цели."
-                    : "Двойной щелчок открывает правила поиска. На HAMLOG можно посмотреть положение организатора.");
+                    : "Двойной щелчок открывает правила поиска. На HAMLOG можно посмотреть положение организатора."));
                 return;
             }
             string[] remains = program.Goals.Select((goal, index) => new { Goal = goal, Left = goal.Required - value.LoggedFor(index) })
@@ -664,9 +665,27 @@ namespace JtdxAutoCq
         readonly TextBox groups = new TextBox { Multiline = true, ScrollBars = ScrollBars.Vertical, MaxLength = 4000 };
         readonly CheckBox hf = new CheckBox { Text = "Только КВ (160–10 м)", AutoSize = true };
         readonly CheckBox vhfBonus = new CheckBox { Text = "Множитель ×1,5 на УКВ", AutoSize = true };
+        readonly CheckBox flat = new CheckBox { Text = "Очки без множителей", AutoSize = true };
+        readonly CheckBox modeGroups = new CheckBox { Text = "Считать цифровые виды вместе", AutoSize = true };
+        readonly CheckBox portableAliases = new CheckBox { Text = "Учитывать варианты позывных с дробью", AutoSize = true };
+        readonly TextBox territories = new TextBox { MaxLength = 350 };
+        readonly TextBox contactBands = new TextBox { MaxLength = 230 };
+        readonly TextBox contactModes = new TextBox { MaxLength = 30 };
+        readonly TextBox levels = new TextBox { MaxLength = 95 };
+        readonly ComboBox repeats = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
+        static readonly string[] RepeatKeys = { HamlogContactCriteria.BandMode, HamlogContactCriteria.DayBandMode,
+            HamlogContactCriteria.EveryQso, HamlogContactCriteria.Call, HamlogContactCriteria.Band, HamlogContactCriteria.Day };
+        HamlogRulePlan loadedPlan;
         internal HamlogRulePlan Edited { get; private set; }
 
-        internal HamlogPlanDialog(AwardProgram program) : base("Правила поиска диплома", 740, program.EffectiveRules.Club ? 574 : 468)
+        static bool HasContactAreas(AwardProgram program)
+        {
+            return program.EffectiveRules.ContactAward && (program.EffectiveRules.BonusGroups.Length != 0
+                || program.DownloadedRules != null && program.DownloadedRules.BonusGroups.Length != 0);
+        }
+
+        internal HamlogPlanDialog(AwardProgram program) : base("Правила поиска диплома", 740,
+            program.EffectiveRules.Club ? 574 : HasContactAreas(program) ? 703 : program.EffectiveRules.ContactAward ? 624 : 468)
         {
             this.program = program;
             HamlogRulePlan plan = program.EffectiveRules;
@@ -680,7 +699,7 @@ namespace JtdxAutoCq
             }
             else
             {
-                LabelAt(plan.Club ? "Бонусные позывные" : "Позывной станции", 20, 128, 188, 24);
+                LabelAt(plan.Club ? "Бонусные позывные" : plan.ContactAward ? "Позывные" : "Позывной станции", 20, 128, 188, 24);
                 Place(calls, 212, 124, 506, 82);
             }
             LabelAt("Даты зачёта (UTC)", 20, 232, 190, 26);
@@ -695,14 +714,16 @@ namespace JtdxAutoCq
                 Place(member, 375, 267, 74, 27);
                 LabelAt("За бонусный позывной", 471, 271, 173, 28);
                 Place(special, 644, 267, 74, 27);
-                Place(hf, 20, 296, 278, 24);
-                Place(vhfBonus, 310, 296, 245, 24);
-                hf.CheckedChanged += delegate { vhfBonus.Enabled = !hf.Checked; };
+                Place(hf, 20, 296, 198, 24);
+                Place(vhfBonus, 240, 296, 220, 24);
+                Place(flat, 490, 296, 216, 24);
+                hf.CheckedChanged += delegate { vhfBonus.Enabled = !hf.Checked && !flat.Checked; };
+                flat.CheckedChanged += delegate { vhfBonus.Enabled = !hf.Checked && !flat.Checked; };
                 LabelAt("Дополнительные группы", 20, 326, 228, 26);
                 LabelAt("Очки | позывные, DXCC или код области", 249, 326, 450, 24);
                 Place(groups, 20, 354, 698, 76);
                 LabelAt("Повторы считаются по дате UTC, диапазону и виду работы. FT8 и FT4 относятся к DIGI. "
-                    + "Множители для CW ×2, для SSB ×1,5, для 160 м ×1,5.", 20, 444, 700, 48);
+                    + "При включённых множителях CW даёт ×2, SSB ×1,5, а 160 м ×1,5.", 20, 444, 700, 48);
             }
             else if (plan.Rcpw)
             {
@@ -719,8 +740,42 @@ namespace JtdxAutoCq
                 LabelAt("Повтор учитывается на другом диапазоне или другим видом. FT8 и FT4 считаются одним видом.",
                     20, 374, 700, 30);
             }
+            else if (plan.ContactAward)
+            {
+                LabelAt(plan.MultiLevel ? "Высший порог" : "Нужно очков", 20, 270, 124, 24);
+                Place(required, 148, 267, 77, 27);
+                LabelAt("За позывной", 245, 270, 123, 24);
+                Place(special, 374, 267, 77, 27);
+                LabelAt(String.IsNullOrEmpty(plan.Contacts.Roster) ? "За станцию DXCC" : "За члена клуба", 466, 270, 157, 24);
+                Place(member, 641, 267, 77, 27);
+                LabelAt("Страны DXCC", 20, 308, 184, 24);
+                Place(territories, 212, 304, 506, 27);
+                LabelAt("Диапазоны (пусто — все)", 20, 346, 190, 24);
+                Place(contactBands, 212, 342, 506, 27);
+                LabelAt("Сколько очков на степень", 20, 384, 190, 24);
+                Place(levels, 212, 380, 506, 27);
+                LabelAt("Зачёт повторов", 20, 422, 190, 24);
+                repeats.Items.AddRange(new[] { "На разных диапазонах или видах", "На разных диапазонах или видах в сутки UTC",
+                    "Каждая отдельная связь", "Одна связь на позывной", "На разных диапазонах", "Одна связь на позывной в сутки UTC" });
+                Place(repeats, 212, 418, 506, 27);
+                Place(modeGroups, 20, 456, 300, 23);
+                Place(portableAliases, 363, 456, 355, 23);
+                LabelAt("Виды (пусто — все)", 20, 496, 190, 24);
+                Place(contactModes, 212, 492, 506, 27);
+                if (!String.IsNullOrEmpty(plan.Contacts.BonusFromUtc))
+                    LabelAt("Специальные позывные дают повышенные очки только в срок мероприятия.", 20, 530, 697, 24);
+                if (!String.IsNullOrEmpty(plan.Contacts.Roster))
+                    LabelAt(plan.Contacts.Roster == "rcpw" ? "Используется список членов клуба RCPW."
+                        : plan.Contacts.Roster == "arck" ? "Используется список членов клуба ARCK."
+                        : "Используется список членов ARCK за пределами России.", 20, 555, 697, 25);
+                if (HasContactAreas(program))
+                {
+                    LabelAt("Очки по территориям", 20, 588, 188, 24);
+                    Place(groups, 212, 582, 506, 56);
+                }
+            }
             else LabelAt("Для диплома нужна одна связь с этой станцией в указанный срок.", 20, 278, 699, 45);
-            int buttons = plan.Club ? 516 : 410;
+            int buttons = plan.Club ? 516 : HasContactAreas(program) ? 645 : plan.ContactAward ? 582 : 410;
             var restore = ButtonAt("Вернуть исходные", 20, buttons, 205, () => LoadValues(program.DownloadedRules, false));
             restore.Enabled = program.DownloadedRules != null;
             ButtonAt("Отмена", 449, buttons, 112, () => DialogResult = DialogResult.Cancel);
@@ -730,6 +785,7 @@ namespace JtdxAutoCq
 
         void LoadValues(HamlogRulePlan plan, bool edited)
         {
+            loadedPlan = plan;
             edition.Text = edited ? "Действуют ваши правки" : "Правила созданы из положения HAMLOG";
             calls.Text = String.Join(", ", plan.Calls);
             from.Text = plan.FromUtc;
@@ -737,6 +793,7 @@ namespace JtdxAutoCq
             required.Value = plan.Required;
             hf.Checked = plan.HfOnly;
             vhfBonus.Checked = plan.VhfBonus;
+            flat.Checked = plan.NoMultipliers;
             if (plan.Points)
             {
                 member.Value = plan.MemberPoints;
@@ -747,24 +804,47 @@ namespace JtdxAutoCq
                 alternative.Value = plan.AlternativeRequired;
                 bonusUntil.Text = plan.BonusUntilUtc;
             }
+            if (plan.ContactAward)
+            {
+                territories.Text = String.Join(", ", plan.Contacts.Countries);
+                contactBands.Text = String.Join(", ", plan.Contacts.Bands);
+                contactModes.Text = String.Join(", ", plan.Contacts.Modes);
+                levels.Text = String.Join(", ", plan.Contacts.Levels);
+                repeats.SelectedIndex = Array.IndexOf(RepeatKeys, plan.Contacts.Repeat);
+                modeGroups.Checked = plan.Contacts.GroupModes;
+                portableAliases.Checked = plan.Contacts.PortableAliases;
+            }
             groups.Lines = (plan.BonusGroups ?? new HamlogBonusGroup[0]).Select(group =>
                 group.Points.ToString(CultureInfo.InvariantCulture) + " | " + String.Join(", ", group.Targets)).ToArray();
         }
 
         void Save()
         {
-            HamlogRulePlan previous = program.EffectiveRules, original = program.DownloadedRules;
+            HamlogRulePlan previous = loadedPlan, original = program.DownloadedRules;
             try
             {
                 var plan = new HamlogRulePlan {
                     Kind = previous.Kind, FromUtc = from.Text, UntilUtc = until.Text, Required = (int)required.Value,
                     MemberPoints = previous.Points ? (int)member.Value : 0, ExtraPoints = previous.Points ? (int)special.Value : 0,
-                    HfOnly = previous.Club && hf.Checked, VhfBonus = previous.Club && !hf.Checked && vhfBonus.Checked,
-                    AlternativeRequired = previous.Rcpw ? (int)alternative.Value : 0, BonusUntilUtc = previous.Rcpw ? bonusUntil.Text : "",
-                    Calls = System.Text.RegularExpressions.Regex.Split(calls.Text.Trim(), @"[\s,;]+").Where(value => value.Length > 0).ToArray(),
-                    BonusGroups = previous.Club ? groups.Lines.Where(line => !String.IsNullOrWhiteSpace(line)).Select(ReadGroup).ToArray()
+                    HfOnly = previous.Club && hf.Checked, VhfBonus = previous.Club && !hf.Checked && !flat.Checked && vhfBonus.Checked,
+                    NoMultipliers = previous.Club && flat.Checked,
+                    AlternativeRequired = previous.Rcpw ? (int)alternative.Value : previous.AlternativeRequired,
+                    BonusUntilUtc = previous.Rcpw ? bonusUntil.Text : "",
+                    Calls = Tokens(calls.Text),
+                    BonusGroups = previous.Club || HasContactAreas(program) ? groups.Lines.Where(line => !String.IsNullOrWhiteSpace(line)).Select(ReadGroup).ToArray()
                         : new HamlogBonusGroup[0]
                 };
+                if (previous.ContactAward)
+                    plan.Contacts = new HamlogContactCriteria {
+                        Repeat = RepeatKeys[repeats.SelectedIndex], GroupModes = modeGroups.Checked,
+                        PortableAliases = portableAliases.Checked,
+                        AcceptObserverCredit = previous.Contacts.AcceptObserverCredit,
+                        Countries = Tokens(territories.Text.ToUpperInvariant()), Bands = Tokens(contactBands.Text.ToLowerInvariant()),
+                        Modes = Tokens(contactModes.Text.ToUpperInvariant()),
+                        Levels = Tokens(levels.Text).Select(value => Int32.Parse(value, CultureInfo.InvariantCulture)).ToArray(),
+                        BonusFromUtc = previous.Contacts.BonusFromUtc, BonusUntilUtc = previous.Contacts.BonusUntilUtc,
+                        Roster = previous.Contacts.Roster
+                    };
                 plan.Validate();
                 Edited = plan.SameAs(original) ? null : plan;
                 DialogResult = DialogResult.OK;
@@ -772,6 +852,9 @@ namespace JtdxAutoCq
             catch (Exception error)
             { MessageBox.Show(this, error.Message, "Правила поиска", MessageBoxButtons.OK, MessageBoxIcon.Information); }
         }
+
+        static string[] Tokens(string text)
+        { return System.Text.RegularExpressions.Regex.Split(text.Trim(), @"[\s,;]+").Where(value => value.Length > 0).ToArray(); }
 
         static HamlogBonusGroup ReadGroup(string line)
         {

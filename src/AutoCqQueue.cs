@@ -88,6 +88,13 @@ namespace JtdxAutoCq
     {
         static readonly Regex Valid = new Regex(@"^[A-Z0-9][A-Z0-9/]{1,28}[A-Z0-9]$", RegexOptions.CultureInvariant);
         public static string Clean(string call) { return (call ?? "").Trim().Trim('<','>').ToUpperInvariant(); }
+        // JTDX compares the longest part of a portable callsign with its own base call.
+        internal static string BaseCall(string call)
+        {
+            int slash = call.IndexOf('/');
+            if (slash < 0) return call;
+            return call.Length - slash >= slash ? call.Substring(slash + 1) : call.Substring(0, slash);
+        }
         internal static string Parse(string call)
         {
             call = Clean(call);

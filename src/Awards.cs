@@ -58,7 +58,7 @@ namespace JtdxAutoCq
         public bool OtherLevel;
         public string Section, Sponsor, PublishedFromUtc, PublishedUntilUtc;
         public bool PublicEntry, Withdrawn;
-        public string RuleDocumentStatus;
+        public string RuleDocumentStatus, RuleNote;
         public DateTime RulesCheckedUtc;
         public int RuleCompilerVersion;
         public HamlogRulePlan DownloadedRules, EditedRules;
@@ -91,7 +91,11 @@ namespace JtdxAutoCq
         {
             get { return new[] { AwardCatalog.ReadTime(UsesTemplate ? Template.Until : UntilUtc, true), AwardCatalog.ReadTime(PublishedUntilUtc, true) }.Min(); }
         }
-        internal bool ClosedByIssuance { get { return HasIssued == true && !OtherLevel && Template != HamlogAward.Russia; } }
+        internal bool ClosedByIssuance
+        {
+            get { return HasIssued == true && !OtherLevel && Template != HamlogAward.Russia
+                && !(EffectiveRules != null && EffectiveRules.MultiLevel); }
+        }
         internal string CatalogKey { get { return HamlogLinks.Award(Url) ?? Id; } }
 
         internal AwardProgram Copy()
@@ -142,6 +146,7 @@ namespace JtdxAutoCq
             if (result.Status != "retry" || RulesCheckedUtc == DateTime.MinValue)
                 RuleDocumentStatus = result.Status;
             if (result.Status == "retry") return;
+            RuleNote = result.Note;
             DownloadedRules = result.Plan;
             RulesCheckedUtc = result.CheckedUtc;
             RuleCompilerVersion = HamlogPlanCompiler.Version;
@@ -224,6 +229,7 @@ namespace JtdxAutoCq
                         row.DownloadedRules = old.DownloadedRules;
                         row.EditedRules = old.EditedRules;
                         row.RuleDocumentStatus = old.RuleDocumentStatus;
+                        row.RuleNote = old.RuleNote;
                         row.RulesCheckedUtc = old.RulesCheckedUtc;
                         row.RuleCompilerVersion = old.RuleCompilerVersion;
                     }

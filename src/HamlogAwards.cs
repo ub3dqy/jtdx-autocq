@@ -14,6 +14,7 @@ namespace JtdxAutoCq
         public string Call, Band, Mode, County, Locator;
         public DateTime DayUtc;
         public decimal Points;
+        public bool Observation;
     }
 
     public sealed class HamlogStanding
@@ -28,7 +29,7 @@ namespace JtdxAutoCq
         public string[] RcpwMembers;
     }
 
-    internal enum HamlogRule { Legacy, Grid, Stations, Bands, Tula, Tatarstan, Bryansk, Vysotsky, Marathon, Arck35, SkyHunter, EventStation, RcpwHunter }
+    internal enum HamlogRule { Legacy, Grid, Stations, Bands, Tula, Tatarstan, Bryansk, Vysotsky, Marathon, Arck35, SkyHunter, EventStation, RcpwHunter, ContactPoints }
 
     internal sealed class HamlogAward
     {
@@ -106,7 +107,8 @@ namespace JtdxAutoCq
         {
             HamlogRulePlan plan = program.EffectiveRules;
             if (plan == null || String.IsNullOrEmpty(program.Url)) return null;
-            HamlogRule rule = plan.Club ? HamlogRule.SkyHunter : plan.Rcpw ? HamlogRule.RcpwHunter : HamlogRule.EventStation;
+            HamlogRule rule = plan.Club ? HamlogRule.SkyHunter : plan.Rcpw ? HamlogRule.RcpwHunter
+                : plan.ContactAward ? HamlogRule.ContactPoints : HamlogRule.EventStation;
             return new HamlogAward(program.Title, new Uri(program.Url).AbsolutePath.TrimStart('/'), plan.FromUtc, plan.UntilUtc, plan.Required,
                 rule, plan.Points ? "" : plan.Calls[0], plan: plan);
         }
@@ -129,6 +131,8 @@ namespace JtdxAutoCq
         static readonly Regex Row = new Regex(@"<tr\b[^>]*>(.*?)</tr>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
         static readonly Regex Cell = new Regex(@"<td\b[^>]*>(.*?)</td>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
         static readonly Regex Tag = new Regex(@"<[^>]*>", RegexOptions.Singleline);
+        static readonly Regex FtSubmode = new Regex(@"\A(?:MFSK|FT[48])\s*\(\s*(FT[48])\s*\)\z", RegexOptions.IgnoreCase);
+        static readonly Regex Observer = new Regex(@"\A[A-Z0-9]{2,8}(?:-[A-Z0-9]{1,8})?-[0-9]{1,8}\z", RegexOptions.CultureInvariant);
         static readonly string[] DateFormats = { "d MMM yyyy", "dd MMM yyyy", "d MMMM yyyy", "dd.MM.yyyy", "yyyy-MM-dd" };
         static readonly Regex Hunter = new Regex(@"<section\s+class=""rrnars-award-group""[^>]*>\s*<h5>\s*(?:Hunter|Охотник)\s*</h5>(.*?)</section>",
             RegexOptions.IgnoreCase | RegexOptions.Singleline);
@@ -171,7 +175,7 @@ namespace JtdxAutoCq
                 }
                 standing = Parse(Encoding.UTF8.GetString(output.ToArray()), award, own, DateTime.UtcNow);
             }
-            if (award.Rule == HamlogRule.RcpwHunter)
+            if (award.DocumentPlan != null && award.DocumentPlan.UsesRcpwRoster)
             {
                 try { standing.RcpwMembers = HamlogRcpwRoster.Read(); }
                 catch (WebException error) { throw new IOException("Не удалось загрузить список членов RCPW. " + error.Status + ".", error); }
@@ -222,22 +226,37 @@ namespace JtdxAutoCq
                     throw new InvalidDataException("Не удалось определить, зачтена ли связь в HAMLOG.");
                 string[] values = cells.Select(cell => Text(cell.Groups[1].Value)).ToArray();
                 string call = Callsign.Parse(values[0]);
+                HamlogRulePlan plan = award.DocumentPlan;
+                bool observation = call == null && plan != null && Observer.IsMatch(values[0])
+                    && (plan.Club || plan.ContactAward && plan.Contacts.AcceptObserverCredit);
                 string band = values[2].ToLowerInvariant();
-                if (call == null || !JtdxAdif.BandNames.Contains(band) || String.IsNullOrEmpty(values[3]))
+                if (call == null && !observation || !JtdxAdif.BandNames.Contains(band) || String.IsNullOrEmpty(values[3]))
                     throw new InvalidDataException("Некорректная строка зачёта HAMLOG.");
+                if (values[6] == "-" && award.DocumentPlan != null && award.DocumentPlan.Club && award.DocumentPlan.NoMultipliers)
+                    continue;
+                Match submode = FtSubmode.Match(values[3]);
                 credits.Add(new HamlogCredit {
-                    Call = call, DayUtc = ContactDay(values[1]), Band = band, Mode = values[3].ToUpperInvariant(),
+                    Call = call ?? values[0], DayUtc = ContactDay(values[1]), Band = band, Observation = observation,
+                    Mode = (submode.Success ? submode.Groups[1].Value : values[3]).ToUpperInvariant(),
                     County = values[4].ToUpperInvariant(), Locator = AwardLocator.Parse(values[5]),
                     Points = award.Rule == HamlogRule.Bryansk && values[6] == "-" ? 1 : Number(values[6])
                 });
             }
             Match total = Total.Match(html);
-            bool provisional = !total.Success && award.Rule == HamlogRule.RcpwHunter
-                && award.DocumentPlan.AlternativeRequired != award.Required;
+            bool provisional = !total.Success && award.DocumentPlan != null
+                && award.DocumentPlan.AlternativeRequired > 0 && award.DocumentPlan.AlternativeRequired != award.Required;
             int required = total.Success ? (int)Number(total.Groups[2].Value)
                 : provisional ? award.DocumentPlan.AlternativeRequired : award.Required;
             decimal points = total.Success ? Number(total.Groups[1].Value) : 0;
-            if (total.Success && total.NextMatch().Success
+            if (award.DocumentPlan != null && award.DocumentPlan.MultiLevel)
+            {
+                Match[] totals = Total.Matches(html).Cast<Match>().ToArray();
+                int[] levels = totals.Select(match => (int)Number(match.Groups[2].Value)).OrderBy(level => level).ToArray();
+                if (!levels.SequenceEqual(award.DocumentPlan.Contacts.Levels) || totals.Any(match => Number(match.Groups[1].Value) != points))
+                    throw new InvalidDataException("Степени или итоги зачёта HAMLOG отличаются от положения.");
+                required = levels.Where(level => level > points).DefaultIfEmpty(award.Required).Min();
+            }
+            else if (total.Success && total.NextMatch().Success
                 || !total.Success && (award.HasOnlineRules || credits.Count != 0)
                 || !award.Requires(required))
                 throw new InvalidDataException("Схема зачёта HAMLOG отличается от положения этого диплома.");
@@ -250,8 +269,28 @@ namespace JtdxAutoCq
                     ? award.DocumentPlan.ExtraPoints : award.DocumentPlan.MemberPoints)))
                     throw new InvalidDataException("Очки за связи в HAMLOG отличаются от ставок в положении RCPW.");
             }
+            if (award.Rule == HamlogRule.ContactPoints && !ContactPointsAgree(award.DocumentPlan, credits))
+                throw new InvalidDataException("Очки за связи в HAMLOG отличаются от условий диплома.");
             return new HamlogStanding { Callsign = own, CheckedUtc = checkedUtc, Required = required,
                 ProvisionalRequired = provisional, Points = points, Credits = credits };
+        }
+
+        static bool ContactPointsAgree(HamlogRulePlan plan, List<HamlogCredit> credits)
+        {
+            var criteria = plan.Contacts;
+            DateTime? from = AwardCatalog.ReadTime(criteria.BonusFromUtc), until = AwardCatalog.ReadTime(criteria.BonusUntilUtc);
+            return credits.All(credit => {
+                string mode = HamlogPointProgress.ModeGroup(credit.Mode);
+                if (criteria.Modes.Length != 0 && !criteria.Modes.Contains(mode)
+                    || criteria.Bands.Length != 0 && !criteria.Bands.Contains(credit.Band)) return false;
+                bool named = plan.Calls.Contains(criteria.NamedCall(credit.Call));
+                bool couldBeBonus = named && (!from.HasValue || credit.DayUtc.AddDays(1) > from && credit.DayUtc < until);
+                bool onlyBonus = named && (!from.HasValue || credit.DayUtc >= from && credit.DayUtc.AddDays(1) <= until);
+                return (couldBeBonus && credit.Points == plan.ExtraPoints)
+                    || (!onlyBonus && (criteria.Countries.Length != 0 || !String.IsNullOrEmpty(criteria.Roster))
+                        && credit.Points == plan.MemberPoints)
+                    || (!onlyBonus && plan.BonusGroups.Any(group => group.Points == credit.Points));
+            });
         }
 
         static HamlogStanding ParseSquares(string html, HamlogAward award, string own, DateTime checkedUtc)
@@ -297,7 +336,7 @@ namespace JtdxAutoCq
         static readonly HashSet<string> IneligibleBands = new HashSet<string> { "2190m", "630m", "560m" };
         static readonly HashSet<string> SkyHf = new HashSet<string>("160m 80m 60m 40m 30m 20m 17m 15m 12m 10m".Split(' '));
         static readonly HashSet<string> SkyVhf = new HashSet<string> { "6m", "4m", "2m" };
-        readonly DateTime? from, until, bonusUntil;
+        readonly DateTime? from, until, bonusFrom, bonusUntil;
         readonly HashSet<string> recorded = new HashSet<string>(StringComparer.Ordinal);
         readonly List<HamlogCredit> pending = new List<HamlogCredit>();
         readonly string own;
@@ -309,11 +348,14 @@ namespace JtdxAutoCq
         readonly Dictionary<string, int> areaBonuses = new Dictionary<string, int>(StringComparer.Ordinal);
         readonly Func<string, string> dxcc;
         readonly bool rcpw;
+        readonly HamlogContactCriteria contacts;
+        static readonly HashSet<string> RussianEntities = new HashSet<string> { "UA", "UA2", "UA9", "R1FJ" };
+        bool EveryQso { get { return contacts != null && contacts.Repeat == HamlogContactCriteria.EveryQso; } }
 
         internal readonly HamlogStanding Standing;
         internal readonly int Required;
         internal readonly bool Closed;
-        internal bool IsMember { get { return !rcpw && Membership.ContainsKey(own); } }
+        internal bool IsMember { get { return contacts == null && !rcpw && Membership.ContainsKey(own); } }
         internal int ConfirmedMissingFromLogbook { get; private set; }
         internal IReadOnlyList<HamlogCredit> Pending { get { return pending; } }
         internal decimal PendingPoints { get; private set; }
@@ -329,23 +371,28 @@ namespace JtdxAutoCq
             logbookAvailable = history.Path != null;
             var template = program.Template;
             plan = template.DocumentPlan;
+            contacts = plan != null && plan.ContactAward ? plan.Contacts : null;
             bonus = plan == null ? Bonus : new HashSet<string>(plan.Calls, StringComparer.Ordinal);
             rcpw = plan != null && plan.Rcpw;
-            bonusUntil = rcpw ? AwardCatalog.ReadTime(plan.BonusUntilUtc) : null;
+            bonusFrom = contacts == null ? null : AwardCatalog.ReadTime(contacts.BonusFromUtc);
+            bonusUntil = contacts != null ? AwardCatalog.ReadTime(contacts.BonusUntilUtc)
+                : rcpw ? AwardCatalog.ReadTime(plan.BonusUntilUtc) : null;
             from = program.From;
             until = program.Until;
             Closed = !template.HasPointRules;
             Standing = program.Hamlog;
+            bool needsRcpw = plan != null && plan.UsesRcpwRoster;
             if (Standing != null && (Standing.Callsign != this.own || !template.Requires(Standing.Required) || Standing.Credits == null
-                || rcpw && (Standing.RcpwMembers == null || Standing.RcpwMembers.Length == 0)))
+                || needsRcpw && (Standing.RcpwMembers == null || Standing.RcpwMembers.Length == 0)))
                 Standing = null;
             Required = Standing == null ? template.Required : Standing.Required;
-            if (rcpw && Standing != null) rcpwMembers = new HashSet<string>(Standing.RcpwMembers, StringComparer.Ordinal);
+            if (needsRcpw && Standing != null) rcpwMembers = new HashSet<string>(Standing.RcpwMembers, StringComparer.Ordinal);
             if (plan != null)
                 foreach (HamlogBonusGroup group in plan.BonusGroups ?? new HamlogBonusGroup[0])
                     foreach (string target in group.Targets)
                         (group.Area ? areaBonuses : namedBonuses)[target] = group.Points;
             var logbookKeys = new HashSet<string>(StringComparer.Ordinal);
+            var creditedByDay = new Dictionary<string, int>(StringComparer.Ordinal);
             foreach (LogbookQso row in history.Records)
             {
                 DateTime? date = row.StartedUtc ?? row.EndedUtc;
@@ -356,6 +403,15 @@ namespace JtdxAutoCq
             {
                 foreach (HamlogCredit credit in Standing.Credits)
                 {
+                    if (credit.Observation) continue;
+                    if (EveryQso)
+                    {
+                        string key = CountKey(credit.Call, credit.Band, credit.Mode, credit.DayUtc);
+                        int count;
+                        creditedByDay.TryGetValue(key, out count);
+                        creditedByDay[key] = count + 1;
+                        continue;
+                    }
                     recorded.Add(Key(credit.Call, credit.Band, credit.Mode, credit.DayUtc));
                     if (!logbookKeys.Contains(ContactKey(credit.Call, credit.Band, credit.Mode, credit.DayUtc)))
                         ConfirmedMissingFromLogbook++;
@@ -365,8 +421,20 @@ namespace JtdxAutoCq
             foreach (LogbookQso row in history.Records.OrderBy(row => row.StartedUtc ?? row.EndedUtc))
             {
                 DateTime? date = row.StartedUtc ?? row.EndedUtc;
-                if (date.HasValue && row.BelongsTo(this.own)) Record(row.Call, row.Band, row.Mode, date.Value);
+                if (!date.HasValue || !row.BelongsTo(this.own)) continue;
+                if (EveryQso && Within(date.Value) && Credit(row.Call, row.Band, row.Mode, date.Value) > 0)
+                {
+                    string key = CountKey(row.Call, row.Band, row.Mode, date.Value);
+                    int count;
+                    if (creditedByDay.TryGetValue(key, out count) && count > 0)
+                    {
+                        if (recorded.Add(Key(row.Call, row.Band, row.Mode, date.Value))) creditedByDay[key] = count - 1;
+                        continue;
+                    }
+                }
+                Record(row.Call, row.Band, row.Mode, date.Value);
             }
+            if (EveryQso) ConfirmedMissingFromLogbook = creditedByDay.Values.Sum();
         }
 
         internal bool Within(DateTime time)
@@ -375,6 +443,8 @@ namespace JtdxAutoCq
         internal static string ModeGroup(string mode)
         {
             mode = (mode ?? "").ToUpperInvariant();
+            int submode = mode.IndexOf(" (", StringComparison.Ordinal);
+            if (submode > 0) mode = mode.Substring(0, submode);
             if (Digital.IsMatch(mode)) return "DIGI";
             if (mode == "USB" || mode == "LSB" || mode == "PHONE" || mode == "PH" || mode == "AM" || mode == "FM") return "SSB";
             return mode;
@@ -382,17 +452,39 @@ namespace JtdxAutoCq
 
         string Key(string call, string band, string mode, DateTime time)
         {
+            if (contacts != null)
+            {
+                call = contacts.NamedCall(call);
+                const string divider = "|";
+                switch (contacts.Repeat)
+                {
+                    case HamlogContactCriteria.Call: return call;
+                    case HamlogContactCriteria.Band: return call + divider + band;
+                    case HamlogContactCriteria.BandMode: return call + divider + band + divider + RepeatMode(mode);
+                    case HamlogContactCriteria.Day: return call + divider + time.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+                    case HamlogContactCriteria.DayBandMode: return CountKey(call, band, mode, time);
+                    case HamlogContactCriteria.EveryQso: return CountKey(call, band, mode, time) + divider + time.Ticks;
+                }
+            }
             if (rcpw) return call + "|" + band + "|" + ModeGroup(mode);
             string member;
             if (!Membership.TryGetValue(call, out member)) member = call;
             return ContactKey(member, band, mode, time);
         }
 
+        string RepeatMode(string mode) { return contacts.GroupModes ? ModeGroup(mode) : (mode ?? "").ToUpperInvariant(); }
+        string CountKey(string call, string band, string mode, DateTime time)
+        { return call + "|" + time.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "|" + band + "|" + RepeatMode(mode); }
+
         static string ContactKey(string call, string band, string mode, DateTime time)
         { return call + "|" + time.ToString("yyyyMMdd", CultureInfo.InvariantCulture) + "|" + band + "|" + ModeGroup(mode); }
 
         bool OnBand(string band, string group)
         {
+            if (contacts != null)
+                return !String.IsNullOrEmpty(group) && JtdxAdif.BandNames.Contains(band)
+                    && (contacts.Bands.Length == 0 || contacts.Bands.Contains(band))
+                    && (contacts.Modes.Length == 0 || contacts.Modes.Contains(group));
             return !String.IsNullOrEmpty(band) && !IneligibleBands.Contains(band) && JtdxAdif.BandNames.Contains(band)
                 && (group == "DIGI" || group == "SSB" || group == "CW")
                 && (plan == null || rcpw || SkyHf.Contains(band) || !plan.HfOnly && SkyVhf.Contains(band));
@@ -402,6 +494,7 @@ namespace JtdxAutoCq
         {
             string group = ModeGroup(mode);
             if (!OnBand(band, group)) return 0;
+            if (contacts != null) return ContactCredit(call, time);
             if (rcpw) return rcpwMembers.Contains(call) ? time < bonusUntil.Value ? plan.ExtraPoints : plan.MemberPoints : 0;
             int points;
             if (bonus.Contains(call)) points = plan == null ? 10 : plan.ExtraPoints;
@@ -415,8 +508,27 @@ namespace JtdxAutoCq
                         if (HamlogAwardAreas.Matches(area.Key, call, country)) points = Math.Max(points, area.Value);
                 }
             }
+            if (plan != null && plan.NoMultipliers) return points;
             bool bandBonus = band == "160m" || plan != null && plan.VhfBonus && SkyVhf.Contains(band);
             return points * (group == "CW" ? 2m : group == "SSB" ? 1.5m : 1m) * (bandBonus ? 1.5m : 1m);
+        }
+
+        int ContactCredit(string call, DateTime time)
+        {
+            if (bonus.Contains(contacts.NamedCall(call)) && (!bonusFrom.HasValue || time >= bonusFrom.Value && time < bonusUntil.Value))
+                return plan.ExtraPoints;
+            string country = dxcc == null ? null : dxcc(call);
+            int points = contacts.Countries.Contains(country) || ContactMember(call, country) ? plan.MemberPoints : 0;
+            foreach (KeyValuePair<string, int> area in areaBonuses)
+                if (HamlogAwardAreas.Matches(area.Key, call, country)) points = Math.Max(points, area.Value);
+            return points;
+        }
+
+        bool ContactMember(string call, string country)
+        {
+            if (contacts.Roster == "rcpw") return rcpwMembers != null && rcpwMembers.Contains(call);
+            return !String.IsNullOrEmpty(contacts.Roster) && HamlogAwardRosters.Arck.Contains(call)
+                && (contacts.Roster == "arck" || country != null && !RussianEntities.Contains(country));
         }
 
         internal decimal CandidatePoints(string call, string band, string mode, DateTime time)
@@ -428,6 +540,13 @@ namespace JtdxAutoCq
         internal bool Available(string band, string mode, DateTime time)
         {
             if (!CanSearch || !Within(time) || !OnBand(band, ModeGroup(mode))) return false;
+            if (contacts != null)
+            {
+                if (contacts.Countries.Length != 0 || areaBonuses.Count != 0) return true;
+                IEnumerable<string> members = String.IsNullOrEmpty(contacts.Roster) ? Enumerable.Empty<string>()
+                    : contacts.Roster == "rcpw" ? rcpwMembers : HamlogAwardRosters.Arck;
+                return bonus.Concat(members).Any(call => CandidatePoints(call, band, mode, time) > 0);
+            }
             if (areaBonuses.Count != 0) return true;
             IEnumerable<string> candidates = rcpw ? rcpwMembers : Membership.Keys.Concat(bonus).Concat(namedBonuses.Keys);
             return candidates.Any(call => CandidatePoints(call, band, mode, time) > 0);

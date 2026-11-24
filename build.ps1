@@ -36,7 +36,7 @@ $versionSource += [Environment]::NewLine + '[assembly: System.Reflection.Assembl
 if ($LASTEXITCODE -ne 0) { throw 'Built-in JTDX patcher compilation failed.' }
 $pdfReader = & (Join-Path $PSScriptRoot 'tools/Build-PdfRulesReader.ps1') -Directory $build -Compiler $compiler
 $resources = @("/resource:$icon,AutoCQ.ico", "/resource:$stub,queue-reply.bin", "/resource:$helper,Update-AutoCQ.ps1", "/resource:$patcher,JTDX-AutoCQ-Patch.exe", "/resource:$logReader,LogHxReader.exe",
-    "/resource:$pdfReader,PdfRulesReader.zip")
+    "/resource:$pdfReader,PdfRulesReader.zip", "/resource:$source/HamlogReviewedAwards.json,HamlogReviewedAwards.json")
 
 & $compiler /nologo /target:winexe /main:JtdxAutoCq.Program /optimize+ /codepage:65001 "/out:$program" "/win32icon:$icon" @resources @references @files
 if ($LASTEXITCODE -ne 0) { throw 'AutoCQ compilation failed.' }

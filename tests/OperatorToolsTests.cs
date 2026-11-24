@@ -434,6 +434,116 @@ static class OperatorToolsTests
             Check(results.SequenceEqual(new[] { cached.Id, missing.Id }), "The scan attempted new downloads before finishing the local cache.");
         });
 
+        run("Reviewed contact rules choose the next tier and count distinct unrestricted QSOs", () => {
+            const string own = "K1ABC";
+            const string station = "VK5IPA";
+            DateTime day = new DateTime(2026, 11, 24, 0, 0, 0, DateTimeKind.Utc);
+            var plan = new HamlogRulePlan { Kind = "contact-points", Required = 10, MemberPoints = 1, ExtraPoints = 1,
+                Calls = new[] { station }, Contacts = new HamlogContactCriteria {
+                    Repeat = HamlogContactCriteria.EveryQso, Levels = new[] { 5, 10 }
+                }
+            };
+            plan.Validate();
+            var award = new AwardProgram { Title = "Example tiers", Url = "https://hamlog.online/club/demo/2/", DownloadedRules = plan };
+            award.Validate();
+            var credit = HamlogRow(station, "24 Nov 2026", "20m", "FT8", "1");
+            string totals = "<span class='award-dashboard-value'>2 / 10</span><span class='award-dashboard-value'>2 / 5</span>";
+            award.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, totals, credit, credit), award.Template, own, day);
+            var history = new LogbookHistory("example.adi", new[] { 1, 2, 2, 3 }.Select(minute => new LogbookQso {
+                Call = station, Station = own, Band = "20m", Mode = "FT8", StartedUtc = day.AddMinutes(minute)
+            }).ToList());
+            var score = new AwardProgress(award, history, own, call => null);
+            Check(score.Points.Required == 5 && score.Points.PendingPoints == 1 && score.Needs(station, "20m", "FT8", day.AddMinutes(4)),
+                "Confirmed repeats were double-counted or the next degree was incorrect.");
+            score.Record(station, "20m", "FT8", day.AddMinutes(4));
+            score.Record(station, "20m", "FT8", day.AddMinutes(4));
+            score.Record(station, "20m", "FT8", day.AddMinutes(5));
+            Check(score.Points.PendingPoints == 3 && !score.Points.ConfirmedComplete && score.Points.PendingEnough,
+                "An identical log event or an unconfirmed contact changed the official total.");
+            award.HasIssued = true;
+            Check(!award.ClosedByIssuance, "Receiving the first degree excluded the other degrees.");
+        });
+
+        run("Reviewed country rules apply an exact special-event window and group FT4 with FT8 where required", () => {
+            const string own = "DL1ABC";
+            DateTime day = new DateTime(2026, 7, 1, 13, 0, 0, DateTimeKind.Utc);
+            var plan = new HamlogRulePlan { Kind = "contact-points", Required = 250, MemberPoints = 5, ExtraPoints = 10,
+                Calls = new[] { "K2A" }, Contacts = new HamlogContactCriteria {
+                    Repeat = HamlogContactCriteria.BandMode, GroupModes = true, Countries = new[] { "K" },
+                    BonusFromUtc = "2026-07-01T13:00:00Z", BonusUntilUtc = "2026-07-08T04:00:00Z"
+                }
+            };
+            plan.Validate();
+            var item = new AwardProgram { Title = "Example country", Url = "https://hamlog.online/club/demo/3/", DownloadedRules = plan };
+            item.Validate();
+            item.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, "<span class='award-dashboard-value'>5 / 250</span>",
+                HamlogRow("K1ABC", "30 Jun 2026", "20m", "MFSK (FT4)", "5")), item.Template, own, day);
+            var history = new LogbookHistory("example.adi", new List<LogbookQso>());
+            var score = new AwardProgress(item, history, own, call => call.StartsWith("K", StringComparison.Ordinal) ? "K" : "DL");
+            Check(score.Points.CandidatePoints("K2A", "20m", "FT8", day.AddSeconds(-1)) == 5
+                && score.Points.CandidatePoints("K2A", "20m", "FT8", day) == 10
+                && score.Points.CandidatePoints("K2A", "20m", "FT8", day.AddDays(8)) == 5
+                && !score.Needs("K1ABC", "20m", "FT8", day) && score.Needs("K1ABC", "40m", "FT8", day)
+                && !score.Needs("DL1AAA", "20m", "FT8", day),
+                "The exact date, mode group, country or band was not respected.");
+        });
+
+        run("A credited SWL entry contributes points without becoming an outgoing station", () => {
+            var plan = new HamlogRulePlan { Kind = "sky-hunter", Required = 100, MemberPoints = 10, ExtraPoints = 20,
+                NoMultipliers = true, HfOnly = true, Calls = new[] { "U4MIR" }
+            };
+            plan.Validate();
+            var item = new AwardProgram { Title = "Example sky", Url = "https://hamlog.online/club/nebo/1/", DownloadedRules = plan };
+            item.Validate();
+            DateTime day = new DateTime(2026, 11, 24, 12, 0, 0, DateTimeKind.Utc);
+            item.Hamlog = HamlogStandingClient.Parse(HamlogPage("K1ABC", "<span class='award-dashboard-value'>10 / 100</span>",
+                HamlogRow("R3A-014", "24 Nov 2026", "20m", "FT8", "10"),
+                HamlogRow("W2AAA", "24 Nov 2026", "20m", "FT8", "-")), item.Template, "K1ABC", day);
+            var score = new AwardProgress(item, new LogbookHistory("example.adi", new List<LogbookQso>()), "K1ABC", call => null);
+            Check(item.Hamlog.Credits.Single().Observation && score.Points.NeedOnline == 90
+                && score.Points.ConfirmedMissingFromLogbook == 0
+                && score.Points.CandidatePoints("U4MIR", "160m", "FT8", day) == 20
+                && !score.Needs("R3A-014", "20m", "FT8", day), "Observation affected search eligibility or flat points.");
+        });
+
+        run("Reviewed rules apply country-specific points and count a portable station once per UTC day", () => {
+            const string own = "K1ABC";
+            DateTime day = new DateTime(2026, 11, 24, 0, 0, 0, DateTimeKind.Utc);
+            var log = new LogbookHistory("example.adi", new List<LogbookQso>());
+            var plan = new HamlogRulePlan { Kind = "contact-points", Required = 75, MemberPoints = 1, ExtraPoints = 1,
+                BonusGroups = new[] {
+                    new HamlogBonusGroup { Area = true, Points = 15, Targets = new[] { "DXCC I" } },
+                    new HamlogBonusGroup { Area = true, Points = 10, Targets = new[] { "DXCC OE", "DXCC S5" } }
+                },
+                Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.BandMode, GroupModes = true,
+                    Bands = new[] { "20m", "40m" } }
+            };
+            var award = new AwardProgram { Title = "Example weighted DXCC", Url = "https://hamlog.online/club/demo/4/",
+                DownloadedRules = plan };
+            award.Validate();
+            award.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, "<span class='award-dashboard-value'>15 / 75</span>",
+                HamlogRow("I1ABC", "24 Nov 2026", "20m", "FT8", "15")), award.Template, own, day);
+            var score = new AwardProgress(award, log, own, call => call.StartsWith("S5") ? "S5" : call.StartsWith("I") ? "I" : "K");
+            Check(!score.Needs("I1ABC", "20m", "FT4", day) && score.Points.CandidatePoints("I1ABC", "40m", "FT8", day) == 15
+                && score.Points.CandidatePoints("S51ABC", "20m", "FT8", day) == 10
+                && !score.Needs("I1XYZ", "2m", "FT8", day) && !score.Needs("K1XYZ", "20m", "FT8", day),
+                "Country-specific points, band limits or duplicate checks were not applied.");
+
+            plan = new HamlogRulePlan { Kind = "contact-points", Required = 25, MemberPoints = 1, ExtraPoints = 1,
+                Calls = new[] { "OE6XMF" }, Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.Day,
+                    PortableAliases = true, Modes = new[] { "DIGI" } } };
+            award = new AwardProgram { Title = "Example station per day", Url = "https://hamlog.online/club/demo/5/",
+                DownloadedRules = plan };
+            award.Validate();
+            award.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, "<span class='award-dashboard-value'>1 / 25</span>",
+                HamlogRow("OE6XMF/P", "24 Nov 2026", "20m", "FT8", "1")), award.Template, own, day);
+            score = new AwardProgress(award, log, own, call => "OE");
+            Check(!score.Needs("OE6XMF", "40m", "FT4", day.AddHours(23))
+                && score.Needs("OE6XMF/M", "40m", "FT8", day.AddDays(1))
+                && !score.Needs("OE6XMF", "40m", "CW", day.AddDays(1)),
+                "A portable variant, a prohibited mode or a new UTC day was counted incorrectly.");
+        });
+
         run("Catalog refresh and re-reading conditions preserve an edited rule and keep the new original", () => {
             string url = "https://hamlog.online/club/nebo/29/";
             Func<int, HamlogRulePlan> plan = points => new HamlogRulePlan {

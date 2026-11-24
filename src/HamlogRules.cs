@@ -9,6 +9,7 @@ namespace JtdxAutoCq
 {
     internal sealed class HamlogRules
     {
+        internal const int MaximumBytes = 32 * 1024 * 1024;
         internal readonly string Source, Text;
         internal readonly byte[] Pdf;
 
@@ -47,8 +48,10 @@ namespace JtdxAutoCq
         static HamlogRules ReadDocument(string address, CancellationToken cancel)
         {
             byte[] data = HamlogPublicRequest.Read(address, "application/pdf, text/html;q=0.9, text/plain;q=0.7",
-                24 * 1024 * 1024, cancel, publicRedirects: 3);
-            return data == null ? null : ParseDocument(address, data);
+                MaximumBytes, cancel, publicRedirects: 3);
+            if (data == null) return null;
+            HamlogRules document = ParseDocument(address, data);
+            return document.Pdf == null && String.IsNullOrWhiteSpace(document.Text) ? null : document;
         }
 
         internal static HamlogRules ParseDocument(string address, byte[] data)

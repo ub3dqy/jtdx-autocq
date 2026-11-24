@@ -9,7 +9,7 @@ namespace JtdxAutoCq
 {
     internal sealed class HamlogRuleResult
     {
-        internal string Id, Status, Error;
+        internal string Id, Status, Error, Note;
         internal HamlogRulePlan Plan;
         internal DateTime CheckedUtc;
     }
@@ -17,6 +17,7 @@ namespace JtdxAutoCq
     internal sealed class HamlogRuleCache
     {
         static readonly TimeSpan Lifetime = TimeSpan.FromDays(7);
+        const int MaximumCacheBytes = HamlogRules.MaximumBytes + 2048;
         readonly string directory;
         readonly Func<string, CancellationToken, HamlogRules> read;
         readonly Action<int, CancellationToken> wait;
@@ -43,7 +44,7 @@ namespace JtdxAutoCq
             try
             {
                 var info = new FileInfo(path);
-                if (!info.Exists || info.Length > 25 * 1024 * 1024
+                if (!info.Exists || info.Length > MaximumCacheBytes
                     || freshOnly && DateTime.UtcNow - info.LastWriteTimeUtc > Lifetime) return null;
                 using (var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
                 using (var data = new BinaryReader(file, Encoding.UTF8))
@@ -53,7 +54,9 @@ namespace JtdxAutoCq
                     switch (data.ReadByte())
                     {
                         case 0: return new HamlogRules(source, null, null);
-                        case 1: return new HamlogRules(source, data.ReadString(), null);
+                        case 1:
+                            string text = data.ReadString();
+                            return String.IsNullOrWhiteSpace(text) ? null : new HamlogRules(source, text, null);
                         case 2: return HamlogRules.ParseDocument(source, data.ReadBytes((int)(file.Length - file.Position)));
                         default: return null;
                     }
@@ -104,6 +107,25 @@ namespace JtdxAutoCq
                 && program.RuleCompilerVersion != HamlogPlanCompiler.Version && File.Exists(DocumentPath(program.Url));
         }
 
+        bool HasLocalDocument(AwardProgram program)
+        {
+            if (!CanRecompile(program)) return false;
+            try
+            {
+                using (var file = new FileStream(DocumentPath(program.Url), FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
+                using (var reader = new BinaryReader(file, Encoding.UTF8))
+                {
+                    if (file.Length > MaximumCacheBytes) return false;
+                    reader.ReadString();
+                    byte format = reader.ReadByte();
+                    return format == 2 || format == 1 && !String.IsNullOrWhiteSpace(reader.ReadString());
+                }
+            }
+            catch (IOException) { return false; }
+            catch (UnauthorizedAccessException) { return false; }
+            catch (FormatException) { return false; }
+        }
+
         HamlogRules Download(string url, CancellationToken cancel)
         {
             wait(900, cancel);
@@ -126,7 +148,7 @@ namespace JtdxAutoCq
         {
             int consecutiveErrors = 0;
             using (var pdf = new HamlogPdfReader())
-                foreach (AwardProgram program in programs.OrderByDescending(CanRecompile))
+                foreach (AwardProgram program in programs.OrderByDescending(HasLocalDocument))
                 {
                     cancel.ThrowIfCancellationRequested();
                     var result = new HamlogRuleResult { Id = program.Id, CheckedUtc = DateTime.UtcNow };
@@ -144,7 +166,7 @@ namespace JtdxAutoCq
                         {
                             string text = document.Pdf == null ? document.Text : pdf.Read(document.Pdf, cancel);
                             if (String.IsNullOrWhiteSpace(text)) result.Status = "unreadable";
-                            else result.Plan = HamlogPlanCompiler.Compile(program.Url, text);
+                            else result.Plan = HamlogPlanCompiler.CompileWithReview(program.Url, text, out result.Note);
                         }
                     }
                     catch (HamlogRequestError error)
