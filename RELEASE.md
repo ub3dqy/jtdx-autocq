@@ -1,11 +1,11 @@
-# AutoCQ 0.9.32
+# AutoCQ 0.9.33
 
 ## Русский
 
-- Подготовлены и сверены с HAMLOG правила ещё для 53 карточек. Восемь из них действуют на 24 ноября 2026 года. Среди них «Казань», «Санкт-Петербургская телебашня» и «Пугачёвскому Дому пионеров — 90 лет».
-- AutoCQ отдельно проверяет общий зачёт и обязательные связи. Для «Казани» нужны 25 QSO и пять различных районов города. Когда 25 связей уже есть, поиск продолжится, пока не найдётся станция из недостающего района или такая связь уже будет в журнале.
-- Надбавки учитываются по диапазону и по точным часам мероприятия. Для архивных дипломов СРВС и «Пятого Океана» сохранены даты, ставки и списки из положений. Архив можно посмотреть через фильтр **«Срок истёк»**.
-- Чтобы увидеть обязательные условия и надбавки, откройте правила диплома двойным щелчком и нажмите **«Зачёт и надбавки»**. После обновления AutoCQ кнопка **«Разобрать скачанное»** применит новые правила к уже сохранённым положениям.
+- Добавлены и сверены с HAMLOG правила для десяти действующих дипломов. Среди них «Тула», «Земля Саратовская — левый берег», «Шолоховская весна 2026» и FIRAC OE DIGI.
+- Для «Тулы» AutoCQ умножает очки за связи на число сработанных районов. Для «Земли Саратовской» он выбирает станции из опубликованного списка районов левого берега на КВ.
+- В WHCG поиск идёт по новым квадратам Эквадора до ближайшей степени. Для FIRAC OE DIGI программа отдельно считает связи с тремя разными участниками австрийской группы.
+- Если положения уже скачаны, откройте **«Дипломы HAMLOG»** и нажмите **«Разобрать скачанное»**, чтобы применить новые правила.
 
 **Как обновиться.** Откройте **«Обновления»**, скачайте выпуск и закройте JTDX перед установкой. Затем нажмите **«Обновить и перезапустить»**. При работе с LogHX запускайте JTDX значком в журнале.
 
@@ -13,10 +13,10 @@
 
 ## English
 
-- Added and checked individual rules against HAMLOG for 53 more award cards. Eight are current on November 24, 2026, including Kazan, St. Petersburg TV Tower, and the 90th Anniversary of the Pugachev House of Pioneers.
-- AutoCQ tracks the main score and mandatory contacts separately. Kazan requires 25 QSOs and five different city districts. With 25 contacts already credited, the search keeps looking for a station in a missing district until the main logbook has a qualifying contact.
-- Scoring bonuses follow the band and exact event hours. Past AFARU and Fifth Ocean awards retain the dates, rates and call lists from their published rules. The **«Срок истёк»** (Expired) filter shows past awards.
-- Double-click an award and choose **«Зачёт и надбавки»** (Required contacts and bonuses) to see its additional conditions. After updating AutoCQ, **«Разобрать скачанное»** (Process downloaded rules) applies the new rules to your saved documents.
+- Added and checked rules against HAMLOG for ten active awards, including Tula, Saratov Land — the Left Bank, Sholokhov's Spring 2026 and FIRAC OE DIGI.
+- For Tula, AutoCQ multiplies contact points by the number of districts worked. For Saratov Land, it uses the published list of left-bank districts when searching on HF.
+- For WHCG, AutoCQ searches for new Ecuadorian grids toward the next award tier. FIRAC OE DIGI separately tracks contacts with three different stations in its Austrian group.
+- If you have already downloaded the conditions, open **«Дипломы HAMLOG»** (HAMLOG awards) and click **«Разобрать скачанное»** (Process downloaded rules) to apply the new rules.
 
 **Updating.** Open **«Обновления»** (Updates), download the release, and close JTDX before installation. Click **«Обновить и перезапустить»** (Update and restart). If you use LogHX, launch JTDX from its icon.
 

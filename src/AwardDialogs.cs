@@ -203,6 +203,7 @@ namespace JtdxAutoCq
             if (status.Online != null)
             {
                 HamlogOnlineProgress online = status.Online;
+                if (online.IsActivator) return "Условия для активаторов";
                 if (online.Standing == null) return "Сверится перед поиском";
                 if (online.Complete) return "Условия выполнены";
                 if (online.NeedsCounties) return "Районы RDA · " + online.CountyCount + " из 25";
@@ -343,6 +344,9 @@ namespace JtdxAutoCq
                     ? "Для поиска нужен свежий QTH-локатор. AutoCQ ищет квадраты, которых ещё нет в зачёте."
                     : program.Template.Rule == HamlogRule.Bryansk || program.Template.Rule == HamlogRule.Tatarstan
                     ? "Для зачёта нового района нужен известный RDA корреспондента."
+                    : online.IsActivator ? "Для вашего района действуют условия активатора. Откройте положение."
+                    : program.EffectiveRules != null && program.EffectiveRules.Districts
+                    ? "Двойной щелчок открывает список зачётных районов."
                     : "AutoCQ проверяет зачёт и учитывает повторы по положению диплома.");
                 return;
             }
@@ -459,6 +463,8 @@ namespace JtdxAutoCq
                 ? "Подключите JTDX с вашим позывным, чтобы получить зачёт HAMLOG."
                 : "Перед поиском AutoCQ сверит зачёт на HAMLOG.";
             string snapshot = "Сверено " + points.Standing.CheckedUtc.ToLocalTime().ToString("dd.MM в HH:mm") + ". ";
+            if (points.ConfirmedCountyMultiplier > 0)
+                snapshot += "Множитель по районам RDA ×" + points.ConfirmedCountyMultiplier + ". ";
             if (points.Standing.ProvisionalRequired)
                 snapshot += "HAMLOG пока показывает нулевой зачёт. До первой зачтённой связи для поиска используется меньший порог. ";
             if (points.Additional.Count != 0)
@@ -469,11 +475,11 @@ namespace JtdxAutoCq
             if (points.ConfirmedComplete) return snapshot + "Диплом можно получить на HAMLOG.";
             if (points.Additional.Count != 0 && points.NeedOnline == 0 && !points.PendingEnough)
                 return snapshot + "Автомат ищет связь для обязательного зачёта.";
-            string summary = points.Pending.Count == 0 ? "Все найденные в журнале связи уже в зачёте."
+            string summary = points.Pending.Count == 0 ? "Связи из журнала сверены."
                 : "В журнале есть связи ещё на " + Points(points.PendingPoints) + " очк. "
                     + (points.PendingEnough ? "При зачёте их хватит на диплом." : "Откройте список, чтобы проверить их.");
             if (points.ConfirmedMissingFromLogbook > 0)
-                summary += " Зачтённых QSO вне основного журнала — " + points.ConfirmedMissingFromLogbook + ".";
+                summary += " В зачёте вне журнала — " + points.ConfirmedMissingFromLogbook + ".";
             return snapshot + summary;
         }
 
@@ -684,10 +690,12 @@ namespace JtdxAutoCq
         readonly TextBox districtPrefix = new TextBox { MaxLength = 2 };
         readonly NumericUpDown lastCounty = new NumericUpDown { Minimum = 1, Maximum = 99 };
         readonly TextBox retiredCounties = new TextBox { MaxLength = 190 };
+        readonly TextBox eligibleCounties = new TextBox { MaxLength = 396 };
         readonly ComboBox repeats = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
         readonly Button additionalButton;
         static readonly string[] RepeatKeys = { HamlogContactCriteria.BandMode, HamlogContactCriteria.DayBandMode,
-            HamlogContactCriteria.EveryQso, HamlogContactCriteria.Call, HamlogContactCriteria.Band, HamlogContactCriteria.Day };
+            HamlogContactCriteria.EveryQso, HamlogContactCriteria.Call, HamlogContactCriteria.Band, HamlogContactCriteria.Day,
+            HamlogContactCriteria.Locator };
         HamlogRulePlan loadedPlan;
         HamlogContactRequirement[] obligations;
         HamlogPointAdjustment[] adjustments;
@@ -700,12 +708,13 @@ namespace JtdxAutoCq
         }
 
         internal HamlogPlanDialog(AwardProgram program) : base("Правила поиска диплома", 740,
-            program.EffectiveRules.Club ? 574 : program.EffectiveRules.Districts ? 520
+            program.EffectiveRules.Club ? 574 : program.EffectiveRules.Districts ? 558
                 : program.EffectiveRules.Rcpw && program.EffectiveRules.RcpwOnlineAfterPoints > 0 ? 506
                 : HasContactGroups(program) ? 703 : program.EffectiveRules.ContactAward ? 624 : 468)
         {
             this.program = program;
             HamlogRulePlan plan = program.EffectiveRules;
+            int districtOffset = plan.Districts ? 38 : 0;
             LabelAt(program.Title, 20, 58, 699, 28);
             edition = LabelAt("", 20, 88, 699, 24);
             if (plan.Districts)
@@ -716,8 +725,10 @@ namespace JtdxAutoCq
                 Place(lastCounty, 557, 124, 79, 27);
                 LabelAt("Упразднённые районы", 20, 166, 188, 24);
                 Place(retiredCounties, 212, 161, 506, 27);
+                LabelAt("Зачётные районы", 20, 204, 188, 24);
+                Place(eligibleCounties, 212, 199, 506, 27);
                 LabelAt("Для поиска должен быть известен район RDA по позывному и принятому локатору.",
-                    20, 198, 698, 24);
+                    20, 236, 698, 24);
             }
             else if (plan.Rcpw)
             {
@@ -730,10 +741,10 @@ namespace JtdxAutoCq
                 LabelAt(plan.Club ? "Бонусные позывные" : plan.ContactAward ? "Позывные" : "Позывной станции", 20, 128, 188, 24);
                 Place(calls, 212, 124, 506, 82);
             }
-            LabelAt("Даты зачёта (UTC)", 20, 232, 190, 26);
-            Place(from, 212, 228, 152, 27);
-            Place(until, 378, 228, 152, 27);
-            LabelAt("Дата или точное UTC", 545, 233, 173, 26);
+            LabelAt("Даты зачёта (UTC)", 20, 232 + districtOffset, 190, 26);
+            Place(from, 212, 228 + districtOffset, 152, 27);
+            Place(until, 378, 228 + districtOffset, 152, 27);
+            LabelAt("Дата или точное UTC", 545, 233 + districtOffset, 173, 26);
             if (plan.Club)
             {
                 LabelAt("Нужно очков", 20, 271, 119, 28);
@@ -776,14 +787,14 @@ namespace JtdxAutoCq
             }
             else if (plan.Districts)
             {
-                LabelAt("Высший порог", 20, 270, 188, 24);
-                Place(required, 212, 267, 77, 27);
-                LabelAt("Пороги степеней", 20, 309, 188, 24);
-                Place(levels, 212, 305, 506, 27);
-                LabelAt("Диапазоны (пусто — все)", 20, 349, 188, 24);
-                Place(contactBands, 212, 345, 506, 27);
-                LabelAt("Виды (пусто — все)", 20, 389, 188, 24);
-                Place(contactModes, 212, 385, 506, 27);
+                LabelAt("Высший порог", 20, 308, 188, 24);
+                Place(required, 212, 305, 77, 27);
+                LabelAt("Пороги степеней", 20, 347, 188, 24);
+                Place(levels, 212, 343, 506, 27);
+                LabelAt("Диапазоны (пусто — все)", 20, 387, 188, 24);
+                Place(contactBands, 212, 383, 506, 27);
+                LabelAt("Виды (пусто — все)", 20, 427, 188, 24);
+                Place(contactModes, 212, 423, 506, 27);
             }
             else if (plan.ContactAward)
             {
@@ -803,7 +814,8 @@ namespace JtdxAutoCq
                 Place(levels, 212, 380, 506, 27);
                 LabelAt("Зачёт повторов", 20, 422, 190, 24);
                 repeats.Items.AddRange(new[] { "На разных диапазонах или видах", "На разных диапазонах или видах в сутки UTC",
-                    "Каждая отдельная связь", "Одна связь на позывной", "На разных диапазонах", "Одна связь на позывной в сутки UTC" });
+                    "Каждая отдельная связь", "Одна связь на позывной", "На разных диапазонах", "Одна связь на позывной в сутки UTC",
+                    "Одна связь на квадрат, повторы по диапазону и виду" });
                 Place(repeats, 212, 418, 506, 27);
                 Place(modeGroups, 20, 456, 300, 23);
                 Place(portableAliases, 363, 456, 355, 23);
@@ -820,7 +832,7 @@ namespace JtdxAutoCq
                 }
             }
             else LabelAt("Для диплома нужна одна связь с этой станцией в указанный срок.", 20, 278, 699, 45);
-            int buttons = plan.Club ? 516 : plan.Districts ? 464 : HasContactGroups(program) ? 645 : plan.ContactAward ? 582
+            int buttons = plan.Club ? 516 : plan.Districts ? 502 : HasContactGroups(program) ? 645 : plan.ContactAward ? 582
                 : plan.Rcpw && plan.RcpwOnlineAfterPoints > 0 ? 447 : 410;
             var restore = ButtonAt("Вернуть исходные", 20, buttons, 205, () => LoadValues(program.DownloadedRules, false));
             restore.Enabled = program.DownloadedRules != null;
@@ -869,6 +881,7 @@ namespace JtdxAutoCq
                     districtPrefix.Text = plan.Contacts.CountyPrefix;
                     lastCounty.Value = plan.Contacts.LastCounty;
                     retiredCounties.Text = String.Join(", ", plan.Contacts.RetiredCounties);
+                    eligibleCounties.Text = String.Join(", ", plan.Contacts.EligibleCounties.Select(code => code.ToString("D2")));
                 }
             }
             else additionalButton.Visible = false;
@@ -910,6 +923,11 @@ namespace JtdxAutoCq
                         RetiredCounties = previous.Districts
                             ? Tokens(retiredCounties.Text).Select(code => Int32.Parse(code, CultureInfo.InvariantCulture)).ToArray()
                             : previous.Contacts.RetiredCounties,
+                        EligibleCounties = previous.Districts
+                            ? Tokens(eligibleCounties.Text).Select(code => Int32.Parse(code, CultureInfo.InvariantCulture)).ToArray()
+                            : previous.Contacts.EligibleCounties,
+                        MultiplyByCountyCount = previous.Contacts.MultiplyByCountyCount,
+                        CreditBeforePublication = previous.Contacts.CreditBeforePublication,
                         Roster = previous.Contacts.Roster, ActivatorRoster = previous.Contacts.ActivatorRoster,
                         ActivatorAreas = previous.Contacts.ActivatorAreas, Additional = obligations, Adjustments = adjustments
                     };
@@ -963,6 +981,8 @@ namespace JtdxAutoCq
                 : "";
             if (criteria.ActivatorAreas.Length != 0)
                 eligibility += "Отдельные условия активаторов действуют в " + String.Join(", ", criteria.ActivatorAreas) + ".";
+            if (criteria.MultiplyByCountyCount)
+                eligibility = "Сумма очков за связи умножается на число разных зачтённых районов RDA.";
             if (eligibility.Length == 0) eligibility = "Здесь указаны отдельные требования диплома и правила повышения очков.";
             LabelAt(eligibility, 20, top, 740, 42);
             top += 46;
@@ -973,7 +993,7 @@ namespace JtdxAutoCq
                     20, top, 685, 22);
                 var count = new NumericUpDown { Minimum = 1, Maximum = 1000, Value = condition.Required };
                 bool counties = condition.ByCounty;
-                var values = new TextBox { MaxLength = 960, Text = String.Join(", ", counties ? condition.CountyCodes : condition.Calls) };
+                var values = new TextBox { MaxLength = 4800, Text = String.Join(", ", counties ? condition.CountyCodes : condition.Calls) };
                 Place(count, 20, top + 25, 68, 26);
                 Place(values, 104, top + 25, 656, 26);
                 LabelAt(condition.Kind == HamlogContactRequirement.Counties ? "Пустое поле означает все районы зачётной территории."
@@ -981,7 +1001,9 @@ namespace JtdxAutoCq
                     106, top + 52, 650, 19);
                 readObligations.Add(() => {
                     string[] names = values.Text.ToUpperInvariant().Split(new[] { ',', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                    var rule = new HamlogContactRequirement { Kind = condition.Kind, Required = (int)count.Value, ReportedByHamlog = condition.ReportedByHamlog };
+                    var rule = new HamlogContactRequirement { Kind = condition.Kind, Required = (int)count.Value,
+                        ReportedByHamlog = condition.ReportedByHamlog, DistinctStations = condition.DistinctStations,
+                        PortableStations = condition.PortableStations };
                     if (counties) rule.CountyCodes = names;
                     else rule.Calls = names;
                     rule.Validate(criteria);

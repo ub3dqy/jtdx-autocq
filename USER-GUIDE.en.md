@@ -175,7 +175,7 @@ Select a callsign in **«Станции из левого окна JTDX»** and 
 2. To hide issued awards, click **«Выполненные из кабинета…»** (Completed awards from my account). In your browser, sign in to HAMLOG, open **My received awards** and save it with **Ctrl+S** as **Webpage, HTML only**. Select the saved file in AutoCQ. [Open HAMLOG Awards](https://hamlog.online/account/awards.php)
 3. Choose **«Состояние → Доступны для поиска»** (Status → Available for search) and tick the awards you want in the **«Поиск»** (Search) column. Close the window to save your choices. While JTDX is receiving, choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring). AutoCQ checks available HAMLOG credit and listens on the current band.
 
-![Kazan contact and district credit in the HAMLOG award list](docs/awards-demo.png)
+![Tula score and district multiplier in the HAMLOG award list](docs/awards-demo.png)
 
 ![Importing a saved page from your HAMLOG account](docs/hamlog-account-demo.png)
 
@@ -192,6 +192,10 @@ If a row says **«Проверено · поиск недоступен»** (Rev
 Each prepared award follows its own repeat-contact rule. For the OE6XMF award, one QSO counts per UTC day, even if the station changes bands or uses a portable callsign. For Stelvio Pass, the points depend on the other station's DXCC entity.
 
 For RDA district awards such as Voronezh Region, AutoCQ tracks progress toward the next available tier. It looks for a new district when the callsign and locator match a known record. Districts come from the main logbook and HAMLOG credit. If two records give different districts for the same callsign and locator, AutoCQ waits for another eligible station.
+
+**Saratov Land — the Left Bank** requires eight different districts on HF. Double-click the award to see the published list under **«Зачётные районы»** (Eligible districts). For **Tula**, each QSO is worth two points. If you have 18 credited contacts across four districts, the score is 36 × 4 = 144 points. A new district increases the multiplier. [Saratov Land rules](https://hamlog.online/global/russia/r4c/1025/rules/) · [Tula rules](https://hamlog.online/global/russia/r3p/485/rules/)
+
+For **WHCG**, AutoCQ reads the first four characters of a recent grid locator from an Ecuadorian station. It checks whether you need the grid and shows the next tier at 5, 12 or 20 grids. **FIRAC OE DIGI** requires 30 digital contacts, including contacts with three different stations in the Austrian group. Another contact on a different band may count toward the total and leaves the number of distinct stations unchanged. [WHCG rules](https://hamlog.online/club/hcdx/177/rules/) · [FIRAC OE rules](https://www.oevsv.at/oevsv/diplome/)
 
 Kazan has two requirements. You need 25 credited contacts and five different city districts. If you see **«25 из 25 · 4 из 5»** (25 of 25, 4 of 5), AutoCQ looks for a station in a fifth district. St. Petersburg TV Tower requires 60 points plus a contact with RC1B or one of the operators named in the rules. [Kazan rules](https://hamlog.online/club/kazan/be5792cd277125309bc1216c86f36bba/rules/) · [TV Tower rules](https://hamlog.online/global/russia/r1a/a75954ec9180c819a1a6d4bb4e2fd522/rules/)
 
@@ -219,7 +223,7 @@ For Murom Falcon, **«Вне зачёта»** (Awaiting credit) shows possible p
 
 Double-click a row or choose **«Правила поиска…»** (Search rules) from its menu. For a recognized award, the editor shows the rules AutoCQ will use. Edit the fields and click **«Сохранить»** (Save). To go back to the original rules, click **«Вернуть исходные»** (Restore original), then **«Сохранить»**. A catalog update keeps your manual edits and lists the affected awards below the table.
 
-![Search rules for Romania's National Day award](docs/hamlog-plan-demo.png)
+![Eligible districts in the Saratov Land — the Left Bank rules](docs/hamlog-plan-demo.png)
 
 If you know eligible stations for an award that uses other conditions, choose **«Задать свой список целей…»** (Set my targets) from its row menu. Enter callsigns, DXCC entities or patterns such as `JA*`. AutoCQ checks this list against your main logbook. The same menu can create a standalone list or open a prepared JSON file. [Import file format](docs/award-catalog.md)
 

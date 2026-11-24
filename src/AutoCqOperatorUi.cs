@@ -459,12 +459,22 @@ namespace JtdxAutoCq
             var raem = new AwardProgram { Title = "RAEM", Url = HamlogLinks.Origin + "raem/", Sponsor = "СРР", RuleDocumentStatus = "downloaded",
                 RuleNote = "Охотнику нужны 68 очков за связи телеграфом на КВ. Для автоматического поиска в AutoCQ доступны FT8 и FT4."
             };
-            var voronezh = new AwardProgram { Title = "Воронежская область", Url = HamlogLinks.Origin + "club/demo/1802/",
-                Sponsor = "Воронежское отделение СРР", Selected = true, RuleDocumentStatus = "downloaded",
-                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2019-01-01",
-                    Required = 39, MemberPoints = 1, ExtraPoints = 1,
-                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.District, CountyPrefix = "VR",
-                        LastCounty = 44, RetiredCounties = new[] { 8, 10, 11, 12, 16 }, Levels = new[] { 20, 25, 30, 39 } }
+            var saratov = new AwardProgram { Title = "Земля Саратовская — левый берег", Url = HamlogLinks.Origin + "club/demo/1802/",
+                Sponsor = "Саратовское отделение СРР", Selected = true, RuleDocumentStatus = "downloaded",
+                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2024-01-07",
+                    Required = 8, MemberPoints = 1, ExtraPoints = 1,
+                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.District, CountyPrefix = "SA", LastCounty = 58,
+                        EligibleCounties = new[] { 19, 23, 28, 29, 31, 32, 35, 36, 38, 40, 41, 42, 44, 45, 46, 51, 54, 56 },
+                        Bands = new[] { "160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m" } }
+                }
+            };
+            var tulaDistricts = new AwardProgram { Title = "Тула", Url = HamlogLinks.Origin + "club/demo/1146/",
+                Sponsor = "Тульское отделение СРР", Selected = true, RuleDocumentStatus = "downloaded",
+                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2022-03-01",
+                    Required = 1146, MemberPoints = 2, ExtraPoints = 1,
+                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.BandMode, CountyPrefix = "TL", LastCounty = 38,
+                        MultiplyByCountyCount = true, ActivatorAreas = new[] { "TL" } },
+                    BonusGroups = new[] { new HamlogBonusGroup { Area = true, Points = 2, Targets = new[] { "TL" } } }
                 }
             };
             var kazan = new AwardProgram { Title = "Казань", Url = HamlogLinks.Origin + "club/demo/2505/",
@@ -483,7 +493,8 @@ namespace JtdxAutoCq
                 (delay, cancel) => { }).Scan(new[] { border }, default(System.Threading.CancellationToken), result => { });
             var custom = new AwardProgram { Title = "Учебный диплом", Url = HamlogLinks.Origin + "club/demo/19/",
                 ManualSearch = true, Goals = new List<AwardGoal> { new AwardGoal { Kind = "call", Value = "W2ABC" } } };
-            foreach (AwardProgram program in new[] { russia, gunsmiths, falcon, tula, arck, counties, angels, border, romania, raem, voronezh, kazan, custom })
+            foreach (AwardProgram program in new[] { russia, gunsmiths, falcon, tula, arck, counties, angels, border, romania, raem,
+                saratov, tulaDistricts, kazan, custom })
             {
                 program.PublicEntry = true;
                 program.Section = "Клубные и региональные";
@@ -504,11 +515,18 @@ namespace JtdxAutoCq
                 ConfirmedSquares = Enumerable.Range(0, 87).Select(square => "KO" + square.ToString("00")).ToArray()
             };
             gunsmiths.Hamlog = new HamlogStanding { Callsign = "K1ABC", Points = 62, Required = 100, CheckedUtc = falcon.Hamlog.CheckedUtc };
-            voronezh.Hamlog = new HamlogStanding {
-                Callsign = "K1ABC", Points = 17, Required = 20, CheckedUtc = falcon.Hamlog.CheckedUtc,
-                Credits = Enumerable.Range(1, 22).Except(voronezh.DownloadedRules.Contacts.RetiredCounties).Select(district =>
-                    new HamlogCredit { Call = "R3Q" + (char)('A' + district), County = "VR-" + district.ToString("D2"),
-                        Locator = "KO91", Band = "40m", Mode = "FT8", DayUtc = october, Points = 1 }).ToList()
+            saratov.Hamlog = new HamlogStanding {
+                Callsign = "K1ABC", Points = 5, Required = 8, CheckedUtc = falcon.Hamlog.CheckedUtc,
+                Credits = saratov.DownloadedRules.Contacts.EligibleCounties.Take(5).Select((district, index) =>
+                    new HamlogCredit { Call = "R4CA" + (char)('A' + index), County = "SA-" + district.ToString("D2"),
+                        Locator = "LO43", Band = "40m", Mode = "FT8", DayUtc = october, Points = 1 }).ToList()
+            };
+            tulaDistricts.Hamlog = new HamlogStanding {
+                Callsign = "K1ABC", Points = 144, Required = 1146, CheckedUtc = falcon.Hamlog.CheckedUtc,
+                Credits = Enumerable.Range(0, 18).Select(index => new HamlogCredit {
+                    Call = "R3PA" + (char)('A' + index), County = "TL-0" + (1 + index % 4), Locator = "KO92",
+                    Band = "40m", Mode = "FT8", DayUtc = october, Points = 2
+                }).ToList()
             };
             kazan.Hamlog = new HamlogStanding {
                 Callsign = "K1ABC", Points = 25, Required = 25, CheckedUtc = falcon.Hamlog.CheckedUtc,
@@ -525,14 +543,15 @@ namespace JtdxAutoCq
                 }).ToList());
             var example = new AwardCatalog {
                 Callsign = "K1ABC", PublicCatalogUtc = DateTime.UtcNow.AddMinutes(-20),
-                Programs = new List<AwardProgram> { russia, gunsmiths, arck, counties, diploma, stations, falcon, tula, angels, border, romania, raem, voronezh, kazan, custom }
+                Programs = new List<AwardProgram> { russia, gunsmiths, arck, counties, diploma, stations, falcon, tula, angels, border,
+                    romania, raem, saratov, tulaDistricts, kazan, custom }
             };
             foreach (AwardProgram program in example.Programs) program.Validate();
             var awards = new AwardsDialog(example, awardHistory, "K1ABC", call => {
                 DxccCountry country = table.Find(call);
                 return country == null ? null : country.Prefix;
             }, cache: awardCache, demo: true);
-            awards.SelectDemoProgram(kazan);
+            awards.SelectDemoProgram(tulaDistricts);
             return new Form[] {
                 new LogbookSourceDialog("", history.Path, "LogHX"),
                 new ProfilesDialog(profiles, profiles[0].Options, true),
@@ -545,7 +564,7 @@ namespace JtdxAutoCq
                 new AwardGoalsDialog(diploma),
                 new HamlogJournalDialog(falcon.Title, new HamlogPointProgress(falcon, awardHistory, "K1ABC")),
                 new HamlogAccountDialog("K1ABC", ""),
-                new HamlogPlanDialog(kazan),
+                new HamlogPlanDialog(saratov),
                 new HamlogAdditionalRulesDialog(kazan.EffectiveRules.Contacts, kazan.EffectiveRules.Contacts.Additional,
                     kazan.EffectiveRules.Contacts.Adjustments),
             };

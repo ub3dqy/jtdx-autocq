@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace JtdxAutoCq
 {
@@ -17,6 +18,8 @@ namespace JtdxAutoCq
                 case "afaru": return "членов СРВС";
                 case "fifth-ocean": return "членов клуба «Пятый Океан»";
                 case "afaru-fifth-ocean": return "членов СРВС и клуба «Пятый Океан»";
+                case "afaru-sky": return "членов СРВС и клуба «Рыцари неба»";
+                case "firac": return "членов FIRAC";
                 default: return "членов клуба из положения";
             }
         }
@@ -30,6 +33,8 @@ namespace JtdxAutoCq
                 case "afaru": return HamlogPublishedRosters.Afaru;
                 case "fifth-ocean": return HamlogPublishedRosters.FifthOcean;
                 case "afaru-fifth-ocean": return HamlogPublishedRosters.AfaruAndFifthOcean;
+                case "afaru-sky": return AfaruSky.Value;
+                case "firac": return HamlogPublishedRosters.Firac;
                 case "miller": return Miller;
                 default: return null;
             }
@@ -111,6 +116,9 @@ namespace JtdxAutoCq
             "RX6LPV RX6LQH RZ5D RZ7KR S56P SP5PDA SP5XSL SP9RXP SQ2HL SV1MO TA3AHJ U4MIR UA0LDY UA0LQE UA1OMP UA3FQ " +
             "UA3SCU UA4WW UA6GO UA6HML UA6LQZ UA6NT UA9HO UB1OBV UB3ATK UB6LLI UB8AHK UG4P UG5F UI6L UI7M UN7JID " +
             "UR2LX W1CU YL3GX YL3NU YO3LW YO8DOH YT7MK YU1WAT Z35W Z35Z");
+
+        static readonly Lazy<HashSet<string>> AfaruSky = new Lazy<HashSet<string>>(() =>
+            new HashSet<string>(HamlogPublishedRosters.Afaru.Concat(HamlogPointProgress.SkyCallsigns), StringComparer.Ordinal));
 
         static HashSet<string> Calls(string values)
         { return new HashSet<string>(values.Split(' '), StringComparer.Ordinal); }

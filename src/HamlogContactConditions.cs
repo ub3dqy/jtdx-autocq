@@ -10,33 +10,35 @@ namespace JtdxAutoCq
         internal const string Counties = "counties", CountyContacts = "county-contacts", Stations = "stations";
         public string Kind;
         public int Required;
-        public bool ReportedByHamlog;
+        public bool ReportedByHamlog, DistinctStations, PortableStations;
         public string[] Calls = new string[0];
         public string[] CountyCodes = new string[0];
 
         internal bool ByCounty { get { return Kind == Counties || Kind == CountyContacts; } }
         internal string Label { get { return Kind == Counties ? "районы RDA" : Kind == CountyContacts
-            ? "связи с обязательным районом" : "связи с обязательными станциями"; } }
+            ? "связи с обязательным районом" : DistinctStations ? "разные обязательные станции" : "связи с обязательными станциями"; } }
 
         internal void Validate(HamlogContactCriteria criteria)
         {
             Calls = (Calls ?? new string[0]).Select(Callsign.Parse).Distinct(StringComparer.Ordinal).ToArray();
             CountyCodes = (CountyCodes ?? new string[0]).Distinct(StringComparer.Ordinal).ToArray();
             if (Required < 1 || Required > 1000
-                || (ByCounty ? Calls.Length != 0 || CountyCodes.Length > 99
+                || (ByCounty ? Calls.Length != 0 || DistinctStations || PortableStations || CountyCodes.Length > 99
                     || CountyCodes.Length == 0 && (!criteria.RestrictsCounties || Kind == CountyContacts)
                     || CountyCodes.Any(code => !HamlogCountyIndex.IsCounty(code)
                         || criteria.RestrictsCounties && !criteria.InCountyScope(code, allowRetired: true))
                     || Kind == Counties && Required > (CountyCodes.Length != 0 ? CountyCodes.Length
-                        : criteria.LastCounty - criteria.RetiredCounties.Length)
-                    : Kind != Stations || CountyCodes.Length != 0 || Calls.Length == 0 || Calls.Length > 80 || Calls.Any(call => call == null)))
+                        : criteria.UsableCountyCount)
+                    : Kind != Stations || CountyCodes.Length != 0 || Calls.Length == 0 || Calls.Length > 240 || Calls.Any(call => call == null)
+                        || DistinctStations && Required > Calls.Length))
                 throw new InvalidDataException("Проверьте обязательные районы и позывные диплома.");
         }
 
         internal bool SameAs(HamlogContactRequirement other)
         {
             return other != null && Kind == other.Kind && Required == other.Required
-                && ReportedByHamlog == other.ReportedByHamlog && Calls.SequenceEqual(other.Calls)
+                && ReportedByHamlog == other.ReportedByHamlog && DistinctStations == other.DistinctStations
+                && PortableStations == other.PortableStations && Calls.SequenceEqual(other.Calls)
                 && CountyCodes.SequenceEqual(other.CountyCodes);
         }
 
@@ -45,16 +47,24 @@ namespace JtdxAutoCq
             return Kind == Counties ? credits.Where(Matches).Select(row => row.County).Distinct().Count() : credits.Count(Matches);
         }
 
+        internal string Station(string call)
+        {
+            if (Calls.Contains(call)) return call;
+            if (!PortableStations || String.IsNullOrEmpty(call)) return null;
+            string original = Callsign.BaseCall(call);
+            return Calls.Contains(original) ? original : null;
+        }
+
         internal bool Matches(HamlogCredit row) { return !row.Observation && Matches(row.Call, row.County); }
 
         internal bool Matches(string call, string county)
-        { return ByCounty ? HamlogCountyIndex.IsCounty(county) && (CountyCodes.Length == 0 || CountyCodes.Contains(county)) : Calls.Contains(call); }
+        { return ByCounty ? HamlogCountyIndex.IsCounty(county) && (CountyCodes.Length == 0 || CountyCodes.Contains(county)) : Station(call) != null; }
     }
 
     internal sealed class HamlogRequirementProgress
     {
         readonly HamlogContactRequirement rule;
-        readonly HashSet<string> counties = new HashSet<string>(StringComparer.Ordinal);
+        readonly HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
         int projected;
         internal readonly int Confirmed;
         internal int Required { get { return rule.Required; } }
@@ -71,14 +81,18 @@ namespace JtdxAutoCq
         internal bool Needs(string call, string county)
         {
             return !Enough && rule.Matches(call, county)
-                && (rule.Kind != HamlogContactRequirement.Counties || !counties.Contains(county));
+                && !seen.Contains(Key(call, county));
         }
 
         internal void Record(HamlogCredit credit)
         {
-            if (rule.Matches(credit) && (rule.Kind != HamlogContactRequirement.Counties || counties.Add(credit.County)))
-                projected++;
+            if (!rule.Matches(credit)) return;
+            string key = Key(credit.Call, credit.County);
+            if (key == null || seen.Add(key)) projected++;
         }
+
+        string Key(string call, string county)
+        { return rule.Kind == HamlogContactRequirement.Counties ? county : rule.DistinctStations ? rule.Station(call) : null; }
     }
 
     public sealed class HamlogPointAdjustment

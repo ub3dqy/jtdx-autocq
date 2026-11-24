@@ -52,10 +52,11 @@ namespace JtdxAutoCq
             "UE7DX UE36DX UE36L R2026DX R036DX UE4DX UE6DX UE3DX UE0DX R036Z UE36O".Split(' '));
 
         readonly HamlogAward award;
-        readonly HamlogContactCriteria districts;
+        readonly HamlogContactCriteria districts, locators;
         readonly string own;
         readonly Func<string, string> dxcc;
         readonly HashSet<string> worked = new HashSet<string>(StringComparer.Ordinal);
+        readonly HashSet<string> locatorContacts = new HashSet<string>(StringComparer.Ordinal);
         readonly HashSet<string> counties = new HashSet<string>(StringComparer.Ordinal);
         readonly HashSet<string> confirmedCounties = new HashSet<string>(StringComparer.Ordinal);
         readonly HamlogCountyIndex reportedCounties = new HamlogCountyIndex();
@@ -63,6 +64,7 @@ namespace JtdxAutoCq
         int pending;
 
         internal readonly HamlogStanding Standing;
+        internal readonly bool IsActivator;
         internal bool NeedsCounties { get { return award.Rule == HamlogRule.Tatarstan && counties.Count < 25; } }
         internal int CountyCount { get { return confirmedCounties.Count; } }
         internal decimal Confirmed
@@ -79,10 +81,12 @@ namespace JtdxAutoCq
         {
             award = program.Template;
             districts = award.Rule == HamlogRule.Districts ? award.DocumentPlan.Contacts : null;
+            locators = award.Rule == HamlogRule.Grid && award.DocumentPlan != null ? award.DocumentPlan.Contacts : null;
             from = program.From;
             until = program.Until;
             this.own = Callsign.Clean(own);
             this.dxcc = dxcc;
+            IsActivator = districts != null && districts.IsActivatorArea(this.own, dxcc);
             Standing = program.Hamlog;
             if (Standing == null || Standing.Callsign != this.own || Standing.CheckedUtc == DateTime.MinValue
                 || Standing.Required <= 0 || Standing.Credits == null || Standing.ConfirmedSquares == null
@@ -102,6 +106,7 @@ namespace JtdxAutoCq
                 if (county != null) confirmedCounties.Add(county);
                 string key = Key(credit.Call, credit.Band, mode, credit.Locator, county);
                 if (key != null) worked.Add(key);
+                if (locators != null) locatorContacts.Add(locators.ContactKey(credit.Call, credit.Band, credit.Mode));
             }
             counties.UnionWith(confirmedCounties);
             worked.UnionWith(Standing.ConfirmedSquares);
@@ -113,9 +118,10 @@ namespace JtdxAutoCq
                 reportedCounties.Add(row.Call, row.Locator, districts == null ? AwardCounty(row.Call, row.County) : row.County);
             }
             if (award.Rule == HamlogRule.Tula || award.Rule == HamlogRule.Tatarstan
-                || award.Rule == HamlogRule.Marathon || award.Rule == HamlogRule.Vysotsky || award.Rule == HamlogRule.Arck35 || districts != null)
+                || award.Rule == HamlogRule.Marathon || award.Rule == HamlogRule.Vysotsky || award.Rule == HamlogRule.Arck35
+                || districts != null || locators != null)
                 foreach (LogbookQso row in history.Records)
-                    if (row.BelongsTo(this.own)) Reserve(row, districts != null);
+                    if (row.BelongsTo(this.own)) Reserve(row, districts != null || locators != null);
         }
 
         string AwardCounty(string call, string value)
@@ -146,9 +152,10 @@ namespace JtdxAutoCq
 
         internal bool Available(string band, string mode, DateTime time)
         {
-            if (Standing == null || Complete || !Within(time) || String.IsNullOrEmpty(band)) return false;
+            if (Standing == null || IsActivator || Complete || !Within(time) || String.IsNullOrEmpty(band)) return false;
             if (award.Rule == HamlogRule.Bands) return award.Bands.Contains(band) && !worked.Contains(band);
             if (districts != null && !districts.AllowsBandMode(band, HamlogPointProgress.ModeGroup(mode))) return false;
+            if (locators != null && !locators.AllowsBandMode(band, HamlogPointProgress.ModeGroup(mode))) return false;
             return Confirmed + pending < Required || NeedsCounties;
         }
 
@@ -172,7 +179,7 @@ namespace JtdxAutoCq
             switch (award.Rule)
             {
                 case HamlogRule.Grid:
-                    return grid != null && RussianDxcc.Contains(dxcc(call)) ? 1 : 0;
+                    return grid != null && (locators == null ? RussianDxcc.Contains(dxcc(call)) : locators.Countries.Contains(dxcc(call))) ? 1 : 0;
                 case HamlogRule.Districts:
                     return county == null ? 0 : 1;
                 case HamlogRule.Bryansk:
@@ -209,7 +216,8 @@ namespace JtdxAutoCq
             if (award.Rule == HamlogRule.Tatarstan && Confirmed + pending >= Required && (county == null || counties.Contains(county)))
                 return false;
             string key = Key(call, band, HamlogPointProgress.ModeGroup(mode), grid, county);
-            return key != null && !worked.Contains(key) && Value(call, band, grid, county) > 0;
+            return key != null && !worked.Contains(key) && Value(call, band, grid, county) > 0
+                && (locators == null || !locatorContacts.Contains(locators.ContactKey(call, band, mode)));
         }
 
         internal void Record(LogbookQso contact)
@@ -218,18 +226,21 @@ namespace JtdxAutoCq
         void Reserve(LogbookQso contact, bool duringSession)
         {
             DateTime? time = contact.StartedUtc ?? contact.EndedUtc;
-            if (Standing == null || !time.HasValue || !Within(time.Value) || contact.Call == own || String.IsNullOrEmpty(contact.Band))
+            if (Standing == null || IsActivator || !time.HasValue || !Within(time.Value) || contact.Call == own || String.IsNullOrEmpty(contact.Band))
                 return;
             string group = HamlogPointProgress.ModeGroup(contact.Mode);
-            if (group != "CW" && group != "SSB" && group != "DIGI" || award.Rule == HamlogRule.Bryansk && group != "DIGI"
-                || districts != null && !districts.AllowsBandMode(contact.Band, group))
-                return;
+            HamlogContactCriteria rule = locators ?? districts;
+            if (rule != null ? !rule.AllowsBandMode(contact.Band, group)
+                : group != "CW" && group != "SSB" && group != "DIGI" || award.Rule == HamlogRule.Bryansk && group != "DIGI") return;
             string grid = AwardLocator.Parse(contact.Locator);
             string county = AwardCounty(contact.Call, contact.County);
             if (county == null && (districts == null || String.IsNullOrEmpty(contact.County))) county = CountyAt(contact.Call, grid);
             int points = Value(contact.Call, contact.Band, grid, county);
             string key = Key(contact.Call, contact.Band, group, grid, county);
-            if (points == 0 || key == null || !worked.Add(key) || !duringSession) return;
+            if (points == 0 || key == null || worked.Contains(key)
+                || locators != null && !locatorContacts.Add(locators.ContactKey(contact.Call, contact.Band, contact.Mode))) return;
+            worked.Add(key);
+            if (!duringSession) return;
             pending += points;
             if (award.Rule == HamlogRule.Tatarstan && county != null) counties.Add(county);
         }

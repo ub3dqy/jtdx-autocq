@@ -69,7 +69,7 @@ Open **«Журнал и дипломы»** (Logbook and awards) to select your 
 
 In **«Дипломы HAMLOG»** (HAMLOG awards), click **«Обновить каталог»** (Update catalog). If **«Разобрать скачанное»** (Process downloaded rules) appears after an AutoCQ update, click it to process your saved documents first. Filter for awards available for search, tick the awards you want, close the window, and choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring).
 
-Double-click an award to see its search rules. **«Зачёт и надбавки»** (Required contacts and bonuses) shows any mandatory callsigns, districts or extra points for particular dates and bands. For Kazan, AutoCQ shows the number of contacts and the number of districts separately. [How to prepare awards and start monitoring](USER-GUIDE.en.md#search-for-hamlog-award-contacts)
+Double-click an award to see its search rules. For Saratov Land, the editor shows the list of districts on the left bank. For Tula, AutoCQ multiplies the contact points by the number of different districts worked. **«Зачёт и надбавки»** (Required contacts and bonuses) explains how that score is calculated. [How to prepare awards and start monitoring](USER-GUIDE.en.md#search-for-hamlog-award-contacts)
 
 Select a reviewed award whose search is unavailable to see the reason below the list. For example, a river award needs the reference of the river the station is activating.
 

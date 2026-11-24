@@ -432,7 +432,7 @@ namespace JtdxAutoCq
         internal bool Expired(DateTime now) { return until.HasValue && now >= until.Value; }
         internal bool Upcoming(DateTime now) { return from.HasValue && now < from.Value; }
         internal bool CanSelectForSearch(DateTime now)
-        { return Program.HasSearchRules && Within(now) && !Complete && (Points == null || !Points.IsMember); }
+        { return Program.HasSearchRules && Within(now) && !Complete && (Points == null || !Points.IsMember) && (Online == null || !Online.IsActivator); }
         internal DateTime NextValidityChange(DateTime now)
         {
             if (Expired(now)) return DateTime.MaxValue;
@@ -483,7 +483,7 @@ namespace JtdxAutoCq
             if (matches.Length == 0) return "Станция не подходит для выбранных дипломов на текущем диапазоне и в этом виде работы.";
             string names = String.Join(", ", matches.Select(program => program.Program.Title + (program.Points == null ? ""
                 : " (+" + program.Points.CandidatePoints(call, band, mode, now, grid).ToString("0.##") + " очк.)")));
-            string square = matches.Any(program => program.Program.Template == HamlogAward.Russia)
+            string square = matches.Any(program => program.Online != null && program.Program.Template.Rule == HamlogRule.Grid)
                 ? " Незачтённый квадрат " + AwardLocator.Parse(grid) + "." : "";
             var districts = matches.Where(program => program.Online != null).Select(program => program.Online.NeededDistrict(call, grid))
                 .Where(county => county != null).Distinct().ToArray();

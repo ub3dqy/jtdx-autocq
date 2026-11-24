@@ -1555,15 +1555,38 @@
     "Url": "https://hamlog.online/club/hcdx/da3efcfb45955b4a8fe4eab1f10d5220/",
     "Title": "WHCG - Worked HC Grids",
     "TextSha256": "741a0ce9a185eeef997ffebf93aa447899d55f4230da3bd015ff6cf9bcabd504",
-    "Plan": null,
-    "Note": "Для 5, 12 или 20 разных квадратов Эквадора нужно подтверждение HQSL. Засчитываются связи с одного DXCC соискателя. Для выбора требуется локатор конкретной станции."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2020-01-01",
+      "UntilUtc": "",
+      "Required": 20,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "locator",
+        "GroupModes": false,
+        "Modes": [],
+        "Countries": [
+          "HC",
+          "HC8"
+        ],
+        "Levels": [
+          5,
+          12,
+          20
+        ]
+      }
+    },
+    "Note": "WHCG учитывает разные четырёхзначные квадраты Эквадора. Повтор с тем же позывным на том же диапазоне тем же видом работы второй квадрат в зачёт не добавляет. Уровни 5, 12 и 20. Условия подтверждения HQSL и работы из одной DXCC проверяет HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/rdrc/a51570881179b74de579fe5b90bddd8b/",
     "Title": "RDRC HAMLOG members callsigns award",
     "TextSha256": "63e589a233e9fb2d41555790edaf3b7ef58c59d040f05e7b52af0bc9ec95c263",
     "Plan": null,
-    "Note": "Засчитываются только позывные специальной группы РЦРК в HAMLOG, по одному на позывной. Для поиска нужен перечень участников именно этой группы и список разрешённых цифровых видов."
+    "Note": "HAMLOG принимает только позывные из отдельной группы РЦРК, зарегистрированной в HAMLOG. Общий список членов клуба шире. Для зачёта указан отдельный перечень цифровых видов."
   },
   {
     "Url": "https://hamlog.online/club/rdrc/cd6f36084a9ba476a5a937409c8cca5a/",
@@ -1737,8 +1760,59 @@
     "Url": "https://hamlog.online/club/safonovo/bb6b90b684e4b62641d2d08fe592c2e3/",
     "Title": "It's our history",
     "TextSha256": "e51dd18dffaa5e7d648e2d4a01997ebd3545b5a7bf7847fe3fb980a947e2423e",
-    "Plan": null,
-    "Note": "В положении указано 31 ноября 2026 года. Для поиска по этому диплому нужна подтверждённая дата окончания."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-10-01",
+      "UntilUtc": "2026-11-30",
+      "Required": 109,
+      "MemberPoints": 4,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [
+        {
+          "Points": 10,
+          "Targets": [
+            "SP"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Modes": [
+          "CW",
+          "SSB",
+          "DIGI"
+        ],
+        "Countries": [
+          "UA",
+          "UA2",
+          "UA9",
+          "R1FJ"
+        ],
+        "Bands": [
+          "160m",
+          "80m",
+          "60m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m"
+        ],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2026-11-07",
+            "UntilUtc": "2026-11-07"
+          }
+        ]
+      }
+    },
+    "Note": "4 очка за станцию России, 10 за Санкт-Петербург. 7 ноября очки удваиваются. Окончание взято из каталога HAMLOG: 30 ноября 2026 года."
   },
   {
     "Url": "https://hamlog.online/club/romania/a901a037f5ad879462a03bad7ebc75e7/",
@@ -1772,8 +1846,69 @@
     "Url": "https://hamlog.online/club/safonovo/edaa4d1567f0d3294f8241dc16b40302/",
     "Title": "The Smolensk Dormition Cathedral is 925 years old",
     "TextSha256": "0e4412701945d15c164911afb01915c6a9281221057c42063c53fb5cd7bfd0f5",
-    "Plan": null,
-    "Note": "Обычные станции шести областей, RY3LAD и отдельные районы RDA дают разные очки. Для зачёта надбавки нужен известный район работы станции."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-02-10",
+      "UntilUtc": "2031-02-09",
+      "Required": 100,
+      "MemberPoints": 1,
+      "ExtraPoints": 20,
+      "Calls": [
+        "RY3LAD"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "SM",
+            "PS",
+            "TV",
+            "MO",
+            "KG",
+            "BR"
+          ],
+          "Area": true
+        },
+        {
+          "Points": 15,
+          "Targets": [
+            "SM-01",
+            "SM-02",
+            "SM-03"
+          ],
+          "Area": true
+        },
+        {
+          "Points": 10,
+          "Targets": [
+            "SM-21"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Modes": [
+          "CW",
+          "SSB",
+          "DIGI"
+        ],
+        "Bands": [
+          "160m",
+          "80m",
+          "60m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m"
+        ]
+      }
+    },
+    "Note": "Смоленская, Псковская, Тверская, Московская, Калужская и Брянская области дают пять очков. Повышенная ставка применяется к RY3LAD и к четырём районам Смоленской области по положению."
   },
   {
     "Url": "https://hamlog.online/club/arck/a0a8a7abcd6406cf1f37e0869f734250/",
@@ -1800,8 +1935,169 @@
     "Url": "https://hamlog.online/club/firac/b812d6bceb7960416872fab3b7554f3e/",
     "Title": "FIRAC OE Diplom - DIGI",
     "TextSha256": "151ed0a55d9d0e93847565fb4d6a856534028604634cc5df8b9813e804fe5b41",
-    "Plan": null,
-    "Note": "Требуется минимум 30 цифровых связей с членами FIRAC, включая трёх из Австрии. Для подсчёта нужен список членов FIRAC с принадлежностью к странам."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "",
+      "UntilUtc": "",
+      "Required": 30,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Modes": [
+          "DIGI"
+        ],
+        "Roster": "firac",
+        "PortableAliases": true,
+        "CreditBeforePublication": true,
+        "Additional": [
+          {
+            "Kind": "stations",
+            "Required": 3,
+            "ReportedByHamlog": true,
+            "DistinctStations": true,
+            "PortableStations": true,
+            "Calls": [
+              "OE/KO4VDC",
+              "OE1DMS",
+              "OE1EQW",
+              "OE1GE",
+              "OE1KDK",
+              "OE1NHU",
+              "OE1SCS",
+              "OE1SCU",
+              "OE1WCA",
+              "OE2DAN",
+              "OE2HHN",
+              "OE2KNN",
+              "OE2OWM",
+              "OE2PDM",
+              "OE2WCL",
+              "OE3AKB",
+              "OE3ASU",
+              "OE3BMB",
+              "OE3ERB",
+              "OE3EYW",
+              "OE3FIB",
+              "OE3FSS",
+              "OE3HAA",
+              "OE3JEC",
+              "OE3JH",
+              "OE3JTS",
+              "OE3MWB",
+              "OE3NOB",
+              "OE3PEB",
+              "OE3RPR",
+              "OE3THC",
+              "OE3UZA",
+              "OE3XBB",
+              "OE5ADL",
+              "OE5AHM",
+              "OE5AJP",
+              "OE5AZG",
+              "OE5CMM",
+              "OE5DHP",
+              "OE5DUL",
+              "OE5ESO",
+              "OE5FSL",
+              "OE5GHO",
+              "OE5GUP",
+              "OE5HCL",
+              "OE5HFM",
+              "OE5HHP",
+              "OE5IHL",
+              "OE5IRO",
+              "OE5ITL",
+              "OE5JJC",
+              "OE5JSM",
+              "OE5KZM",
+              "OE5MKE",
+              "OE5MOM",
+              "OE5PFL",
+              "OE5PLM",
+              "OE5PRO",
+              "OE5RTP",
+              "OE5SLE",
+              "OE5SMM",
+              "OE5SSN",
+              "OE5TDO",
+              "OE5TUN",
+              "OE5UNO",
+              "OE5WFN",
+              "OE5WPP",
+              "OE5WRO",
+              "OE5WVL",
+              "OE5XBB",
+              "OE5XEM",
+              "OE5YOL",
+              "OE6AAG",
+              "OE6DRG",
+              "OE6KBE",
+              "OE6KPD",
+              "OE6NHG",
+              "OE6RZG",
+              "OE6SGD",
+              "OE6SPD",
+              "OE6WCG",
+              "OE7ABH",
+              "OE7BSH",
+              "OE7CWT",
+              "OE7FMI",
+              "OE7GHJ",
+              "OE7HWI",
+              "OE7JTK",
+              "OE7KPI",
+              "OE7MBT",
+              "OE7OLI",
+              "OE7RHJ",
+              "OE7SNI",
+              "OE7SRI",
+              "OE7SUI",
+              "OE7XBB",
+              "OE7YQH",
+              "OE8AEQ",
+              "OE8AIR",
+              "OE8BCK",
+              "OE8BPK",
+              "OE8CGU",
+              "OE8CHK",
+              "OE8CKK",
+              "OE8DDK",
+              "OE8FNK",
+              "OE8GBK",
+              "OE8GPG",
+              "OE8GWF",
+              "OE8JFK",
+              "OE8JUL",
+              "OE8KDK",
+              "OE8KHQ",
+              "OE8KUR",
+              "OE8MNK",
+              "OE8MOS",
+              "OE8PKR",
+              "OE8PPK",
+              "OE8RRQ",
+              "OE8RZS",
+              "OE8SHJ",
+              "OE8TPK",
+              "OE8URQ",
+              "OE8UTK",
+              "OE8WPQ",
+              "OE8WUR",
+              "OE8XBB",
+              "OE8YHQ",
+              "OE8YML",
+              "OE8YMR",
+              "OE9RGI"
+            ]
+          }
+        ]
+      }
+    },
+    "Note": "Зачёт класса DIGI — 30 связей по международному списку и не менее трёх разных станций австрийской группы. Для группы используется список обязательных позывных, опубликованный HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/firac/ade00abf7b195a8469aa9f19d30d7f9f/",
@@ -1891,8 +2187,39 @@
     "Url": "https://hamlog.online/club/seafarer/e0f00d6e883dd077c974e25044eb756b/",
     "Title": "Great Russian Travelers",
     "TextSha256": "a3be009e42cae27f682258033506da8797f1a98e9fcc3850242d577be117dfa8",
-    "Plan": null,
-    "Note": "Засчитываются 3, 6 или 9 связей с RL5G и его дробными позывными по регионам, диапазонам и видам. Для проверки нужен фактический регион каждой активации."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2017-06-01",
+      "UntilUtc": "",
+      "Required": 9,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [
+        "RL5G",
+        "RL5G/0",
+        "RL5G/1",
+        "RL5G/2",
+        "RL5G/3",
+        "RL5G/4",
+        "RL5G/5",
+        "RL5G/6",
+        "RL5G/7",
+        "RL5G/8",
+        "RL5G/9"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Modes": [],
+        "Levels": [
+          3,
+          6,
+          9
+        ]
+      }
+    },
+    "Note": "В зачёт электронных степеней идут RL5G и опубликованные варианты RL5G/0 — RL5G/9. Пороги 3, 6 и 9 связей."
   },
   {
     "Url": "https://hamlog.online/club/nebo-cosmodromes/b9b718cdcc3346a8dc0907f863dc4756/",
@@ -3488,15 +3815,86 @@
     "Url": "https://hamlog.online/club/mdxc/bd6412492f4bf23b93a2b1eeafaebe1c/",
     "Title": "Sholokhov's Spring 2026",
     "TextSha256": "05c8cd87e1aa50fd70ecea70fe2dbd20e64fa4eed0d454fc1605246b82192816",
-    "Plan": null,
-    "Note": "В основной части зачёт 121 балл с разными ставками для спецпозывных, членов клуба, почётных членов и Ростовской области. Плакетки имеют отдельный зачёт. Нужен полный список почётных и специальных станций."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-05-18",
+      "UntilUtc": "2026-12-31",
+      "Required": 121,
+      "MemberPoints": 5,
+      "ExtraPoints": 20,
+      "Calls": [
+        "R121MS",
+        "UE41MS"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 3,
+          "Targets": [
+            "RO"
+          ],
+          "Area": true
+        },
+        {
+          "Points": 7,
+          "Targets": [
+            "R6LZ",
+            "UA6NT",
+            "RU7N",
+            "R6MI",
+            "R7AT",
+            "R0AX",
+            "R9DV",
+            "UA4WW",
+            "UA6HML",
+            "R7TW",
+            "R7KO",
+            "RV3FF",
+            "UA3FQ",
+            "R3FO",
+            "UA6GO",
+            "R8FF",
+            "RZ5D",
+            "RU6UR",
+            "RA6LIS",
+            "RU1QD",
+            "RQ7L",
+            "R2AKN",
+            "RW6A"
+          ],
+          "Area": false
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Modes": [
+          "CW",
+          "SSB",
+          "DIGI"
+        ],
+        "Roster": "miller",
+        "Bands": [
+          "160m",
+          "80m",
+          "60m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m"
+        ]
+      }
+    },
+    "Note": "Поиск для электронного диплома на КВ. Отдельные варианты на УКВ, вымпел и плакетки имеют собственные условия."
   },
   {
     "Url": "https://hamlog.online/global/russia/r0s/d297eb8c229c31d421abe45247f0a867/",
     "Title": "175th Anniversary of the Founding of the Irkutsk Branch of the RGS",
     "TextSha256": "5565e28a6d75fc4d1f0b39f896788889626419927a11855b8dded91b2cef69a1",
     "Plan": null,
-    "Note": "Фиксированные станции Иркутской области дают 5 очков. Для 10 очков требуется подтвердить, что спецпозывной или станция /P или /M работает с территории области."
+    "Note": "Повышенная ставка для экспедиций и временных позывных применяется только при работе из Иркутской области. Текущий зачёт подтверждает обычную ставку 5; для выбора экспедиции нужны код её района или перечень специальных станций."
   },
   {
     "Url": "https://hamlog.online/club/arktika/a702f53a1d09d9543ad9e07f6e98bf42/",
@@ -3617,7 +4015,7 @@
     "Title": "83 years since the liberation of Voronezh",
     "TextSha256": "90f5ea4e31565f0437f1247c42f5cf708a95b51f25ca919b9b59c2d14ef3e21b",
     "Plan": null,
-    "Note": "Очки удваиваются на 160 м, УКВ и в дни активности. Требуется полный перечень активаторов и их ставок для карточки 2026 года."
+    "Note": "Положение отдельно принимает ветеранов ВОВ независимо от области. По зачёту проверена обычная ставка 10 после дней активности. Нужен опубликованный список зачётных станций вне области."
   },
   {
     "Url": "https://hamlog.online/global/russia/r3y/c409e0e74c97c1a12d3ab2e05695e367/",
@@ -3644,8 +4042,68 @@
     "Url": "https://hamlog.online/club/r4cdosaaf/d27ebf73533b61a7971785e003d6d583/",
     "Title": "In the sky 'Skomorokh'",
     "TextSha256": "34a7618820cf285e87190ed293c0e442400778d5faa1fe1b03a35808a4b7add1",
-    "Plan": null,
-    "Note": "Учитываются Саратовская область, оба клуба и отдельные позывные R4CQ и RK4CWA. На 160 м и УКВ ставки удваиваются. Нужен список членов СРВС."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2025-06-20",
+      "UntilUtc": "",
+      "Required": 105,
+      "MemberPoints": 5,
+      "ExtraPoints": 10,
+      "Calls": [
+        "RK4CWA",
+        "R4CQ"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "SA"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Modes": [
+          "CW",
+          "SSB",
+          "DIGI"
+        ],
+        "Roster": "afaru-sky",
+        "ActivatorRoster": true,
+        "ActivatorAreas": [
+          "SA"
+        ],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "Bands": [
+              "160m",
+              "6m",
+              "4m",
+              "2m",
+              "1.25m",
+              "70cm",
+              "33cm",
+              "23cm",
+              "13cm",
+              "9cm",
+              "6cm",
+              "3cm",
+              "1.25cm",
+              "6mm",
+              "4mm",
+              "2.5mm",
+              "2mm",
+              "1mm",
+              "submm"
+            ]
+          }
+        ]
+      }
+    },
+    "Note": "Саратовские станции и члены двух клубов дают пять очков. За RK4CWA и R4CQ — десять. На 160 м и УКВ очки удваиваются. Для членов клубов и саратовских станций действует отдельный зачёт активаторов."
   },
   {
     "Url": "https://hamlog.online/global/russia/r3n/d01934db383479f0d50c13ec7a9d0467/",
@@ -3744,8 +4202,63 @@
     "Url": "https://hamlog.online/global/russia/r4c/f5e87fe2d86cae300790e6d2b39026f3/",
     "Title": "Saratov Land - the left bank",
     "TextSha256": "39297021383e087939204e32adb5343682d8a549a80b9adc065349f4d71c34b3",
-    "Plan": null,
-    "Note": "Для левого берега нужно 8 разных районов из списка, для правого 15. Поиск зависит от списка районов каждого берега и фактического RDA корреспондента."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-01-07",
+      "UntilUtc": "",
+      "Required": 8,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "district",
+        "GroupModes": true,
+        "Modes": [
+          "CW",
+          "SSB",
+          "DIGI"
+        ],
+        "CountyPrefix": "SA",
+        "LastCounty": 58,
+        "ActivatorAreas": [
+          "SA"
+        ],
+        "EligibleCounties": [
+          19,
+          23,
+          28,
+          29,
+          31,
+          32,
+          35,
+          36,
+          38,
+          40,
+          41,
+          42,
+          44,
+          45,
+          46,
+          51,
+          54,
+          56
+        ],
+        "Bands": [
+          "160m",
+          "80m",
+          "60m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m"
+        ]
+      }
+    },
+    "Note": "Карточка HAMLOG для левого берега. Нужны восемь разных районов из списка в положении. Поиск использует основной зачёт на КВ. Отдельные условия правого берега, плакетки и зачёта двух связей на УКВ указаны в положении."
   },
   {
     "Url": "https://hamlog.online/club/kazan/be5792cd277125309bc1216c86f36bba/",
@@ -3874,14 +4387,36 @@
     "Title": "Buryatiya",
     "TextSha256": "04c3449901e8f6a0dcda1be41add63dd461af2c4f13de93fe93240e786b3e4c5",
     "Plan": null,
-    "Note": "Две связи с Бурятией. В опубликованном зачёте есть карточки с RDA других областей. Требуется уточнить, как определяется принадлежность к Бурятии в этой карточке."
+    "Note": "Для электронного диплома нужны две связи с радиолюбителями Бурятии. Среди зачтённых карточек есть позывной из Украины без кода RDA. Требуется уточнить состав зачётных станций."
   },
   {
     "Url": "https://hamlog.online/club/seafarer/ddfba6643fbcf44b37be94552ad2830e/",
     "Title": "Kaliningrad region - the birthplace of amber",
     "TextSha256": "318bbc2293df136e750d4a2a6ed7dbfad8b46e685a30524e24037e853e9acc74",
-    "Plan": null,
-    "Note": "Две связи с радиолюбителями Калининградской области. В зачёт также попали связи с RDA другого региона. Требуется подтвердить правило для выездной работы."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "",
+      "UntilUtc": "",
+      "Required": 2,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [
+        {
+          "Points": 1,
+          "Targets": [
+            "KA"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Modes": []
+      }
+    },
+    "Note": "Две зачтённые связи с радиолюбителями Калининградской области для электронного диплома. При выездном позывном принадлежность к региону по одному принятому сообщению не определяется."
   },
   {
     "Url": "https://hamlog.online/club/rcpw/dd8ac424bbb4dc3c911eede00750d99b/",
@@ -3942,7 +4477,7 @@
     "Title": "Yakutia - homeland of the mammut",
     "TextSha256": "386a6345a5d056eae845f05b24ec7893d9f376b3704866a7a3c951184a0ba286",
     "Plan": null,
-    "Note": "Положение описывает электронный диплом за две связи с Якутией, а карточка HAMLOG показывает порог три. Нужна сверка редакций."
+    "Note": "В положении указан порог две связи с Якутией, на карточке HAMLOG — три. В строках зачёта присутствуют выезды в другие области. Требуется сверить редакцию и принадлежность станции к региону."
   },
   {
     "Url": "https://hamlog.online/global/russia/r1a/a75954ec9180c819a1a6d4bb4e2fd522/",
@@ -4093,8 +4628,51 @@
     "Url": "https://hamlog.online/global/russia/r3p/f5a0b9ee6a01f044bedf0b967e6220b4/",
     "Title": "Tula",
     "TextSha256": "b161d71084d4db82fcb3e57616ed6e1d7ed26d963cdeb718943fc8a75b08a076",
-    "Plan": null,
-    "Note": "Общий результат равен очкам за QSO, умноженным на число разных районов RDA Тульской области. Для корректного поиска нужен район кандидата."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2022-03-01",
+      "UntilUtc": "",
+      "Required": 1146,
+      "MemberPoints": 2,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [
+        {
+          "Points": 2,
+          "Targets": [
+            "TL"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Modes": [
+          "CW",
+          "SSB",
+          "DIGI"
+        ],
+        "CountyPrefix": "TL",
+        "LastCounty": 38,
+        "RetiredCounties": [
+          6,
+          7,
+          9,
+          10,
+          12,
+          13,
+          28,
+          37,
+          38
+        ],
+        "ActivatorAreas": [
+          "TL"
+        ],
+        "MultiplyByCountyCount": true
+      }
+    },
+    "Note": "Каждая связь даёт два очка. Итог — сумма, умноженная на число различных зачтённых районов Тульской области. Связь с обычным тульским позывным может дать два очка, а район добавляется к множителю при подтверждённых данных. Отдельный зачёт активаторов описан в положении."
   },
   {
     "Url": "https://hamlog.online/club/rcpw/c3729a290cc9f016ecc0b2349ac341d2/",
