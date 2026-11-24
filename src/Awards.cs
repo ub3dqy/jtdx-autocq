@@ -69,13 +69,11 @@ namespace JtdxAutoCq
         internal bool HasSearchRules { get { return UsesLocalTargets || UsesPointRules || UsesOnlineRules; } }
         internal DateTime? From
         {
-            get { return UsesTemplate ? AwardCatalog.ReadTime(Template.From)
-                : new[] { AwardCatalog.ReadTime(FromUtc), AwardCatalog.ReadTime(PublishedFromUtc) }.Max(); }
+            get { return new[] { AwardCatalog.ReadTime(UsesTemplate ? Template.From : FromUtc), AwardCatalog.ReadTime(PublishedFromUtc) }.Max(); }
         }
         internal DateTime? Until
         {
-            get { return UsesTemplate ? AwardCatalog.ReadTime(Template.Until, true)
-                : new[] { AwardCatalog.ReadTime(UntilUtc, true), AwardCatalog.ReadTime(PublishedUntilUtc, true) }.Min(); }
+            get { return new[] { AwardCatalog.ReadTime(UsesTemplate ? Template.Until : UntilUtc, true), AwardCatalog.ReadTime(PublishedUntilUtc, true) }.Min(); }
         }
         internal bool ClosedByIssuance { get { return HasIssued == true && !OtherLevel && Template != HamlogAward.Russia; } }
         internal string CatalogKey { get { return HamlogLinks.Award(Url) ?? Id; } }
@@ -193,7 +191,7 @@ namespace JtdxAutoCq
                     if (old.PublicEntry && old.CatalogKey != row.CatalogKey)
                         throw new InvalidDataException("Адрес диплома «" + row.Title + "» не совпадает с каталогом HAMLOG.");
                     row.Id = old.Id;
-                    if (!row.HasIssued.HasValue) row.HasIssued = old.HasIssued;
+                    if (old.HasIssued == true || !row.HasIssued.HasValue) row.HasIssued = old.HasIssued;
                     if (row.CatalogKey == old.CatalogKey) row.Hamlog = old.Hamlog;
                     row.SetPublication(old);
                     if (old.PublicEntry) row.Title = old.Title;
@@ -237,12 +235,17 @@ namespace JtdxAutoCq
                     row.Title = row.Template == null ? publication.Title : row.Template.Title;
                 }
             }
-            var identities = new HashSet<string>(programs.Select(row => row.CatalogKey), StringComparer.Ordinal);
-            foreach (HamlogAward template in HamlogAward.Templates)
-                if (identities.Add(template.Url)) programs.Add(template.Create());
             Programs = programs;
+            IncludeBuiltInPrograms();
             NormalizeOnlinePrograms();
             PublicCatalogUtc = fetched;
+        }
+
+        internal void IncludeBuiltInPrograms()
+        {
+            var identities = new HashSet<string>(Programs.Select(row => row.CatalogKey), StringComparer.Ordinal);
+            foreach (HamlogAward template in HamlogAward.Templates)
+                if (identities.Add(template.Url)) Programs.Add(template.Create());
         }
 
         internal int ImportIssuedPage(string file, string own)
@@ -385,16 +388,24 @@ namespace JtdxAutoCq
         internal bool Complete { get { return Program.ClosedByIssuance
             || (Online != null ? Online.Complete : Points != null ? Points.ConfirmedComplete
                 : Program.UsesLocalTargets && CompletedGoals == goals.Length); } }
+        internal bool Expired(DateTime now) { return until.HasValue && now >= until.Value; }
+        internal bool Upcoming(DateTime now) { return from.HasValue && now < from.Value; }
+        internal bool CanSelectForSearch(DateTime now) { return Program.HasSearchRules && Within(now) && !Complete; }
+        internal DateTime NextValidityChange(DateTime now)
+        {
+            if (Expired(now)) return DateTime.MaxValue;
+            return Upcoming(now) && (!until.HasValue || from < until) ? from.Value : until ?? DateTime.MaxValue;
+        }
         internal int LoggedFor(int index) { return goals[index].Count; }
         internal bool Available(string band, string mode, DateTime time)
         {
-            return !Program.ClosedByIssuance && Within(time) && (Online != null ? Online.Available(band, mode, time)
+            return CanSelectForSearch(time) && (Online != null ? Online.Available(band, mode, time)
                 : Points != null ? Points.Available(band, mode, time)
                 : Program.UsesLocalTargets && goals.Any(goal => !goal.Complete && goal.OnBand(band, mode)));
         }
         internal bool Needs(string call, string band, string mode, DateTime time, string grid = null)
         {
-            return !Program.ClosedByIssuance && Within(time) && (Online != null ? Online.Needs(call, band, mode, time, grid)
+            return CanSelectForSearch(time) && (Online != null ? Online.Needs(call, band, mode, time, grid)
                 : Points != null ? Points.CandidatePoints(call, band, mode, time) > 0
                 : Program.UsesLocalTargets && goals.Any(goal => goal.Needs(call, band, mode)));
         }

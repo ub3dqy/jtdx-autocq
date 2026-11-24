@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Windows.Forms;
 using JtdxAutoCq;
 
 static class OperatorToolsTests
@@ -239,9 +240,82 @@ static class OperatorToolsTests
             AwardProgram issued = loaded.Programs.Single(program => program.HasIssued == true);
             Check(loaded.Programs.Count == 2 && issued.Goals.Single().Value == "JA1AA" && !issued.Selected,
                 "Refresh duplicated a program, lost its goals or kept it active after issuance.");
+            File.WriteAllText(file, @"{""version"":1,""programs"":[
+                {""title"":""Example award"",""url"":""https://hamlog.online/club/demo/10/"",""hasIssued"":false}]}");
+            loaded.Import(file, "K1AAA");
+            Check(loaded.Programs.Single(program => program.Id == issued.Id).ClosedByIssuance,
+                "A file without personal records cleared known issuance.");
+            File.WriteAllText(file, @"{""version"":1,""callsign"":""K1AAA"",""programs"":[]}");
             try { loaded.Import(file, "K1BBB"); throw new Exception("Imported another station's award account."); }
             catch (InvalidOperationException) { }
             Check(loaded.Callsign == "K1AAA", "The rejected import changed the current award account.");
+        });
+
+        run("HAMLOG filters combine and only eligible rows have editable search checkboxes", () => {
+            DateTime now = DateTime.UtcNow;
+            var ready = new AwardProgram { Id = "ready", Title = "Available award", Sponsor = "Example Club",
+                Section = "Клубные и региональные", Goals = new List<AwardGoal> { new AwardGoal { Kind = "call", Value = "W2ABC" } } };
+            AwardProgram complete = ready.Copy(), issued = ready.Copy(), expired = ready.Copy(), upcoming = ready.Copy();
+            complete.Id = "complete"; complete.Title = "Completed award"; complete.Goals[0].Value = "W2ABD";
+            issued.Id = "issued"; issued.Title = "Issued award"; issued.HasIssued = true;
+            expired.Id = "expired"; expired.Title = "Expired award"; expired.UntilUtc = now.Date.AddDays(-2).ToString("yyyy-MM-dd");
+            upcoming.Id = "upcoming"; upcoming.Title = "Upcoming award"; upcoming.FromUtc = now.Date.AddDays(2).ToString("yyyy-MM-dd");
+            var unknown = new AwardProgram { Id = "unknown", Title = "Award without rules", Sponsor = ready.Sponsor,
+                Section = ready.Section, PublicEntry = true, Url = "https://hamlog.online/club/demo/12/" };
+            var catalog = new AwardCatalog { Programs = new List<AwardProgram> { ready, complete, issued, expired, upcoming, unknown } };
+            foreach (AwardProgram program in catalog.Programs) program.Validate();
+            complete.Selected = issued.Selected = expired.Selected = upcoming.Selected = true;
+            var history = new LogbookHistory("example.adi", new List<LogbookQso> {
+                new LogbookQso { Call = "W2ABD", Station = "K1ABC", Band = "20m", Mode = "FT8", StartedUtc = now },
+            });
+            using (var dialog = new AwardsDialog(catalog, history, "K1ABC", call => null, true))
+            {
+                var grid = dialog.Controls.OfType<DataGridView>().Single();
+                var state = dialog.Controls.OfType<ComboBox>().Single(box => box.AccessibleName == "Состояние");
+                var section = dialog.Controls.OfType<ComboBox>().Single(box => box.AccessibleName == "Раздел");
+                var query = dialog.Controls.OfType<TextBox>().Single();
+                Func<string[]> visible = () => grid.Rows.Cast<DataGridViewRow>().Select(row => ((AwardProgram)row.Tag).Id).ToArray();
+                Func<string, DataGridViewCell> checkCell = id => grid.Rows.Cast<DataGridViewRow>()
+                    .Single(row => ((AwardProgram)row.Tag).Id == id).Cells[0];
+                Check(dialog.Catalog.Programs.Any(program => program.Url == HamlogAward.Russia.Url),
+                    "Built-in awards still require the separate menu.");
+                section.SelectedItem = ready.Section;
+                query.Text = "example club";
+                Check(visible().SequenceEqual(new[] { "ready", "unknown" }), "The active list did not filter by section and sponsor.");
+                state.SelectedItem = "Доступны для поиска";
+                Check(visible().SequenceEqual(new[] { "ready" }), "An award without rules became selectable.");
+                Check(checkCell("ready") is DataGridViewCheckBoxCell && !checkCell("ready").ReadOnly, "The active field is disabled.");
+                checkCell("ready").Value = true;
+                state.SelectedItem = "Выполненные и выданные";
+                Check(visible().SequenceEqual(new[] { "complete", "issued" }), "The completed filter lost a known result.");
+                state.SelectedItem = "Срок истёк";
+                Check(visible().SequenceEqual(new[] { "expired" }), "The expired filter returned the wrong awards.");
+                state.SelectedItem = "Все дипломы";
+                foreach (string inactive in new[] { "complete", "issued", "expired", "upcoming", "unknown" })
+                {
+                    DataGridViewCell cell = checkCell(inactive);
+                    Check(cell.ReadOnly && !(cell is DataGridViewCheckBoxCell) && Object.Equals(cell.Value, "—"),
+                        "An inactive award has an editable selection field.");
+                }
+                Check(dialog.Catalog.Programs.Where(program => program.Selected).Select(program => program.Id).SequenceEqual(new[] { "ready" })
+                    && Object.Equals(checkCell("ready").Value, true), "Changing filters lost an eligible choice or kept a stale choice.");
+            }
+        });
+
+        run("Award monitoring skips known completion and respects an exact published deadline", () => {
+            DateTime end = new DateTime(2026, 11, 24, 12, 0, 0, DateTimeKind.Utc);
+            var limited = HamlogAward.Gunsmiths.Create();
+            limited.PublishedUntilUtc = "2026-11-24T12:00:00Z";
+            limited.Hamlog = new HamlogStanding { Callsign = "K1ABC", CheckedUtc = end.AddDays(-1), Required = 100 };
+            var complete = HamlogAward.Arck35.Create();
+            complete.Hamlog = new HamlogStanding { Callsign = "K1ABC", CheckedUtc = end.AddDays(-1), Required = 35, Points = 35 };
+            limited.Selected = complete.Selected = true;
+            var search = new AwardSearch(new AwardCatalog { Programs = new List<AwardProgram> { limited, complete } },
+                LogbookHistory.Empty, "K1ABC", "80m", "FT8", call => "UA");
+            Check(search.Score("R3PAA", end.AddSeconds(-1)) == 1 && search.Score("DL2YCK", end.AddSeconds(-1)) == 0,
+                "A completed award contributed a target, or the deadline closed the remaining award early.");
+            Check(search.Available(end) == 0 && search.Score("R3PAA", end) == 0,
+                "A cached selection still contributed targets after the exact expiration time.");
         });
 
         run("Award monitoring chooses a station benefiting two programs and counts actual logged contacts", () => {

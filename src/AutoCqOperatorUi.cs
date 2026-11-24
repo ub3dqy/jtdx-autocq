@@ -199,12 +199,19 @@ namespace JtdxAutoCq
                     if (engine.Status == null || Callsign.Clean(engine.Status.DeCall) != own
                         || engine.Status.TxEnabled || engine.Status.Transmitting)
                         throw new InvalidOperationException("Состояние JTDX изменилось во время сверки. Запустите поиск на приёме.");
+                    DateTime checkedAt = DateTime.UtcNow;
                     for (int index = 0; index < programs.Length; index++)
                     {
                         if (failures[index] != null) { Log("Диплом пропущен: " + failures[index]); continue; }
                         AwardProgram snapshot = programs[index];
+                        snapshot.Selected = new AwardProgress(snapshot, startupHistory, own, engine.DxccForCall)
+                            .CanSelectForSearch(checkedAt);
                         AwardProgram saved = preferences.Awards.Programs.FirstOrDefault(program => program.Id == snapshot.Id);
-                        if (saved != null) saved.Hamlog = snapshot.Hamlog;
+                        if (saved != null)
+                        {
+                            saved.Hamlog = snapshot.Hamlog;
+                            saved.Selected = snapshot.Selected;
+                        }
                     }
                     if (failures.All(failure => failure != null) && !selected.Programs.Any(program => program.Selected && program.UsesLocalTargets))
                         throw new InvalidOperationException("HAMLOG не подтвердил зачёт выбранных дипломов. Подробности в журнале AutoCQ.");
@@ -415,11 +422,11 @@ namespace JtdxAutoCq
             };
             var targets = new DxccTargetsDialog(table, history, profiles[1].Options, "", "20m", "LogHX");
             targets.SelectDemoCountry();
-            var diploma = new AwardProgram { Title = "Страны на 20 м", Selected = true, Goals = new List<AwardGoal> {
+            var diploma = new AwardProgram { Title = "Страны на 20 м", Goals = new List<AwardGoal> {
                 new AwardGoal { Kind = "dxcc", Value = "K", Band = "20m", Mode = "FT8" },
                 new AwardGoal { Kind = "dxcc", Value = "JA", Band = "20m", Mode = "FT8" },
             } };
-            var stations = new AwardProgram { Title = "Две японские станции", Selected = true, Goals = new List<AwardGoal> {
+            var stations = new AwardProgram { Title = "Две японские станции", Goals = new List<AwardGoal> {
                 new AwardGoal { Kind = "mask", Value = "JA*", Band = "20m", Count = 2 },
             } };
             var falcon = HamlogAward.Murom.Create();
@@ -427,10 +434,16 @@ namespace JtdxAutoCq
             var russia = HamlogAward.Russia.Create();
             var gunsmiths = HamlogAward.Gunsmiths.Create();
             var arck = HamlogAward.Arck35.Create();
-            arck.HasIssued = false;
+            arck.HasIssued = true;
             var counties = new AwardProgram { Title = "New England County Award (NECA)",
                 Url = HamlogLinks.Origin + "neca/", Sponsor = "HAMLOG", HasIssued = false };
-            foreach (AwardProgram program in new[] { russia, gunsmiths, falcon, tula, arck, counties }) program.PublicEntry = true;
+            foreach (AwardProgram program in new[] { russia, gunsmiths, falcon, tula, arck, counties })
+            {
+                program.PublicEntry = true;
+                program.Section = "Клубные и региональные";
+            }
+            russia.Section = "Международные и национальные";
+            counties.Section = "Территориальные";
             russia.Sponsor = "Моя Россия · HAMLOG";
             DateTime october = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
             falcon.Hamlog = new HamlogStanding {
@@ -440,7 +453,6 @@ namespace JtdxAutoCq
                 }).ToList()
             };
             tula.Hamlog = new HamlogStanding { Callsign = "K1ABC", Required = 50, CheckedUtc = falcon.Hamlog.CheckedUtc };
-            russia.Selected = true;
             russia.Hamlog = new HamlogStanding {
                 Callsign = "K1ABC", Points = 87, Required = 100, CheckedUtc = falcon.Hamlog.CheckedUtc,
                 ConfirmedSquares = Enumerable.Range(0, 87).Select(square => "KO" + square.ToString("00")).ToArray()
@@ -461,8 +473,8 @@ namespace JtdxAutoCq
             var awards = new AwardsDialog(example, awardHistory, "K1ABC", call => {
                 DxccCountry country = table.Find(call);
                 return country == null ? null : country.Prefix;
-            }, true);
-            awards.SelectDemoProgram(russia);
+            }, canStart: true, demo: true);
+            awards.SelectDemoProgram(gunsmiths);
             return new Form[] {
                 new LogbookSourceDialog("", history.Path, "LogHX"),
                 new ProfilesDialog(profiles, profiles[0].Options, true),

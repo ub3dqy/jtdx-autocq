@@ -6,17 +6,25 @@ using System.Reflection;
 using System.Windows.Forms;
 using JtdxAutoCq;
 
-// Render the real demo forms without opening windows, a UDP connection or a radio.
+// Render the real demo forms offscreen without opening a UDP connection or using a radio.
 static class RenderScreenshots
 {
     static object Field(object value,string name){return value.GetType().GetField(name,BindingFlags.Instance|BindingFlags.NonPublic).GetValue(value);}
     static object Invoke(object value,string name,params object[] arguments){return value.GetType().GetMethod(name,BindingFlags.Instance|BindingFlags.NonPublic).Invoke(value,arguments);}
-    static void Save(Form form,string path)
+    static void Save(Form form,string path, bool showOffscreen = false)
     {
         form.StartPosition=FormStartPosition.Manual;form.Location=new Point(-32000,-32000);form.ShowInTaskbar=false;
         typeof(Control).GetMethod("CreateControl",BindingFlags.Instance|BindingFlags.NonPublic,null,new[]{typeof(bool)},null).Invoke(form,new object[]{true});
         form.PerformAutoScale();form.PerformLayout();
+        if (showOffscreen)
+        {
+            // The native drop-downs paint their selected values only in a shown demo form.
+            form.Show();
+            form.Refresh();
+            Application.DoEvents();
+        }
         using(var bitmap=new Bitmap(form.Width,form.Height)){form.DrawToBitmap(bitmap,new Rectangle(0,0,form.Width,form.Height));bitmap.Save(path,ImageFormat.Png);}
+        if (showOffscreen) form.Hide();
     }
     [STAThread] static void Main(string[] args)
     {
@@ -142,7 +150,7 @@ static class RenderScreenshots
             try
             {
                 for (int index = 0; index < screens.Length; index++)
-                    Save(screens[index], Path.Combine(directory, names[index]));
+                    Save(screens[index], Path.Combine(directory, names[index]), showOffscreen: names[index] == "awards-demo.png");
             }
             finally { foreach (Form screen in screens) screen.Dispose(); }
         }

@@ -1,9 +1,10 @@
-# AutoCQ 0.9.25
+# AutoCQ 0.9.26
 
 ## Русский
 
-- «Дипломы HAMLOG» загружает все разделы общего каталога. Через «Из кабинета» можно перенести отметки о выдаче с сохранённой страницы HAMLOG. «Положение» открывает опубликованный текст или PDF.
-- «Готовые к поиску» показывает дипломы со встроенными правилами и карточки с вашими целями. Добавлен диплом «ARCK — 35 лет». Для других карточек можно прочитать положение и задать список в «Моих целях».
+- Дипломы можно искать по названию или организатору и отбирать по разделу и состоянию. Дипломы со встроенными правилами теперь в общем списке. Выберите «Доступны для поиска», чтобы быстро их найти. Дополнительное меню, которое могло вызывать ошибку ContextMenuStrip, убрано.
+- У выполненных, выданных и просроченных дипломов в столбце выбора стоит прочерк. AutoCQ исключает их из поиска, в том числе когда срок истекает прямо во время сеанса.
+- «Из файла» открывает подготовленный список дипломов или целей в формате JSON. Общий каталог загружается кнопкой «Загрузить каталог».
 
 **Как обновиться.** Откройте **«Обновления»**, скачайте выпуск и закройте JTDX перед установкой. Затем нажмите **«Обновить и перезапустить»**. При работе с LogHX запускайте JTDX значком в журнале.
 
@@ -11,8 +12,9 @@
 
 ## English
 
-- HAMLOG Awards loads every section of the public catalog. From my account brings in issued-award marks from the saved HAMLOG page. Award rules opens the published text or PDF.
-- Ready to search shows awards with built-in rules or your own target lists. ARCK 35 Years is now supported. For other awards, read the rules and enter a list in My targets.
+- Search for awards by title or organizer and filter by section and status. Awards with built-in rules are now in the main list. Choose Available for search to find them. The separate menu that could cause a ContextMenuStrip error has been removed.
+- Completed, issued and expired awards show a dash in the search column. AutoCQ excludes them when choosing targets, including when a deadline passes during a session.
+- From file opens a prepared JSON list of awards or targets. Load catalog downloads the public catalog.
 
 **Updating.** Open **«Обновления»** (Updates), download the release, and close JTDX before installation. Click **«Обновить и перезапустить»** (Update and restart). If you use LogHX, launch JTDX from its icon.
 

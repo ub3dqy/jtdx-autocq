@@ -171,15 +171,17 @@ Select a callsign in **«Станции из левого окна JTDX»** and 
 
 ### Search for HAMLOG award contacts
 
-1. Open **«Журнал и дипломы → Дипломы HAMLOG»** (Logbook and awards → HAMLOG awards) and click **«Загрузить каталог»** (Load catalog). The list includes international, national, club, regional and territory awards. You can search by title or sponsor.
+1. Open **«Журнал и дипломы → Дипломы HAMLOG»** (Logbook and awards → HAMLOG awards) and click **«Загрузить каталог»** (Load catalog). Type part of a title or the organizer's name. Use **«Раздел»** (Section) and **«Состояние»** (Status) to narrow the list.
 2. To hide your issued awards, click **«Из кабинета»** (From my account). Sign in to HAMLOG in your browser, open **My received awards**, then press **Ctrl+S**. Choose **Webpage, HTML only** and open the saved file in AutoCQ. [Open HAMLOG Awards](https://hamlog.online/account/awards.php)
-3. Tick **«Готовые к поиску»** (Ready to search) and select the awards you want. While JTDX is receiving, click **«Начать поиск»** (Start search). AutoCQ checks HAMLOG credit for the awards with built-in rules and starts listening on the current band.
+3. Choose **«Состояние → Доступны для поиска»** (Status → Available for search) and tick the awards you want in the **«Поиск»** (Search) column. This view shows awards with built-in rules and awards for which you have set your own targets. While JTDX is receiving, click **«Начать поиск»** (Start search). AutoCQ checks HAMLOG credit for awards with built-in rules and starts listening on the current band.
 
-![The public HAMLOG award catalog and awards ready for searching](docs/awards-demo.png)
+![Catalog filters and the column for selecting awards to search for](docs/awards-demo.png)
 
 ![Importing a saved page from your HAMLOG account](docs/hamlog-account-demo.png)
 
-Issued and expired awards are hidden by default. Tick **«Показать завершённые и истёкшие»** (Show completed and expired) to see them. AutoCQ reads issuance for your callsign from the saved page. Click **«Сверить с HAMLOG»** (Check HAMLOG) on a built-in award to see how much credit you need. Save the page again after receiving new awards. Use **«Сохранить»** (Save) to keep the catalog for your next session.
+The catalog opens to **«Действующие»** (Active). In **«Состояние»** (Status), you can also view **«Выполненные и выданные»** (Completed and issued), **«Срок истёк»** (Expired) or **«Все дипломы»** (All awards). A dash in the search column means the award is unavailable for monitoring. If an award expires during a session, AutoCQ skips it when choosing new targets. Changing the filters keeps eligible awards selected. The number above the table includes all selected awards.
+
+AutoCQ reads issued awards for your callsign from the saved page. Click **«Сверить с HAMLOG»** (Check HAMLOG) on a built-in award to see how much credit you need. Completed awards are deselected when AutoCQ checks credit or your main logbook. For programs with more than one tier, you can search for a tier that is still open. Save the page again after receiving new awards. Use **«Сохранить»** (Save) to keep the catalog for your next session.
 
 Select an entry with a HAMLOG page and click **«Положение»** (Award rules). AutoCQ loads the document when you open the entry. You can read text in AutoCQ and open or save PDFs published by the organizer.
 
@@ -191,7 +193,7 @@ If HAMLOG did not return a result for an award, AutoCQ shows it in the log and s
 
 #### Murom Falcon and your main logbook
 
-For Murom Falcon, **«Вне зачёта»** (Awaiting credit) shows possible points from contacts in your logbook. Click **«Связи из журнала…»** (Logbook contacts) to see their callsigns, dates and bands. If those contacts cover the points you still need, AutoCQ waits for HAMLOG to credit them. To see your historical credit for Tula 875 from September 2021, use **«Показать завершённые и истёкшие»** (Show completed and expired).
+For Murom Falcon, **«Вне зачёта»** (Awaiting credit) shows possible points from contacts in your logbook. Click **«Связи из журнала…»** (Logbook contacts) to see their callsigns, dates and bands. If those contacts cover the points you still need, AutoCQ waits for HAMLOG to credit them. To see your historical credit for Tula 875 from September 2021, use **«Состояние → Срок истёк»** (Status → Expired).
 
 ![Logbook contacts awaiting HAMLOG credit](docs/award-points-journal-demo.png)
 
@@ -199,7 +201,7 @@ For Murom Falcon, **«Вне зачёта»** (Awaiting credit) shows possible p
 
 For other awards, read the rules, select the award and click **«Мои цели»** (My targets). Enter callsigns, DXCC entities or patterns such as `JA*`. You can also specify the band, mode and number of distinct stations. AutoCQ checks this list against your main logbook. Use HAMLOG to check the organizer's official credit.
 
-Click **«Добавить»** (Add) to make a standalone list. Use **«Импорт JSON»** (Import JSON) if you already have a file with prepared targets. [Import file format](docs/award-catalog.md)
+Click **«Добавить»** (Add) to make a standalone list. Use **«Из файла»** (From file) if you already have a prepared list of awards or targets in a JSON file. Use **«Загрузить каталог»** (Load catalog) for the public catalog. [Import file format](docs/award-catalog.md)
 
 ![Two DXCC targets on 20 metres in a custom list](docs/award-goals-demo.png)
 
