@@ -53,8 +53,11 @@ namespace JtdxAutoCq
         [DataMember(Name = "untilUtc")] public string UntilUtc;
         [DataMember(Name = "hasIssued")] public bool? HasIssued;
         [DataMember(Name = "goals")] public List<AwardGoal> Goals = new List<AwardGoal>();
+        [DataMember(Name = "manualSearch", EmitDefaultValue = false)] public bool ManualSearch;
         public bool Selected;
         public bool OtherLevel;
+        public string Section, Sponsor, PublishedFromUtc, PublishedUntilUtc;
+        public bool PublicEntry, Withdrawn;
         // The result belongs to the local operator's profile, not a catalog export.
         public HamlogStanding Hamlog;
 
@@ -62,10 +65,20 @@ namespace JtdxAutoCq
         internal bool UsesTemplate { get { return Template != null && (Goals.Count == 0 || Template.HasOnlineRules); } }
         internal bool UsesPointRules { get { return UsesTemplate && Template.HasPointRules; } }
         internal bool UsesOnlineRules { get { return UsesTemplate && Template.HasOnlineRules; } }
-        internal bool UsesLocalTargets { get { return String.IsNullOrEmpty(Url) && Goals.Count != 0; } }
-        internal DateTime? From { get { return AwardCatalog.ReadTime(UsesTemplate ? Template.From : FromUtc); } }
-        internal DateTime? Until { get { return AwardCatalog.ReadTime(UsesTemplate ? Template.Until : UntilUtc, true); } }
+        internal bool UsesLocalTargets { get { return Goals.Count != 0 && (String.IsNullOrEmpty(Url) || ManualSearch && Template == null); } }
+        internal bool HasSearchRules { get { return UsesLocalTargets || UsesPointRules || UsesOnlineRules; } }
+        internal DateTime? From
+        {
+            get { return UsesTemplate ? AwardCatalog.ReadTime(Template.From)
+                : new[] { AwardCatalog.ReadTime(FromUtc), AwardCatalog.ReadTime(PublishedFromUtc) }.Max(); }
+        }
+        internal DateTime? Until
+        {
+            get { return UsesTemplate ? AwardCatalog.ReadTime(Template.Until, true)
+                : new[] { AwardCatalog.ReadTime(UntilUtc, true), AwardCatalog.ReadTime(PublishedUntilUtc, true) }.Min(); }
+        }
         internal bool ClosedByIssuance { get { return HasIssued == true && !OtherLevel && Template != HamlogAward.Russia; } }
+        internal string CatalogKey { get { return HamlogLinks.Award(Url) ?? Id; } }
 
         internal AwardProgram Copy()
         {
@@ -82,12 +95,9 @@ namespace JtdxAutoCq
                 throw new InvalidDataException("Укажите название диплома длиной до 300 символов.");
             if (Url.Length != 0)
             {
-                Uri uri;
-                if (!Uri.TryCreate(Url, UriKind.Absolute, out uri) || uri.Scheme != Uri.UriSchemeHttps
-                    || uri.Host != "hamlog.online" || !uri.IsDefaultPort || uri.UserInfo.Length != 0
-                    || uri.Query.Length != 0 || uri.Fragment.Length != 0 || uri.AbsolutePath == "/")
+                Url = HamlogLinks.Award(Url);
+                if (Url == null)
                     throw new InvalidDataException("Вставьте ссылку на страницу диплома на hamlog.online.");
-                Url = uri.GetLeftPart(UriPartial.Path).TrimEnd('/') + "/";
             }
             if (String.IsNullOrWhiteSpace(Id))
                 Id = Url.Length != 0 ? Url : "local-" + Guid.NewGuid().ToString("N");
@@ -96,12 +106,21 @@ namespace JtdxAutoCq
             Goals = Goals ?? new List<AwardGoal>();
             FromUtc = (FromUtc ?? "").Trim();
             UntilUtc = (UntilUtc ?? "").Trim();
-            if (From.HasValue && Until.HasValue && From >= Until)
+            DateTime? from = AwardCatalog.ReadTime(FromUtc), until = AwardCatalog.ReadTime(UntilUtc, true);
+            if (from.HasValue && until.HasValue && from >= until)
                 throw new InvalidDataException("Проверьте даты начала и окончания для «" + Title + "».");
             if (Goals.Count > 300 || Goals.Any(goal => goal == null))
                 throw new InvalidDataException("У одного диплома может быть до 300 целей.");
             foreach (AwardGoal goal in Goals) goal.Validate();
-            if (ClosedByIssuance || !UsesLocalTargets && !UsesPointRules && !UsesOnlineRules) Selected = false;
+            if (ClosedByIssuance || !HasSearchRules) Selected = false;
+        }
+
+        internal void SetPublication(AwardProgram source)
+        {
+            PublicEntry = source.PublicEntry;
+            Withdrawn = source.Withdrawn;
+            Section = source.Section; Sponsor = source.Sponsor;
+            PublishedFromUtc = source.PublishedFromUtc; PublishedUntilUtc = source.PublishedUntilUtc;
         }
     }
 
@@ -112,6 +131,7 @@ namespace JtdxAutoCq
         [DataMember(Name = "callsign")] public string Callsign;
         [DataMember(Name = "generatedUtc")] public string GeneratedUtc;
         [DataMember(Name = "programs")] public List<AwardProgram> Programs = new List<AwardProgram>();
+        public DateTime PublicCatalogUtc;
         internal AwardCatalog Copy()
         {
             var copy = (AwardCatalog)MemberwiseClone();
@@ -138,7 +158,7 @@ namespace JtdxAutoCq
                 throw new InvalidOperationException("Каталог дипломов относится к " + Callsign + ". В JTDX выбран " + own + ".");
         }
 
-        internal void Import(string file, string own)
+        internal void Import(string file, string own, bool personal = false)
         {
             var info = new FileInfo(file);
             if (info.Length > 8 * 1024 * 1024) throw new InvalidDataException("Файл дипломов превышает 8 МБ.");
@@ -149,31 +169,43 @@ namespace JtdxAutoCq
             incoming.CheckCallsign(own);
             incoming.CheckCallsign(Callsign);
             DateTime? imported = ReadTime(incoming.GeneratedUtc), saved = ReadTime(GeneratedUtc);
+            if (personal && (incoming.Callsign.Length == 0 || !imported.HasValue))
+                throw new InvalidDataException("Выберите JSON с позывным и датой выгрузки или сохранённую страницу HAMLOG.");
             if (saved.HasValue && imported.HasValue && imported < saved)
                 throw new InvalidDataException("Этот каталог старее последней сверки HAMLOG.");
 
             var merged = Programs.ToDictionary(program => program.Id, program => program.Copy(), StringComparer.Ordinal);
+            var byPage = merged.Values.GroupBy(row => row.CatalogKey, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
             var ids = new HashSet<string>(StringComparer.Ordinal);
+            var pages = new HashSet<string>(StringComparer.Ordinal);
             foreach (AwardProgram row in incoming.Programs)
             {
                 if (row == null) throw new InvalidDataException("В файле есть пустая запись диплома.");
                 if (String.IsNullOrWhiteSpace(row.Id) && String.IsNullOrWhiteSpace(row.Url))
                     throw new InvalidDataException("Для строки «" + row.Title + "» укажите ссылку HAMLOG или постоянный идентификатор.");
                 row.Validate();
-                if (!ids.Add(row.Id)) throw new InvalidDataException("В файле повторяется диплом «" + row.Title + "».");
+                if (!ids.Add(row.Id) || !pages.Add(row.CatalogKey))
+                    throw new InvalidDataException("В файле повторяется диплом «" + row.Title + "».");
                 AwardProgram old;
-                if (merged.TryGetValue(row.Id, out old))
+                if (byPage.TryGetValue(row.CatalogKey, out old) || merged.TryGetValue(row.Id, out old))
                 {
+                    if (old.PublicEntry && old.CatalogKey != row.CatalogKey)
+                        throw new InvalidDataException("Адрес диплома «" + row.Title + "» не совпадает с каталогом HAMLOG.");
+                    row.Id = old.Id;
                     if (!row.HasIssued.HasValue) row.HasIssued = old.HasIssued;
-                    if (row.Url == old.Url) row.Hamlog = old.Hamlog;
+                    if (row.CatalogKey == old.CatalogKey) row.Hamlog = old.Hamlog;
+                    row.SetPublication(old);
+                    if (old.PublicEntry) row.Title = old.Title;
                     if (row.Goals.Count == 0)
                     {
                         row.Goals = old.Goals;
-                        row.FromUtc = old.FromUtc;
-                        row.UntilUtc = old.UntilUtc;
+                        row.ManualSearch = old.ManualSearch;
+                        if (String.IsNullOrEmpty(row.FromUtc) || old.ManualSearch) row.FromUtc = old.FromUtc;
+                        if (String.IsNullOrEmpty(row.UntilUtc) || old.ManualSearch) row.UntilUtc = old.UntilUtc;
                     }
                     row.OtherLevel = old.OtherLevel;
-                    row.Selected = old.Selected && !row.ClosedByIssuance && (row.UsesLocalTargets || row.UsesPointRules || row.UsesOnlineRules);
+                    row.Selected = old.Selected && !row.ClosedByIssuance && row.HasSearchRules;
                 }
                 merged[row.Id] = row;
             }
@@ -181,6 +213,83 @@ namespace JtdxAutoCq
             NormalizeOnlinePrograms();
             if (imported.HasValue) GeneratedUtc = incoming.GeneratedUtc;
             if (incoming.Callsign.Length > 0) Callsign = incoming.Callsign;
+        }
+
+        internal void ApplyPublicCatalog(HamlogCatalogSnapshot snapshot, DateTime fetched)
+        {
+            var programs = Programs.Select(row => row.Copy()).ToList();
+            var existing = programs.ToLookup(row => row.CatalogKey, StringComparer.Ordinal);
+            foreach (AwardProgram row in programs)
+                if (row.PublicEntry) row.Withdrawn = true;
+            foreach (AwardProgram publication in snapshot.Programs)
+            {
+                AwardProgram[] rows = existing[publication.CatalogKey].ToArray();
+                if (rows.Length == 0)
+                {
+                    AwardProgram added = publication.Copy();
+                    if (added.Template != null) added.Title = added.Template.Title;
+                    programs.Add(added);
+                }
+                foreach (AwardProgram row in rows)
+                {
+                    row.SetPublication(publication);
+                    row.Url = publication.Url;
+                    row.Title = row.Template == null ? publication.Title : row.Template.Title;
+                }
+            }
+            var identities = new HashSet<string>(programs.Select(row => row.CatalogKey), StringComparer.Ordinal);
+            foreach (HamlogAward template in HamlogAward.Templates)
+                if (identities.Add(template.Url)) programs.Add(template.Create());
+            Programs = programs;
+            NormalizeOnlinePrograms();
+            PublicCatalogUtc = fetched;
+        }
+
+        internal int ImportIssuedPage(string file, string own)
+        {
+            own = JtdxAutoCq.Callsign.Require(own);
+            CheckCallsign(own);
+            HamlogIssuedPage issued = HamlogIssuedPage.Read(file, own);
+            var programs = Programs.Select(row => row.Copy()).ToList();
+            var byPage = programs.ToLookup(row => row.CatalogKey, StringComparer.Ordinal);
+            var byTitle = programs.Where(row => !String.IsNullOrEmpty(row.Url))
+                .ToLookup(row => HamlogIssuedPage.TitleKey(row.Title), StringComparer.Ordinal);
+            var added = new Dictionary<string, AwardProgram>(StringComparer.Ordinal);
+            int unmatched = issued.Unreadable;
+            foreach (AwardProgram record in issued.Awards)
+            {
+                AwardProgram[] matches = record.Url == null ? new AwardProgram[0] : byPage[record.Url].ToArray();
+                if (matches.Length == 0)
+                {
+                    string group = HamlogLinks.ProgramGroup(record.Url);
+                    AwardProgram[] titles = byTitle[HamlogIssuedPage.TitleKey(record.Title)].Where(row =>
+                        record.Url == null || row.Url.StartsWith(record.Url, StringComparison.Ordinal)
+                        || group != null && HamlogLinks.ProgramGroup(HamlogLinks.Award(row.Url)) == group).ToArray();
+                    if (titles.Length == 1) matches = titles;
+                }
+                if (matches.Length == 0 && record.Url != null && HamlogLinks.PublishedRules(record.Url) != null)
+                {
+                    AwardProgram newEntry;
+                    if (!added.TryGetValue(record.Url, out newEntry))
+                    {
+                        newEntry = record.Copy();
+                        newEntry.Validate();
+                        added.Add(record.Url, newEntry);
+                    }
+                    matches = new[] { newEntry };
+                }
+                if (matches.Length == 0) { unmatched++; continue; }
+                foreach (AwardProgram row in matches)
+                {
+                    row.HasIssued = true;
+                    if (row.ClosedByIssuance) row.Selected = false;
+                }
+            }
+            programs.AddRange(added.Values);
+            Programs = programs;
+            Callsign = own;
+            NormalizeOnlinePrograms();
+            return unmatched;
         }
 
         internal void NormalizeOnlinePrograms()
@@ -197,6 +306,8 @@ namespace JtdxAutoCq
                     prior.Selected |= row.Selected;
                     prior.OtherLevel |= row.OtherLevel;
                     if (row.HasIssued == true) prior.HasIssued = true;
+                    if (row.PublicEntry && (!prior.PublicEntry || prior.Withdrawn && !row.Withdrawn))
+                        prior.SetPublication(row);
                     if (prior.Hamlog == null || row.Hamlog != null && row.Hamlog.CheckedUtc > prior.Hamlog.CheckedUtc)
                         prior.Hamlog = row.Hamlog;
                     continue;
@@ -306,7 +417,7 @@ namespace JtdxAutoCq
             catalog.CheckCallsign(own);
             this.band = band; this.mode = mode;
             this.own = own;
-            programs = catalog.Programs.Where(program => program.Selected && !program.ClosedByIssuance)
+            programs = catalog.Programs.Where(program => program.Selected && !program.ClosedByIssuance && program.HasSearchRules)
                 .Select(program => new AwardProgress(program, history, own, dxcc)).ToArray();
         }
 

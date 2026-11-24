@@ -84,7 +84,7 @@ namespace JtdxAutoCq
                 RememberCounty(row.Call, row.Locator, AwardCounty(row.County));
             }
             if (award.Rule == HamlogRule.Tula || award.Rule == HamlogRule.Tatarstan
-                || award.Rule == HamlogRule.Marathon || award.Rule == HamlogRule.Vysotsky)
+                || award.Rule == HamlogRule.Marathon || award.Rule == HamlogRule.Vysotsky || award.Rule == HamlogRule.Arck35)
                 foreach (LogbookQso row in history.Records)
                     if (row.BelongsTo(this.own)) Reserve(row, false);
         }
@@ -136,7 +136,8 @@ namespace JtdxAutoCq
             {
                 case HamlogRule.Grid: return grid;
                 case HamlogRule.Bryansk: return county;
-                case HamlogRule.Stations: return call;
+                case HamlogRule.Stations:
+                case HamlogRule.Arck35: return call;
                 case HamlogRule.Bands: return band;
                 default: return call + "|" + band + "|" + modeGroup;
             }
@@ -161,6 +162,8 @@ namespace JtdxAutoCq
                     return InRegion(call, county, "TA-", TatarstanSeries) ? 1 : 0;
                 case HamlogRule.Vysotsky:
                     return HamlogAwardRosters.Arck.Contains(call) || InRegion(call, county, "MA-", MoscowSeries) ? 1 : 0;
+                case HamlogRule.Arck35:
+                    return HamlogAwardRosters.Arck.Contains(call) ? 1 : 0;
                 case HamlogRule.Marathon:
                     if (Specials.Contains(call)) return 50;
                     if (HamlogAwardRosters.Miller.Contains(call)) return 25;

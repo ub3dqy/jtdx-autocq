@@ -1,9 +1,9 @@
-# AutoCQ 0.9.24
+# AutoCQ 0.9.25
 
 ## Русский
 
-- Входящие вызовы имеют приоритет в режиме CQ, обычном мониторинге и поиске для дипломов. Если вас позвали сразу после вашего 73, AutoCQ ответит раньше следующего CQ или вызова цели.
-- AutoCQ принимает свежий повторный вызов от уже сработанной станции при любом положении «Отв. B4» в JTDX. Станции из списка исключений DXCC пропускаются во всех режимах.
+- «Дипломы HAMLOG» загружает все разделы общего каталога. Через «Из кабинета» можно перенести отметки о выдаче с сохранённой страницы HAMLOG. «Положение» открывает опубликованный текст или PDF.
+- «Готовые к поиску» показывает дипломы со встроенными правилами и карточки с вашими целями. Добавлен диплом «ARCK — 35 лет». Для других карточек можно прочитать положение и задать список в «Моих целях».
 
 **Как обновиться.** Откройте **«Обновления»**, скачайте выпуск и закройте JTDX перед установкой. Затем нажмите **«Обновить и перезапустить»**. При работе с LogHX запускайте JTDX значком в журнале.
 
@@ -11,8 +11,8 @@
 
 ## English
 
-- Incoming calls take priority during CQ, monitoring and award searches. A station that calls immediately after you send 73 gets a reply before the next CQ or outgoing call.
-- AutoCQ accepts fresh repeat calls from stations you have worked with JTDX's Answer B4 enabled or disabled. It skips stations on the DXCC exclusion list in every mode.
+- HAMLOG Awards loads every section of the public catalog. From my account brings in issued-award marks from the saved HAMLOG page. Award rules opens the published text or PDF.
+- Ready to search shows awards with built-in rules or your own target lists. ARCK 35 Years is now supported. For other awards, read the rules and enter a list in My targets.
 
 **Updating.** Open **«Обновления»** (Updates), download the release, and close JTDX before installation. Click **«Обновить и перезапустить»** (Update and restart). If you use LogHX, launch JTDX from its icon.
 

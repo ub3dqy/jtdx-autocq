@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using JtdxAutoCq;
 
 static class OperatorToolsTests
@@ -88,6 +89,135 @@ static class OperatorToolsTests
             Check(engine.ExplainCq("JA1AA", now).Contains("Цель уже выполнена"), "The reason ignored primary history.");
             engine.Cqs.Failed("JA1AA", now, true);
             Check(engine.ExplainCq("JA1AA", now).Contains("Пауза после вызова"), "A timed pause was not explained.");
+        });
+
+        run("The HAMLOG catalog includes national, territory and every paginated club award", () => {
+            const string html = "<table id='listgn'><tbody>"
+                + "<tr><td>Example</td><td><a href='/neca/info.php'>NECA</a></td></tr>"
+                + "<tr><td>Example</td><td><a href='#'>Coming soon</a></td></tr>"
+                + "<!--<tr><td>Example</td><td><a href='/unlisted/'>Hidden</a></td></tr>-->"
+                + "</tbody></table><div id='tcawards-md'><h4>Territory sponsor</h4>"
+                + "<table><tr><td><a href='/geo/rafa/'>Territory</a></td><td>01 Jan 2024</td></tr></table></div></fieldset>";
+            var offsets = new List<int>();
+            HamlogCatalogSnapshot catalog = HamlogCatalogClient.Parse(html, (draw, offset) => {
+                offsets.Add(offset);
+                return new HamlogCatalogPage { Draw = draw, Total = 101,
+                    Rows = Enumerable.Range(offset, Math.Min(100, 101 - offset)).Select(i => new[] {
+                        "<a href='/club/demo/'>Club sponsor</a>", "<a href='/club/demo/" + (i + 10) + "/'>Award " + i + "</a>",
+                        "05 Oct 2026 - 30 Nov 2026"
+                    }).ToArray()
+                };
+            }, null);
+            Check(offsets.SequenceEqual(new[] { 0, 100 }) && catalog.Programs.Count == 104
+                && catalog.Programs.Select(row => row.CatalogKey).Distinct().Count() == 104
+                && catalog.Programs.Single(row => row.Title == "Territory").Sponsor == "Territory sponsor"
+                && catalog.Programs.Single(row => row.Title == "NECA").Url == "https://hamlog.online/neca/"
+                && catalog.Programs.Single(row => row.Title == "Award 100").PublishedUntilUtc == "2026-11-30"
+                && catalog.Programs.Single(row => row.Title == "Coming soon").Url == "",
+                "A section, announcement, valid date or page of awards was lost.");
+            try
+            {
+                HamlogCatalogClient.Parse(html, (draw, offset) => new HamlogCatalogPage { Draw = draw, Total = 101,
+                    Rows = new[] { new[] { "", "<a href='/club/demo/1/'>Partial</a>", "" } }
+                }, null);
+                throw new Exception("A partial catalogue was published to the operator.");
+            }
+            catch (InvalidDataException) { }
+        });
+
+        run("Public catalog and account export merge without losing personal goals or marked issuance", () => {
+            var when = new DateTime(2026, 11, 24, 12, 0, 0, DateTimeKind.Utc);
+            const string url = "https://hamlog.online/neca/";
+            var original = new AwardProgram { Id = "custom-neca", Title = "Personal title", Url = url, Selected = true,
+                ManualSearch = true, FromUtc = "2026-11-01", Goals = new List<AwardGoal> {
+                    new AwardGoal { Kind = "call", Value = "W2ABC", Band = "20m" }
+                }
+            };
+            original.Validate();
+            var catalog = new AwardCatalog { Programs = new List<AwardProgram> { original } };
+            var publication = new AwardProgram { Id = url, Url = url, Title = "NECA", PublicEntry = true,
+                Section = "World", Sponsor = "Example", PublishedFromUtc = "2026-01-01", PublishedUntilUtc = "2026-12-31" };
+            publication.Validate();
+            var publicCatalog = new HamlogCatalogSnapshot(new[] { publication });
+            catalog.ApplyPublicCatalog(publicCatalog, when);
+            AwardProgram result = catalog.Programs.Single(row => row.Url == url);
+            Check(result.UsesLocalTargets && result.Selected && result.From.Value.Month == 11 && result.Until.Value.Year == 2027
+                && result.Id == original.Id && result.HasIssued == null, "The public refresh changed personal data or date restrictions.");
+
+            string directory = TestWorkspace.Create();
+            string personal = Path.Combine(directory, "HAMLOG-K1ABC-AutoCQ.json");
+            File.WriteAllText(personal, "{\"version\":1,\"callsign\":\"K1ABC\",\"generatedUtc\":\"2026-11-24T12:00:00Z\","
+                + "\"programs\":[{\"title\":\"Local name\",\"url\":\"https://hamlog.online/neca/info.php\",\"hasIssued\":true}]}");
+            catalog.Import(personal, "K1ABC", true);
+            catalog.ApplyPublicCatalog(publicCatalog, when.AddHours(1));
+            result = catalog.Programs.Single(row => row.Url == url);
+            var store = new AppPreferencesStore(directory);
+            store.Save(new AppPreferences { Awards = catalog });
+            AwardProgram saved = store.Load().Awards.Programs.Single(row => row.Url == url);
+            Check(result.Title == "NECA" && !saved.Selected && saved.ClosedByIssuance && saved.UsesLocalTargets
+                && saved.Goals.Single().Value == "W2ABC" && saved.Sponsor == "Example" && catalog.Callsign == "K1ABC",
+                "Account sync duplicated the official card or erased its rules, credit or local targets.");
+            catalog.ApplyPublicCatalog(new HamlogCatalogSnapshot(new AwardProgram[0]), when.AddHours(2));
+            AwardProgram absent = catalog.Programs.Single(row => row.Url == url);
+            Check(absent.Withdrawn && absent.ClosedByIssuance && absent.UsesLocalTargets
+                && catalog.Programs.Any(row => row.UsesOnlineRules && row.Template == HamlogAward.Russia),
+                "A listing change erased saved goals, issuance or a supported built-in award.");
+        });
+
+        run("A saved HAMLOG account page marks only proved issuance for the selected callsign", () => {
+            string directory = TestWorkspace.Create();
+            string file = Path.Combine(directory, "issued.html");
+            const string page = "<div id='myawards-md'><table id='id1'><thead><tr>"
+                + "<th>#</th><th>Название</th><th>Позывной</th><th>Дата выдачи</th><th>Номер</th><th></th>"
+                + "</tr></thead><tbody>"
+                + "<tr><td>1</td><td><a href='/club/demo/12/'>First diploma</a></td>"
+                + "<td>K1ABC</td><td>24.11.2026</td><td>123</td><td><a href='/dl.php?i=private-fixture'>Download</a></td></tr>"
+                + "<tr><td>2</td><td><a href='/global/russia/test/10/'>Group diploma</a></td>"
+                + "<td>K1ABC</td><td>24.11.2026</td><td>124</td></tr>"
+                + "<tr><td>3</td><td><a href='/club/demo/13/'>Other person's diploma</a></td>"
+                + "<td>K1ABD</td><td>24.11.2026</td><td>125</td></tr>"
+                + "</tbody></table></div></fieldset>";
+            File.WriteAllText(file, page);
+            const string first = "https://hamlog.online/club/demo/12/";
+            const string group = "https://hamlog.online/global/russia/test/23/";
+            const string other = "https://hamlog.online/club/demo/13/";
+            var catalog = new AwardCatalog { Programs = new List<AwardProgram> {
+                new AwardProgram { Title = "First diploma", Url = first },
+                new AwardProgram { Title = "Group diploma", Url = group },
+                new AwardProgram { Title = "Other person's diploma", Url = other }
+            } };
+            foreach (AwardProgram row in catalog.Programs) row.Validate();
+            Check(catalog.ImportIssuedPage(file, "K1ABC") == 0, "A direct or uniquely matched group award was skipped.");
+            Check(catalog.Programs.Single(row => row.Url == first).HasIssued == true
+                && catalog.Programs.Single(row => row.Url == group).HasIssued == true
+                && catalog.Programs.Single(row => row.Url == other).HasIssued == null && catalog.Callsign == "K1ABC",
+                "The saved page crossed callsigns or treated a missing row as unearned credit.");
+            var store = new AppPreferencesStore(directory);
+            store.Save(new AppPreferences { Awards = catalog });
+            Check(!File.ReadAllText(Path.Combine(directory, "preferences.xml")).Contains("private-fixture"),
+                "A certificate download token entered the local settings.");
+            try { new AwardCatalog().ImportIssuedPage(file, "K1ABE"); throw new Exception("A different account was accepted."); }
+            catch (InvalidDataException) { }
+        });
+
+        run("HAMLOG previews published text and PDF without treating a web page as a search rule", () => {
+            const string award = "https://hamlog.online/club/demo/10/";
+            const string document = "<main><h1>Conditions</h1><p>One QSO with W2ABC.</p>"
+                + "<script>var testScript = 1;</script><p>Use 20 m.</p></main>";
+            HamlogRules text = HamlogRules.ParseDocument(award + "rules/", Encoding.UTF8.GetBytes(document));
+            Check(text.Text.Contains("One QSO with W2ABC.") && text.Text.Contains("Use 20 m.")
+                && !text.Text.Contains("testScript") && text.Pdf == null, "HTML rules were not shown as inert text.");
+            byte[] pdf = Encoding.ASCII.GetBytes("%PDF-1.4 fixture");
+            Check(HamlogRules.ParseDocument(award + "rules/", pdf).Pdf.SequenceEqual(pdf), "PDF rules were not passed through.");
+            Check(HamlogRules.FindPublishedLink("<a href='https://example.org/rules.pdf'>Rules</a>"
+                + "<a href='rules/'>Положение</a>", award) == award + "rules/", "The rules link left the HAMLOG site.");
+            var program = new AwardProgram { Title = "Example", Url = award, Goals = new List<AwardGoal> {
+                new AwardGoal { Kind = "dxcc", Value = "UA" }
+            } };
+            program.Validate();
+            Check(!program.HasSearchRules, "An old country mask was silently enabled for an unsupported award.");
+            program.ManualSearch = true;
+            Check(program.HasSearchRules, "An explicitly prepared search list could not be used.");
         });
 
         run("A HAMLOG catalog refresh keeps prepared goals and recognizes issuance without sharing operator data", () => {
@@ -232,6 +362,17 @@ static class OperatorToolsTests
             Check(result.Confirmed == 1 && !result.Needs("R3YAA", "80m", "FT8", at, "KO73")
                 && result.Needs("R3YBB", "80m", "FT8", at, "KO83") && !result.Needs("R3YCC", "80m", "FT8", at, "KO83"),
                 "An ineligible or unknown district was targeted, or a CW credit blocked a digital contact.");
+        });
+
+        run("ARCK 35 qualifies only club members and counts each once across bands", () => {
+            DateTime at = new DateTime(2026, 11, 24, 12, 0, 0, DateTimeKind.Utc);
+            var program = HamlogAward.Arck35.Create();
+            program.Hamlog = HamlogStandingClient.Parse(
+                HamlogPage("K1ABC", "<span class='award-dashboard-value'>1 / 35</span>",
+                    HamlogRow("4K2GG", "23 Nov 2026", "40M", "FT8", "+1")), HamlogAward.Arck35, "K1ABC", at);
+            var progress = new HamlogOnlineProgress(program, LogbookHistory.Empty, "K1ABC", call => null);
+            Check(!progress.Needs("4K2GG", "20m", "FT8", at, null) && progress.Needs("DL2YCK", "20m", "FT8", at, null)
+                && !progress.Needs("K9ZZZ", "20m", "FT8", at, null), "The club or distinct-callsign rule was ignored.");
         });
 
         run("HAMLOG counts only accepted rows for the requested callsign, including fractional and empty results", () => {

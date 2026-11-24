@@ -1,6 +1,6 @@
 # Using AutoCQ
 
-Guide for AutoCQ 0.9.24 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
+Guide for AutoCQ 0.9.25 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
 
 AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.
 
@@ -171,11 +171,19 @@ Select a callsign in **«Станции из левого окна JTDX»** and 
 
 ### Search for HAMLOG award contacts
 
-Open **«Журнал и дипломы → Дипломы HAMLOG»** (Logbook and awards → HAMLOG awards). Add the awards you need from **«Готовые дипломы»** (Built-in awards), tick them and click **«Начать поиск»** (Start search) while JTDX is receiving. AutoCQ checks HAMLOG credit for your callsign and starts listening on the current band. To see how much credit you still need before starting, select the award and click **«Сверить с HAMLOG»** (Check HAMLOG).
+1. Open **«Журнал и дипломы → Дипломы HAMLOG»** (Logbook and awards → HAMLOG awards) and click **«Загрузить каталог»** (Load catalog). The list includes international, national, club, regional and territory awards. You can search by title or sponsor.
+2. To hide your issued awards, click **«Из кабинета»** (From my account). Sign in to HAMLOG in your browser, open **My received awards**, then press **Ctrl+S**. Choose **Webpage, HTML only** and open the saved file in AutoCQ. [Open HAMLOG Awards](https://hamlog.online/account/awards.php)
+3. Tick **«Готовые к поиску»** (Ready to search) and select the awards you want. While JTDX is receiving, click **«Начать поиск»** (Start search). AutoCQ checks HAMLOG credit for the awards with built-in rules and starts listening on the current band.
 
-![Searching for uncredited grid squares for the My Russia award](docs/awards-demo.png)
+![The public HAMLOG award catalog and awards ready for searching](docs/awards-demo.png)
 
-For My Russia, AutoCQ reads the grid locator from a recent JTDX decode. Each credited square counts once across all bands. For Legendary Gunsmiths of Tula, another QSO with the same station on a different band can count. FT8 and FT4 belong to the same digital mode group on a given band. For RDA district awards, AutoCQ needs a known district from earlier HAMLOG credit or from your own logbook if it contains that information.
+![Importing a saved page from your HAMLOG account](docs/hamlog-account-demo.png)
+
+Issued and expired awards are hidden by default. Tick **«Показать завершённые и истёкшие»** (Show completed and expired) to see them. AutoCQ reads issuance for your callsign from the saved page. Click **«Сверить с HAMLOG»** (Check HAMLOG) on a built-in award to see how much credit you need. Save the page again after receiving new awards. Use **«Сохранить»** (Save) to keep the catalog for your next session.
+
+Select an entry with a HAMLOG page and click **«Положение»** (Award rules). AutoCQ loads the document when you open the entry. You can read text in AutoCQ and open or save PDFs published by the organizer.
+
+For My Russia, AutoCQ reads the grid locator from a recent JTDX decode. Each credited square counts once across all bands. For Legendary Gunsmiths of Tula, another QSO with the same station on a different band can count. FT8 and FT4 belong to the same digital mode group on a given band. ARCK 35 Years requires distinct club members, so each callsign counts once. For RDA district awards, AutoCQ needs a known district from earlier HAMLOG credit or from your logbook.
 
 After any automatic or manual QSO, AutoCQ checks the incoming queue first. When the queue is clear, it goes back to listening for award stations. Among the stations it calls on its own, priority goes to those that help with more than one selected award.
 
@@ -187,11 +195,11 @@ For Murom Falcon, **«Вне зачёта»** (Awaiting credit) shows possible p
 
 ![Logbook contacts awaiting HAMLOG credit](docs/award-points-journal-demo.png)
 
-#### Import a catalog or make your own list
+#### Make your own list from the published rules
 
-If your HAMLOG browser extension supports export, click **«Проверить дипломы»** (Check awards), then **«Скачать каталог для AutoCQ»** (Download catalog for AutoCQ). Open the JSON file with **«Импорт»** (Import). AutoCQ applies the built-in rules for awards it recognizes. You can visit the HAMLOG page for the other awards to read their rules.
+For other awards, read the rules, select the award and click **«Мои цели»** (My targets). Enter callsigns, DXCC entities or patterns such as `JA*`. You can also specify the band, mode and number of distinct stations. AutoCQ checks this list against your main logbook. Use HAMLOG to check the organizer's official credit.
 
-To make your own list, click **«Добавить»** (Add) and leave the HAMLOG link field blank. Enter callsigns, DXCC entities or patterns like `JA*`. You can also set a band, mode or number of distinct stations. AutoCQ reads your main logbook to check which targets you have already worked. [Import file format](docs/award-catalog.md)
+Click **«Добавить»** (Add) to make a standalone list. Use **«Импорт JSON»** (Import JSON) if you already have a file with prepared targets. [Import file format](docs/award-catalog.md)
 
 ![Two DXCC targets on 20 metres in a custom list](docs/award-goals-demo.png)
 

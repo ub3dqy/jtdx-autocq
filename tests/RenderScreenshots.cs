@@ -138,7 +138,7 @@ static class RenderScreenshots
             var screens = (Form[])Invoke(form,"OperatorToolsDemoForms");
             string[] names = { "logbook-source-demo.png", "profiles-demo.png", "dxcc-targets-demo.png",
                 "station-reason-demo.png", "session-summary-demo.png", "awards-demo.png", "award-goals-demo.png",
-                "award-points-journal-demo.png" };
+                "award-points-journal-demo.png", "hamlog-account-demo.png" };
             try
             {
                 for (int index = 0; index < screens.Length; index++)
@@ -146,6 +146,6 @@ static class RenderScreenshots
             }
             finally { foreach (Form screen in screens) screen.Dispose(); }
         }
-        Console.WriteLine("Rendered nineteen offline demo screenshots.");
+        Console.WriteLine("Rendered offline demo screenshots.");
     }
 }

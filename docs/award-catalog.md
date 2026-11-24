@@ -1,6 +1,6 @@
 # Award catalog import
 
-AutoCQ reads a UTF-8 JSON file through **«Журнал и дипломы → Дипломы HAMLOG → Импорт»**. A catalog can list HAMLOG awards and any awards already issued. For a personal search list, leave `url` blank and include your own targets in `goals`.
+AutoCQ reads a UTF-8 file through **«Журнал и дипломы → Дипломы HAMLOG → Импорт JSON»**. The public catalog comes from HAMLOG. **From my account** reads the saved HAMLOG awards page and also accepts a matching AutoCQ JSON export if available. The saved HTML supplies positive issuance records for the selected callsign. For a standalone search list, leave `url` blank and include your own targets in `goals`.
 
 ```json
 {
@@ -31,8 +31,9 @@ AutoCQ reads a UTF-8 JSON file through **«Журнал и дипломы → Д
 - Use `call` for an exact callsign, `dxcc` for the primary prefix from JTDX's DXCC table and `mask` for a pattern with `*` or `?`. `count` defaults to one and is always one for a specific callsign. A mask or country can require up to 1,000 distinct full callsigns. All goals of a program must be met.
 - Leave `band` and `mode` blank to accept any recorded band or mode. For an explicit mode, use `FT8` or `FT4`. Automatic searches run in the band and digital mode currently selected in JTDX.
 - Date-only bounds use UTC and include the final day. An exact timestamp ending in `Z` can be used for either bound. An exact end timestamp is exclusive.
+- For an award URL without built-in rules, set `manualSearch` to true to use the supplied `goals` as a local search list. This is the same as saving **My targets** in the dialog. Legacy files with a URL and goals alone still open for reading. Published dates constrain the local search window when available.
 
-AutoCQ computes manual goals from the main logbook and presents HAMLOG issuance separately. For the supported award URLs under **Built-in awards**, AutoCQ looks up the operator's credit before starting a search. It applies the built-in rules even if an older catalog included general callsign masks or DXCC goals. A **Check HAMLOG** result belongs to the local operator profile and is preserved when the matching catalog entry is refreshed. Other HAMLOG entries open the official award page for reference.
+AutoCQ computes manual goals from the main logbook and presents HAMLOG issuance separately. For the supported award URLs under **Built-in awards**, AutoCQ looks up the operator's credit before starting a search. It applies the built-in rules even if an older catalog included general callsign masks or DXCC goals. A **Check HAMLOG** result belongs to the local operator profile and is preserved when the matching catalog entry is refreshed. The **Award rules** button reads published HTML or offers the official PDF.
 
 My Russia uses the HAMLOG Hunter square map to find the next tier and checks the first four characters of a fresh grid locator. For regional and club awards that allow competing on several bands, AutoCQ tracks the callsign, band and mode group according to the award. For awards that require a new RDA district, the callsign and fresh locator must match a known RDA record from previous credit or the logbook. [My Russia rules](https://hamlog.online/rrnars/rules.pdf#page=27) · [Legendary Gunsmiths of Tula rules](https://hamlog.online/global/russia/r3p/eb739f05ee1eb35b118a447552a8d0c2/rules/)
 

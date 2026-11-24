@@ -17,7 +17,7 @@ You could let it work for an hour, answering callers and looking for another sta
 - **Keep a queue.** Remember callers while you are busy. Manually added callsigns are called directly after the current contact and available incoming callers.
 - **Make a manual call while monitoring.** Choose an interesting station outside the target list. After that contact, AutoCQ resumes monitoring with the same settings and time remaining.
 - **Watch for wanted stations.** Match DXCC entities, callsigns and patterns against fresh CQ, 73, RRR or RR73. Return to receive after the contact or attempt limit.
-- **Look for contacts for HAMLOG awards.** AutoCQ checks HAMLOG credit for built-in awards and looks for the contacts you still need, such as uncredited grid squares for My Russia.
+- **Work with the HAMLOG award catalog.** Load the public catalog, read the published rules and hide issued awards using a file from your account. For awards with built-in rules, AutoCQ checks HAMLOG credit and looks for the contacts you still need.
 - **Answer incoming calls in every mode.** A station calling you takes priority over the next CQ or outgoing call. Fresh calls from stations you have already worked can join the queue. AutoCQ skips stations on your DXCC exclusion list.
 - **Update from the application.** Notify you about new releases and show download percentage, transferred size, speed and estimated time remaining. Install when you choose.
 - **Show monitoring retry pauses.** List unanswered stations with a countdown to their next eligible attempt. Stopping monitoring clears the list.
@@ -67,7 +67,7 @@ Spotted an interesting station outside your targets? While monitoring is listeni
 
 Open **«Журнал и дипломы»** (Logbook and awards) to select your LogHX logbook or an ADIF export from another program. AutoCQ uses that history, including voice and contacts made through other software. In **«Подбор целей DXCC»** (Find DXCC targets), select a band and tick the entities that you still need on that band.
 
-In **«Дипломы HAMLOG»** (HAMLOG awards), tick one or more built-in awards. AutoCQ checks the credit for your callsign before it starts. It looks for missing grid squares for My Russia and follows the repeat-contact rules for awards such as Legendary Gunsmiths of Tula. If a station calls you, AutoCQ answers through the regular queue and returns to the search. [How to start an award search](USER-GUIDE.en.md#search-for-hamlog-award-contacts)
+In **«Дипломы HAMLOG»** (HAMLOG awards), click **«Загрузить каталог»** (Load catalog). To hide issued awards, bring in the file from your account with **«Из кабинета»** (From my account). Open **«Положение»** (Award rules) to read the original requirements. Tick one or more searchable awards and click **«Начать поиск»** (Start search). For My Russia, AutoCQ looks for missing grid squares. For Legendary Gunsmiths of Tula, it takes the band of a previous contact into account. [How to load awards and start a search](USER-GUIDE.en.md#search-for-hamlog-award-contacts)
 
 The same menu lets you save settings under a name and check **«Итоги сеанса»** (Session results). The results show final confirmations and which records were found in your main logbook. If a callsign remains in the left list, select it and click **«Почему пропущена?»** (Why was this station skipped?).
 

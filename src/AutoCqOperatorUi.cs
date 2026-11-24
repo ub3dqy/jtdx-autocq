@@ -169,7 +169,7 @@ namespace JtdxAutoCq
             }
             AwardCatalog selected = preferences.Awards.Copy();
             DateTime now = DateTime.UtcNow;
-            var programs = selected.Programs.Where(program => program.Selected && !program.ClosedByIssuance
+            var programs = selected.Programs.Where(program => program.Selected && program.HasSearchRules && !program.ClosedByIssuance
                 && (program.UsesOnlineRules || program.UsesPointRules) && (!program.Until.HasValue || now < program.Until.Value)).ToArray();
             if (programs.Length == 0)
             {
@@ -426,6 +426,12 @@ namespace JtdxAutoCq
             var tula = HamlogAward.Tula.Create();
             var russia = HamlogAward.Russia.Create();
             var gunsmiths = HamlogAward.Gunsmiths.Create();
+            var arck = HamlogAward.Arck35.Create();
+            arck.HasIssued = false;
+            var counties = new AwardProgram { Title = "New England County Award (NECA)",
+                Url = HamlogLinks.Origin + "neca/", Sponsor = "HAMLOG", HasIssued = false };
+            foreach (AwardProgram program in new[] { russia, gunsmiths, falcon, tula, arck, counties }) program.PublicEntry = true;
+            russia.Sponsor = "Моя Россия · HAMLOG";
             DateTime october = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
             falcon.Hamlog = new HamlogStanding {
                 Callsign = "K1ABC", Points = 78, Required = 85, CheckedUtc = october.AddDays(14).AddHours(11),
@@ -447,7 +453,10 @@ namespace JtdxAutoCq
                     new LogbookQso { Call = "R5AV", Band = "40m", Mode = "FT8", StartedUtc = october.AddDays(14) },
                     new LogbookQso { Call = "R4CQ", Band = "160m", Mode = "FT8", StartedUtc = october.AddDays(13) },
                 }).ToList());
-            var example = new AwardCatalog { Programs = new List<AwardProgram> { russia, gunsmiths, diploma, stations, falcon, tula } };
+            var example = new AwardCatalog {
+                Callsign = "K1ABC", PublicCatalogUtc = october.AddDays(14),
+                Programs = new List<AwardProgram> { russia, gunsmiths, arck, counties, diploma, stations, falcon, tula }
+            };
             foreach (AwardProgram program in example.Programs) program.Validate();
             var awards = new AwardsDialog(example, awardHistory, "K1ABC", call => {
                 DxccCountry country = table.Find(call);
@@ -465,6 +474,7 @@ namespace JtdxAutoCq
                 awards,
                 new AwardGoalsDialog(diploma),
                 new HamlogJournalDialog(falcon.Title, new HamlogPointProgress(falcon, awardHistory, "K1ABC")),
+                new HamlogAccountDialog("K1ABC", ""),
             };
         }
     }

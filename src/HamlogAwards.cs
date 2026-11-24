@@ -26,7 +26,7 @@ namespace JtdxAutoCq
         public string[] ConfirmedSquares = new string[0];
     }
 
-    internal enum HamlogRule { Legacy, Grid, Stations, Bands, Tula, Tatarstan, Bryansk, Vysotsky, Marathon }
+    internal enum HamlogRule { Legacy, Grid, Stations, Bands, Tula, Tatarstan, Bryansk, Vysotsky, Marathon, Arck35 }
 
     internal sealed class HamlogAward
     {
@@ -43,6 +43,8 @@ namespace JtdxAutoCq
             "club/r3ydosaaf/db8799094e17ba762616ac19f8252502/", "2002-06-12", "", 27, HamlogRule.Bryansk);
         internal static readonly HamlogAward Vysotsky = new HamlogAward("В. С. Высоцкому — 88 лет",
             "club/arck/f4001e43804b7424b605414bbeaddef8/", "2026-01-15", "2026-12-31", 88, HamlogRule.Vysotsky);
+        internal static readonly HamlogAward Arck35 = new HamlogAward("ARCK — 35 лет",
+            "club/arck/b57d5bd347637005b3ddfca5497cc969/", "2026-01-15", "2026-12-31", 35, HamlogRule.Arck35);
         internal static readonly HamlogAward Marathon = new HamlogAward("36 лет Miller-DX-Club",
             "club/mdxc/ba9d1e767d8d1afea1cd10c5f4ef9a1d/", "2026-11-16", "2026-11-30T21:00:00Z", 1990, HamlogRule.Marathon);
         internal static readonly HamlogAward Estonia4 = new HamlogAward("Северное побережье Эстонии (ES4)",
@@ -56,7 +58,7 @@ namespace JtdxAutoCq
         internal static readonly HamlogAward Advanced = Vk5Esm("Advanced", "fb25c0f16b919c5dea0a4ba0d9a99f9e", "80m 40m 30m 20m 17m 15m 12m 10m");
         internal static readonly HamlogAward Warc = Vk5Esm("WARC", "c87e288d35a637c97959b983680df96b", "30m 17m 12m");
         internal static readonly HamlogAward[] Templates = {
-            Russia, Gunsmiths, Tatarstan, Bryansk, Vysotsky, Marathon, Estonia4, Estonia5, Romania,
+            Russia, Gunsmiths, Tatarstan, Bryansk, Vysotsky, Arck35, Marathon, Estonia4, Estonia5, Romania,
             Foundation, Standard, Advanced, Warc, Murom, Tula
         };
         internal readonly string Title, Url, From, Until;
