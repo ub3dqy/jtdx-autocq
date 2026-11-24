@@ -407,7 +407,7 @@ namespace JtdxAutoCq
             }
             if (program.UsesTemplate)
             {
-                Points = new HamlogPointProgress(program, history, own);
+                Points = new HamlogPointProgress(program, history, own, dxcc);
                 return;
             }
             if (!program.UsesLocalTargets || program.ClosedByIssuance) return;

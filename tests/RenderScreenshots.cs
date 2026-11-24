@@ -143,16 +143,28 @@ static class RenderScreenshots
         using (var form = new MainForm(true))
         {
             ((Timer)Field(form,"timer")).Stop();
-            var screens = (Form[])Invoke(form,"OperatorToolsDemoForms");
+            string awardCache = Path.Combine(Path.GetTempPath(), "AutoCQ-demo-" + Guid.NewGuid().ToString("N"));
             string[] names = { "logbook-source-demo.png", "profiles-demo.png", "dxcc-targets-demo.png",
                 "station-reason-demo.png", "session-summary-demo.png", "awards-demo.png", "award-goals-demo.png",
                 "award-points-journal-demo.png", "hamlog-account-demo.png", "hamlog-plan-demo.png" };
             try
             {
-                for (int index = 0; index < screens.Length; index++)
-                    Save(screens[index], Path.Combine(directory, names[index]), showOffscreen: names[index] == "awards-demo.png");
+                var screens = (Form[])Invoke(form,"OperatorToolsDemoForms", awardCache);
+                try
+                {
+                    for (int index = 0; index < screens.Length; index++)
+                        Save(screens[index], Path.Combine(directory, names[index]), showOffscreen: names[index] == "awards-demo.png");
+                }
+                finally { foreach (Form screen in screens) screen.Dispose(); }
             }
-            finally { foreach (Form screen in screens) screen.Dispose(); }
+            finally
+            {
+                if (Directory.Exists(awardCache))
+                {
+                    foreach (string file in Directory.GetFiles(awardCache)) File.Delete(file);
+                    Directory.Delete(awardCache);
+                }
+            }
         }
         Console.WriteLine("Rendered offline demo screenshots.");
     }

@@ -171,7 +171,7 @@ Select a callsign in **«Станции из левого окна JTDX»** and 
 
 ### Search for HAMLOG award contacts
 
-1. Open **«Журнал и дипломы → Дипломы HAMLOG»** (Logbook and awards → HAMLOG awards) and click **«Обновить каталог»** (Update catalog). AutoCQ loads the list and then the published documents. It prepares search rules for documents it can interpret. Ready awards appear as the download progresses.
+1. Open **«Журнал и дипломы → Дипломы HAMLOG»** (Logbook and awards → HAMLOG awards) and click **«Обновить каталог»** (Update catalog). AutoCQ loads the list and then the published documents. If **«Разобрать скачанное»** (Process downloaded rules) appears after an AutoCQ update, click it to use the documents already on your computer. Ready awards appear as AutoCQ processes them.
 2. To hide issued awards, click **«Выполненные из кабинета…»** (Completed awards from my account). In your browser, sign in to HAMLOG, open **My received awards** and save it with **Ctrl+S** as **Webpage, HTML only**. Select the saved file in AutoCQ. [Open HAMLOG Awards](https://hamlog.online/account/awards.php)
 3. Choose **«Состояние → Доступны для поиска»** (Status → Available for search) and tick the awards you want in the **«Поиск»** (Search) column. Close the window to save your choices. While JTDX is receiving, choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring). AutoCQ checks available HAMLOG credit and listens on the current band.
 
@@ -185,9 +185,11 @@ The catalog opens to **«Действующие»** (Active). In **«Состо�
 
 Import the saved account page again after receiving new awards. To check an individual award, right-click its row and choose **«Сверить зачёт с HAMLOG»** (Check HAMLOG credit). AutoCQ deselects completed awards after checking credit or your main logbook. For programs with multiple tiers, you can continue searching for a tier that is still open.
 
-**«Правила из положения»** (Rules from the published conditions) means AutoCQ prepared search rules. **«Положение есть · нужен разбор»** (Document downloaded, rules pending) means the document is available to read. Some awards depend on facts that the conditions do not list, such as which stations belong to a particular group. Use **«Страница на HAMLOG»** (HAMLOG page) or **«Положение HAMLOG…»** (Published conditions) from the row menu to read them.
+**«Правила из положения»** (Rules from the published conditions) means AutoCQ prepared search rules. **«Условия пока не распознаны»** (Conditions not yet recognized) means the document is saved and AutoCQ cannot yet use it for search. For example, some club awards depend on a separate roster. **«Текст PDF не прочитан»** means AutoCQ could not extract the text. Open the original under **«Положение HAMLOG…»** (Published conditions) in the row menu.
 
 For My Russia, AutoCQ reads the grid locator from a recent JTDX decode. Each credited square counts once across all bands. For Legendary Gunsmiths of Tula, another QSO with the same station on a different band can count. FT8 and FT4 belong to the same digital mode group on a given band. ARCK 35 Years requires distinct club members, so each callsign counts once. For RDA district awards, AutoCQ needs a known district from earlier HAMLOG credit or from your logbook.
+
+For supported RCPW awards, AutoCQ reads the callsigns from the club's roster. For example, a contact for “Not a Step Back” is worth 10 points during the activity days and five afterward. AutoCQ uses the threshold HAMLOG reports for your callsign. When HAMLOG shows no credit yet and the rules give two thresholds, AutoCQ starts with the lower threshold and checks it again once the first contact is credited. [Not a Step Back rules](https://hamlog.online/club/rcpw/bbfc8b0d8f75b77c547a8cd342e70de3/rules/)
 
 After any automatic or manual QSO, AutoCQ checks the incoming queue first. When the queue is clear, it goes back to listening for award stations. Among the stations it calls on its own, priority goes to those that help with more than one selected award.
 
@@ -203,7 +205,7 @@ For Murom Falcon, **«Вне зачёта»** (Awaiting credit) shows possible p
 
 Double-click a row or choose **«Правила поиска…»** (Search rules) from its menu. For a recognized award, the editor shows the rules AutoCQ will use. Edit the fields and click **«Сохранить»** (Save). To go back to the original rules, click **«Вернуть исходные»** (Restore original), then **«Сохранить»**. A catalog update keeps your manual edits and lists the affected awards below the table.
 
-![Search rules prepared from the published HAMLOG conditions](docs/hamlog-plan-demo.png)
+![Search rules for an RCPW award](docs/hamlog-plan-demo.png)
 
 If you know eligible stations for an award that uses other conditions, choose **«Задать свой список целей…»** (Set my targets) from its row menu. Enter callsigns, DXCC entities or patterns such as `JA*`. AutoCQ checks this list against your main logbook. The same menu can create a standalone list or open a prepared JSON file. [Import file format](docs/award-catalog.md)
 

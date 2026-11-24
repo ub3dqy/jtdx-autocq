@@ -182,7 +182,12 @@ namespace JtdxAutoCq
             if (status.Online != null)
                 return status.Online.Standing == null ? "—" : Points(status.Online.Confirmed) + " из " + status.Online.Required;
             if (status.Points != null)
-                return status.Points.Standing == null ? "—" : Points(status.Points.Standing.Points) + " из " + status.Points.Required;
+            {
+                HamlogStanding standing = status.Points.Standing;
+                if (standing == null) return "—";
+                return Points(standing.Points) + " из " + status.Points.Required
+                    + (standing.ProvisionalRequired ? " / " + status.Program.EffectiveRules.Required : "");
+            }
             return status.GoalsCount == 0 || status.Program.ClosedByIssuance ? "—" : status.CompletedGoals + " из " + status.GoalsCount;
         }
 
@@ -208,7 +213,8 @@ namespace JtdxAutoCq
                 if (!program.UsesLocalTargets)
                     return program.PublicEntry && String.IsNullOrEmpty(program.Url) ? "Ожидает публикации"
                         : String.IsNullOrEmpty(program.Url) ? "Добавьте цели"
-                        : program.RuleDocumentStatus == "downloaded" ? "Положение есть · нужен разбор"
+                        : program.RuleDocumentStatus == "downloaded" ? "Условия пока не распознаны"
+                        : program.RuleDocumentStatus == "unreadable" ? "Текст PDF не прочитан"
                         : program.RuleDocumentStatus == "missing" ? "Положение недоступно"
                         : program.RuleDocumentStatus == "retry" ? "Ошибка загрузки положения" : "Положение ещё не загружено";
                 return status.Complete ? "Цели выполнены по журналу" : "Мои цели";
@@ -217,6 +223,7 @@ namespace JtdxAutoCq
             if (points.Standing == null) return program.DownloadedRules != null ? "Правила из положения" : "Сверится перед поиском";
             if (points.ConfirmedComplete) return "Условия выполнены";
             if (points.PendingEnough) return "Есть связи для зачёта";
+            if (points.Standing.ProvisionalRequired) return "HAMLOG уточнит порог после зачёта";
             return "Не хватает " + Points(points.NeedOnline) + " очк.";
         }
 
@@ -307,6 +314,7 @@ namespace JtdxAutoCq
             open.Enabled = rules.Enabled = program != null && !String.IsNullOrEmpty(program.Url);
             updateCatalog.Enabled = !synchronizing || catalogDownload != null;
             updateCatalog.Text = catalogDownload != null ? "Остановить загрузку"
+                : documents != null && documents.CanRecompile(catalog) ? "Разобрать скачанное"
                 : documents != null && HamlogRuleCache.CanResume(catalog, now) ? "Продолжить загрузку" : "Обновить каталог";
             sync.Enabled = !synchronizing && program != null && program.UsesTemplate && Callsign.Parse(own) != null;
             int selectedCount = catalog.Programs.Count(item => item.Selected && Progress(item).CanSelectForSearch(now));
@@ -364,13 +372,15 @@ namespace JtdxAutoCq
                 return;
             }
             if (synchronizing) return;
-            bool resume = documents != null && HamlogRuleCache.CanResume(catalog, DateTime.UtcNow);
+            bool recompile = documents != null && documents.CanRecompile(catalog);
+            bool resume = recompile || documents != null && HamlogRuleCache.CanResume(catalog, DateTime.UtcNow);
             var abort = new CancellationTokenSource();
             catalogDownload = abort;
             synchronizing = true;
             preserved.Visible = false;
             UpdateDetails();
-            overview.Text = resume ? "Продолжаю загрузку положений HAMLOG…" : "Загружаю общий каталог HAMLOG…";
+            overview.Text = recompile ? "Проверяю уже скачанные положения…" :
+                resume ? "Продолжаю загрузку положений HAMLOG…" : "Загружаю общий каталог HAMLOG…";
             IProgress<string> progressText = new Progress<string>(message => {
                 if (!IsDisposed && catalogDownload == abort) overview.Text = message;
             });
@@ -399,7 +409,11 @@ namespace JtdxAutoCq
                 catalogDownload = null;
                 abort.Dispose();
                 synchronizing = false;
-                if (!IsDisposed) RefreshList();
+                if (!IsDisposed)
+                {
+                    ShowPreservedEdits();
+                    RefreshList();
+                }
             }
         }
 
@@ -419,7 +433,6 @@ namespace JtdxAutoCq
                 .OrderBy(program => Progress(program).Expired(now)).ThenBy(program => program.Title, StringComparer.CurrentCultureIgnoreCase).ToArray();
             var byId = pending.ToDictionary(program => program.Id, StringComparer.Ordinal);
             int visited = 0, created = 0;
-            overview.Text = "Загружаю положения HAMLOG…";
             IProgress<HamlogRuleResult> completed = new Progress<HamlogRuleResult>(result => {
                 if (IsDisposed || catalogDownload != abort) return;
                 AwardProgram program = byId[result.Id];
@@ -441,6 +454,8 @@ namespace JtdxAutoCq
                 ? "Подключите JTDX с вашим позывным, чтобы получить зачёт HAMLOG."
                 : "Перед поиском AutoCQ сверит зачёт на HAMLOG.";
             string snapshot = "Сверено " + points.Standing.CheckedUtc.ToLocalTime().ToString("dd.MM в HH:mm") + ". ";
+            if (points.Standing.ProvisionalRequired)
+                snapshot += "HAMLOG пока показывает нулевой зачёт. До первой зачтённой связи для поиска используется меньший порог. ";
             if (points.Closed) return snapshot + "К зачёту подходят связи с 1 по 30 сентября 2021 года.";
             if (history.Path == null) return snapshot + "Выберите доступный основной журнал для сверки связей.";
             if (points.ConfirmedComplete) return snapshot + "Диплом можно получить на HAMLOG.";
@@ -563,7 +578,7 @@ namespace JtdxAutoCq
             {
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
                 program.EditedRules = dialog.Edited;
-                if (program.Hamlog != null && program.Hamlog.Required != program.EffectiveRules.Required)
+                if (program.Hamlog != null && !program.EffectiveRules.Requires(program.Hamlog.Required))
                     program.Hamlog = null;
                 progress.Remove(program);
                 RefreshList(program, true);
@@ -644,18 +659,30 @@ namespace JtdxAutoCq
         readonly NumericUpDown required = new NumericUpDown { Minimum = 1, Maximum = 10000 };
         readonly NumericUpDown member = new NumericUpDown { Minimum = 1, Maximum = 1000 };
         readonly NumericUpDown special = new NumericUpDown { Minimum = 1, Maximum = 1000 };
+        readonly NumericUpDown alternative = new NumericUpDown { Minimum = 1, Maximum = 10000 };
+        readonly TextBox bonusUntil = new TextBox { MaxLength = 32 };
+        readonly TextBox groups = new TextBox { Multiline = true, ScrollBars = ScrollBars.Vertical, MaxLength = 4000 };
         readonly CheckBox hf = new CheckBox { Text = "Только КВ (160–10 м)", AutoSize = true };
         readonly CheckBox vhfBonus = new CheckBox { Text = "Множитель ×1,5 на УКВ", AutoSize = true };
         internal HamlogRulePlan Edited { get; private set; }
 
-        internal HamlogPlanDialog(AwardProgram program) : base("Правила поиска диплома", 740, 468)
+        internal HamlogPlanDialog(AwardProgram program) : base("Правила поиска диплома", 740, program.EffectiveRules.Club ? 574 : 468)
         {
             this.program = program;
             HamlogRulePlan plan = program.EffectiveRules;
             LabelAt(program.Title, 20, 58, 699, 28);
             edition = LabelAt("", 20, 88, 699, 24);
-            LabelAt(plan.Club ? "Бонусные позывные" : "Позывной станции", 20, 128, 188, 24);
-            Place(calls, 212, 124, 506, 82);
+            if (plan.Rcpw)
+            {
+                LabelAt("AutoCQ ищет членов клуба RCPW по списку клуба. Порог для вашего позывного берёт с HAMLOG.",
+                    20, 127, 680, 45);
+                ButtonAt("Список членов RCPW", 20, 176, 208, () => AwardsDialog.OpenInBrowser(this, HamlogRcpwRoster.Url));
+            }
+            else
+            {
+                LabelAt(plan.Club ? "Бонусные позывные" : "Позывной станции", 20, 128, 188, 24);
+                Place(calls, 212, 124, 506, 82);
+            }
             LabelAt("Даты зачёта (UTC)", 20, 232, 190, 26);
             Place(from, 212, 228, 152, 27);
             Place(until, 378, 228, 152, 27);
@@ -671,14 +698,33 @@ namespace JtdxAutoCq
                 Place(hf, 20, 296, 278, 24);
                 Place(vhfBonus, 310, 296, 245, 24);
                 hf.CheckedChanged += delegate { vhfBonus.Enabled = !hf.Checked; };
-                LabelAt("Клуб «Рыцари неба». Повтор засчитывается по дате UTC, диапазону и виду работы. "
-                    + "FT8 и FT4 относятся к DIGI. Множители для CW ×2, для SSB ×1,5, для 160 м ×1,5.", 20, 326, 700, 66);
+                LabelAt("Дополнительные группы", 20, 326, 228, 26);
+                LabelAt("Очки | позывные, DXCC или код области", 249, 326, 450, 24);
+                Place(groups, 20, 354, 698, 76);
+                LabelAt("Повторы считаются по дате UTC, диапазону и виду работы. FT8 и FT4 относятся к DIGI. "
+                    + "Множители для CW ×2, для SSB ×1,5, для 160 м ×1,5.", 20, 444, 700, 48);
+            }
+            else if (plan.Rcpw)
+            {
+                LabelAt("Обычный порог", 20, 270, 166, 27);
+                Place(required, 212, 267, 78, 27);
+                LabelAt("Порог для 0-го района и за рубежом", 315, 270, 304, 27);
+                Place(alternative, 640, 267, 78, 27);
+                LabelAt("Очков в дни активности", 20, 307, 188, 27);
+                Place(special, 212, 304, 78, 27);
+                LabelAt("Очков после активности", 315, 307, 281, 27);
+                Place(member, 640, 304, 78, 27);
+                LabelAt("Обычные очки с этой даты (UTC)", 20, 344, 267, 27);
+                Place(bonusUntil, 296, 341, 152, 27);
+                LabelAt("Повтор учитывается на другом диапазоне или другим видом. FT8 и FT4 считаются одним видом.",
+                    20, 374, 700, 30);
             }
             else LabelAt("Для диплома нужна одна связь с этой станцией в указанный срок.", 20, 278, 699, 45);
-            var restore = ButtonAt("Вернуть исходные", 20, 410, 205, () => LoadValues(program.DownloadedRules, false));
+            int buttons = plan.Club ? 516 : 410;
+            var restore = ButtonAt("Вернуть исходные", 20, buttons, 205, () => LoadValues(program.DownloadedRules, false));
             restore.Enabled = program.DownloadedRules != null;
-            ButtonAt("Отмена", 449, 410, 112, () => DialogResult = DialogResult.Cancel);
-            ButtonAt("Сохранить", 572, 410, 146, Save, true);
+            ButtonAt("Отмена", 449, buttons, 112, () => DialogResult = DialogResult.Cancel);
+            ButtonAt("Сохранить", 572, buttons, 146, Save, true);
             LoadValues(plan, program.EditedRules != null);
         }
 
@@ -691,35 +737,52 @@ namespace JtdxAutoCq
             required.Value = plan.Required;
             hf.Checked = plan.HfOnly;
             vhfBonus.Checked = plan.VhfBonus;
-            if (plan.Club)
+            if (plan.Points)
             {
                 member.Value = plan.MemberPoints;
                 special.Value = plan.ExtraPoints;
             }
+            if (plan.Rcpw)
+            {
+                alternative.Value = plan.AlternativeRequired;
+                bonusUntil.Text = plan.BonusUntilUtc;
+            }
+            groups.Lines = (plan.BonusGroups ?? new HamlogBonusGroup[0]).Select(group =>
+                group.Points.ToString(CultureInfo.InvariantCulture) + " | " + String.Join(", ", group.Targets)).ToArray();
         }
 
         void Save()
         {
             HamlogRulePlan previous = program.EffectiveRules, original = program.DownloadedRules;
-            var plan = new HamlogRulePlan {
-                Kind = previous.Kind, FromUtc = from.Text, UntilUtc = until.Text,
-                Required = (int)required.Value, MemberPoints = previous.Club ? (int)member.Value : 0,
-                HfOnly = previous.Club && hf.Checked,
-                VhfBonus = previous.Club && !hf.Checked && vhfBonus.Checked,
-                ExtraPoints = previous.Club ? (int)special.Value : 0,
-                Calls = System.Text.RegularExpressions.Regex.Split(calls.Text.Trim(), @"[\s,;]+").Where(value => value.Length > 0).ToArray()
-            };
             try
             {
+                var plan = new HamlogRulePlan {
+                    Kind = previous.Kind, FromUtc = from.Text, UntilUtc = until.Text, Required = (int)required.Value,
+                    MemberPoints = previous.Points ? (int)member.Value : 0, ExtraPoints = previous.Points ? (int)special.Value : 0,
+                    HfOnly = previous.Club && hf.Checked, VhfBonus = previous.Club && !hf.Checked && vhfBonus.Checked,
+                    AlternativeRequired = previous.Rcpw ? (int)alternative.Value : 0, BonusUntilUtc = previous.Rcpw ? bonusUntil.Text : "",
+                    Calls = System.Text.RegularExpressions.Regex.Split(calls.Text.Trim(), @"[\s,;]+").Where(value => value.Length > 0).ToArray(),
+                    BonusGroups = previous.Club ? groups.Lines.Where(line => !String.IsNullOrWhiteSpace(line)).Select(ReadGroup).ToArray()
+                        : new HamlogBonusGroup[0]
+                };
                 plan.Validate();
-                Edited = original != null && plan.Required == original.Required && plan.MemberPoints == original.MemberPoints
-                    && plan.ExtraPoints == original.ExtraPoints && plan.HfOnly == original.HfOnly
-                    && plan.VhfBonus == original.VhfBonus && plan.FromUtc == (original.FromUtc ?? "")
-                    && plan.UntilUtc == (original.UntilUtc ?? "") && plan.Calls.SequenceEqual(original.Calls) ? null : plan;
+                Edited = plan.SameAs(original) ? null : plan;
                 DialogResult = DialogResult.OK;
             }
             catch (Exception error)
             { MessageBox.Show(this, error.Message, "Правила поиска", MessageBoxButtons.OK, MessageBoxIcon.Information); }
+        }
+
+        static HamlogBonusGroup ReadGroup(string line)
+        {
+            string[] parts = line.Split(new[] { '|' }, 2);
+            int points;
+            if (parts.Length != 2 || !Int32.TryParse(parts[0].Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out points))
+                throw new InvalidDataException("Укажите очки и группу через «|», например «5 | DXCC BY».");
+            string[] targets = parts[1].ToUpperInvariant().Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(value => value.Trim()).ToArray();
+            bool area = targets.All(HamlogAwardAreas.Known);
+            return new HamlogBonusGroup { Points = points, Targets = targets, Area = area };
         }
     }
 

@@ -403,7 +403,7 @@ namespace JtdxAutoCq
         }
 
         // The screenshot renderer opens these same forms using fictional data.
-        Form[] OperatorToolsDemoForms()
+        Form[] OperatorToolsDemoForms(string awardCache)
         {
             var table = DemoCountryTable();
             var history = DemoLogbook();
@@ -444,9 +444,16 @@ namespace JtdxAutoCq
                     Required = 95, MemberPoints = 10, ExtraPoints = 20,
                     Calls = new[] { "U4MIR", "UA9CES", "R2AKN", "R4CQ", "RA6F", "LZ1ZF", "LZ05RN", "LZ55ZF" } }
             };
+            var border = new AwardProgram { Title = "Ни шагу назад", Url = HamlogLinks.Origin + "club/rcpw/1800/",
+                Sponsor = "Радиоклуб пограничников RCPW", Selected = true, RuleDocumentStatus = "downloaded",
+                DownloadedRules = new HamlogRulePlan { Kind = "rcpw-hunter", FromUtc = "2026-06-22", BonusUntilUtc = "2026-07-01",
+                    Required = 100, AlternativeRequired = 50, ExtraPoints = 10, MemberPoints = 5 }
+            };
+            new HamlogRuleCache(awardCache, (url, cancel) => new HamlogRules(url, "Демонстрационный документ", null),
+                (delay, cancel) => { }).Scan(new[] { border }, default(System.Threading.CancellationToken), result => { });
             var custom = new AwardProgram { Title = "Учебный диплом", Url = HamlogLinks.Origin + "club/demo/19/",
                 ManualSearch = true, Goals = new List<AwardGoal> { new AwardGoal { Kind = "call", Value = "W2ABC" } } };
-            foreach (AwardProgram program in new[] { russia, gunsmiths, falcon, tula, arck, counties, angels, custom })
+            foreach (AwardProgram program in new[] { russia, gunsmiths, falcon, tula, arck, counties, angels, border, custom })
             {
                 program.PublicEntry = true;
                 program.Section = "Клубные и региональные";
@@ -475,14 +482,14 @@ namespace JtdxAutoCq
                 }).ToList());
             var example = new AwardCatalog {
                 Callsign = "K1ABC", PublicCatalogUtc = DateTime.UtcNow.AddMinutes(-20),
-                Programs = new List<AwardProgram> { russia, gunsmiths, arck, counties, diploma, stations, falcon, tula, angels, custom }
+                Programs = new List<AwardProgram> { russia, gunsmiths, arck, counties, diploma, stations, falcon, tula, angels, border, custom }
             };
             foreach (AwardProgram program in example.Programs) program.Validate();
             var awards = new AwardsDialog(example, awardHistory, "K1ABC", call => {
                 DxccCountry country = table.Find(call);
                 return country == null ? null : country.Prefix;
-            }, cache: Path.GetTempPath(), demo: true);
-            awards.SelectDemoProgram(angels);
+            }, cache: awardCache, demo: true);
+            awards.SelectDemoProgram(border);
             return new Form[] {
                 new LogbookSourceDialog("", history.Path, "LogHX"),
                 new ProfilesDialog(profiles, profiles[0].Options, true),
@@ -495,7 +502,7 @@ namespace JtdxAutoCq
                 new AwardGoalsDialog(diploma),
                 new HamlogJournalDialog(falcon.Title, new HamlogPointProgress(falcon, awardHistory, "K1ABC")),
                 new HamlogAccountDialog("K1ABC", ""),
-                new HamlogPlanDialog(angels),
+                new HamlogPlanDialog(border),
             };
         }
     }

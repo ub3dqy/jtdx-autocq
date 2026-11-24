@@ -18,7 +18,6 @@ namespace JtdxAutoCq
 
     internal sealed class HamlogOnlineProgress
     {
-        static readonly Regex RegionCall = new Regex(@"\A(?:R[A-Z]?|U[A-I])([0-9][A-Z])[A-Z]{1,3}\z", RegexOptions.CultureInvariant);
         static readonly Regex CountyCode = new Regex(@"\A[A-Z]{2}-[0-9]{2}\z", RegexOptions.CultureInvariant);
         static readonly HashSet<string> RussianDxcc = new HashSet<string> { "UA", "UA2", "UA9", "R1FJ" };
         static readonly HashSet<string> TulaSeries = new HashSet<string> { "2P", "3P", "5P" };
@@ -116,8 +115,7 @@ namespace JtdxAutoCq
         bool InRegion(string call, string county, string prefix, HashSet<string> series)
         {
             if (county != null) return county.StartsWith(prefix, StringComparison.Ordinal);
-            Match match = RegionCall.Match(call);
-            return match.Success && series.Contains(match.Groups[1].Value) && RussianDxcc.Contains(dxcc(call));
+            return HamlogAwardAreas.MatchesRussianSeries(call, dxcc(call), series);
         }
 
         bool Within(DateTime time)

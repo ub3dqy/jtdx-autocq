@@ -348,6 +348,90 @@ static class OperatorToolsTests
                 "The downloaded plan used a hardcoded bonus or club score.");
             Check(!progress.Needs("W2ABC", "20m", "FT4", at) && progress.Needs("W2ABC", "20m", "FT4", at.AddDays(1))
                 && !progress.Needs("W2ABD", "20m", "FT8", at), "An ineligible call or duplicate digital QSO became a target.");
+
+            string withGeography = document.Replace("Для перечисленных",
+                "За радиосвязи со специальным временным позывным W2CCC начисляется – 12 очков. "
+                + "За QSO с радиолюбителями Алтайского края начисляется – 4 очка. "
+                + "За QSO с радиолюбителями КНР начисляется – 5 очков. Для перечисленных");
+            HamlogRulePlan regions = HamlogPlanCompiler.Compile(url, withGeography);
+            Check(regions != null && regions.BonusGroups.Length == 3, "Extra stations and regions had no rules.");
+            Check(HamlogPlanCompiler.Compile(url, withGeography.Replace("Алтайского края", "неизвестной области")) == null,
+                "An unknown geographic condition was silently discarded.");
+            program.DownloadedRules = regions;
+            var geographic = new AwardProgress(program, history, "K1ABC", call =>
+                call.StartsWith("R", StringComparison.Ordinal) ? "UA9" : call.StartsWith("B", StringComparison.Ordinal) ? "BY" : "K");
+            Check(geographic.Points.CandidatePoints("R9YAA", "20m", "FT8", at) == 4m
+                && geographic.Points.CandidatePoints("BA1AA", "160m", "FT4", at) == 7.5m
+                && geographic.Points.CandidatePoints("W2CCC", "20m", "FT8", at) == 12m
+                && !geographic.Needs("R9YAA/3", "20m", "FT8", at) && !geographic.Needs("R9AAA", "20m", "FT8", at),
+                "The rules ignored a point group or inferred the wrong area from a callsign.");
+        });
+
+        run("RCPW uses public club calls, the HAMLOG threshold and the published boundary between rates", () => {
+            const string url = "https://hamlog.online/club/rcpw/19/";
+            const string rules = "Для получения диплома соискателям необходимо набрать 90 очков "
+                + "за работу с членами клуба RCPW на любых разрешённых диапазонах любыми видами модуляции (все виды DIGI считаются за один). "
+                + "А для радиолюбителей нулевого района и находящихся за пределами России необходимо набрать 45 очков. "
+                + "Любая радиосвязь с членом RCPW в дни активности (с 00:00 UTC 15.10.2026 г. по 23:59 UTC 18.10.2026 г.) даёт 9 очков. "
+                + "По окончании дней активности (с 19.10.2026 г.) — 4 очка. "
+                + "Повторные связи засчитываются на разных КВ (УКВ) диапазонах, на одном диапазоне — разными видами модуляции (все виды DIGI считаются за один). "
+                + "Дата начала действия Положения о дипломе — 00:00 UTC 15 октября 2026 г. Время действия — бессрочный.";
+            HamlogRulePlan plan = HamlogPlanCompiler.Compile(url, rules);
+            Check(plan != null && plan.Rcpw && plan.FromUtc == "2026-10-15" && plan.BonusUntilUtc == "2026-10-19"
+                && HamlogPlanCompiler.Compile(url, rules.Replace("19.10.2026", "20.10.2026")) == null,
+                "The compiler missed the exact transition or accepted a gap in the conditions.");
+            string[] members = HamlogRcpwRoster.Parse("<table><tr><td><p>#23</p></td><td>R3AAA</td><td>Operator</td>"
+                + "<td>Previous R3BBB</td></tr><tr><td>44</td><td>R3CCC</td><td>Operator (SK)</td></tr></table>");
+            Check(members.SequenceEqual(new[] { "R3AAA" }), "The public roster imported a previous or inactive callsign.");
+            DateTime boundary = new DateTime(2026, 10, 19, 0, 0, 0, DateTimeKind.Utc);
+            var program = new AwardProgram { Title = "RCPW example", Url = url, DownloadedRules = plan };
+            program.Validate();
+            string summary = "<span class='award-dashboard-value'>9 / 45</span>";
+            HamlogStanding standing = HamlogStandingClient.Parse(
+                HamlogPage("K1ABC", summary, HamlogRow("R3AAA", "15 Oct 2026", "80m", "FT8", "9")),
+                program.Template, "K1ABC", boundary);
+            standing.RcpwMembers = members;
+            program.Hamlog = standing;
+            var history = new LogbookHistory("example.adi", new List<LogbookQso>());
+            var progress = new AwardProgress(program, history, "K1ABC", call => "UA");
+            Check(progress.Points.Required == 45 && progress.Points.CandidatePoints("R3AAA", "40m", "FT8", boundary.AddSeconds(-1)) == 9
+                && progress.Points.CandidatePoints("R3AAA", "40m", "FT8", boundary) == 4,
+                "The candidate used the wrong threshold or rate.");
+            Check(!progress.Needs("R3AAA", "80m", "FT4", boundary.AddDays(1))
+                && !progress.Needs("R3BBB", "20m", "FT8", boundary),
+                "The next day made a duplicate eligible, or an unknown station entered the search.");
+            HamlogStanding empty = HamlogStandingClient.Parse(HamlogPage("K1ABC", ""), program.Template, "K1ABC", boundary);
+            Check(empty.Points == 0 && empty.Required == 45 && empty.ProvisionalRequired,
+                "An empty HAMLOG result prevented starting the search or was treated as a verified threshold.");
+            bool mismatch = false;
+            try
+            {
+                HamlogStandingClient.Parse(HamlogPage("K1ABC", "<span class='award-dashboard-value'>4 / 45</span>",
+                    HamlogRow("R3AAA", "15 Oct 2026", "80m", "FT8", "4")), program.Template, "K1ABC", boundary);
+            }
+            catch (InvalidDataException) { mismatch = true; }
+            Check(mismatch, "The score in HAMLOG contradicted the compiled rules without blocking automatic calls.");
+        });
+
+        run("New rule formats re-use locally downloaded documents before trying missing files", () => {
+            DateTime now = DateTime.UtcNow;
+            string folder = TestWorkspace.Create();
+            var cached = new AwardProgram { Title = "Cached", Url = "https://hamlog.online/club/nebo/7/", PublicEntry = true };
+            var missing = new AwardProgram { Title = "Missing", Url = "https://hamlog.online/club/nebo/8/", PublicEntry = true };
+            cached.Validate(); missing.Validate();
+            new HamlogRuleCache(folder, (url, cancel) => new HamlogRules(url, "Sample", null), (delay, cancel) => { })
+                .Scan(new[] { cached }, default(System.Threading.CancellationToken), cached.ApplyDocument);
+            cached.RuleCompilerVersion = HamlogPlanCompiler.Version - 1;
+            File.SetLastWriteTimeUtc(Directory.GetFiles(folder).Single(), now.AddDays(-14));
+            var results = new List<string>();
+            var cache = new HamlogRuleCache(folder, (url, cancel) => {
+                Check(url == missing.Url, "Re-downloaded a document just to run the new rule parser.");
+                return new HamlogRules(url, null, null);
+            }, (delay, cancel) => { });
+            Check(cache.CanRecompile(new AwardCatalog { Programs = new List<AwardProgram> { cached } }),
+                "Old catalogs could not re-use their downloads.");
+            cache.Scan(new[] { missing, cached }, default(System.Threading.CancellationToken), result => results.Add(result.Id));
+            Check(results.SequenceEqual(new[] { cached.Id, missing.Id }), "The scan attempted new downloads before finishing the local cache.");
         });
 
         run("Catalog refresh and re-reading conditions preserve an edited rule and keep the new original", () => {

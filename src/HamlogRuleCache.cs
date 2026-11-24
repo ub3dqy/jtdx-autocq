@@ -95,6 +95,15 @@ namespace JtdxAutoCq
             return catalog.PublicCatalogUtc >= now.AddDays(-1) && catalog.Programs.Any(program => NeedsRefresh(program, now));
         }
 
+        internal bool CanRecompile(AwardCatalog catalog)
+        { return catalog.Programs.Any(CanRecompile); }
+
+        bool CanRecompile(AwardProgram program)
+        {
+            return program.PublicEntry && !program.Withdrawn && !String.IsNullOrEmpty(program.Url)
+                && program.RuleCompilerVersion != HamlogPlanCompiler.Version && File.Exists(DocumentPath(program.Url));
+        }
+
         HamlogRules Download(string url, CancellationToken cancel)
         {
             wait(900, cancel);
@@ -117,13 +126,13 @@ namespace JtdxAutoCq
         {
             int consecutiveErrors = 0;
             using (var pdf = new HamlogPdfReader())
-                foreach (AwardProgram program in programs)
+                foreach (AwardProgram program in programs.OrderByDescending(CanRecompile))
                 {
                     cancel.ThrowIfCancellationRequested();
                     var result = new HamlogRuleResult { Id = program.Id, CheckedUtc = DateTime.UtcNow };
                     try
                     {
-                        HamlogRules document = Cached(program.Url, true);
+                        HamlogRules document = Cached(program.Url, program.RuleCompilerVersion == HamlogPlanCompiler.Version);
                         if (document == null)
                         {
                             document = Download(program.Url, cancel);
@@ -134,7 +143,8 @@ namespace JtdxAutoCq
                         if (HamlogAward.Find(program.Url) == null && result.Status == "downloaded")
                         {
                             string text = document.Pdf == null ? document.Text : pdf.Read(document.Pdf, cancel);
-                            result.Plan = HamlogPlanCompiler.Compile(program.Url, text);
+                            if (String.IsNullOrWhiteSpace(text)) result.Status = "unreadable";
+                            else result.Plan = HamlogPlanCompiler.Compile(program.Url, text);
                         }
                     }
                     catch (HamlogRequestError error)
