@@ -16,8 +16,8 @@ using System.Xml;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.22.0")]
-[assembly: AssemblyFileVersion("0.9.22.0")]
+[assembly: AssemblyVersion("0.9.23.0")]
+[assembly: AssemblyFileVersion("0.9.23.0")]
 [assembly: AssemblyTitle(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyProduct(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyCompany(JtdxAutoCq.AppBrand.Author)]
@@ -202,7 +202,7 @@ namespace JtdxAutoCq
 
     public sealed partial class MainForm : Form
     {
-        const string ModuleVersion = "0.9.22";
+        const string ModuleVersion = "0.9.23";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = JtdxPatcher.PatchedHash;
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -470,9 +470,14 @@ namespace JtdxAutoCq
         }
 
         void OpenGuide()
+        { OpenGuide(false); }
+
+        internal static void OpenGuide(bool awards)
         {
             string local = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "docs", "user-guide.ru.html");
-            string target = File.Exists(local) ? local : UpdateClient.RepositoryUrl + "/blob/main/USER-GUIDE.md";
+            string target = File.Exists(local)
+                ? awards ? new Uri(local).AbsoluteUri + "#hamlog-awards" : local
+                : UpdateClient.RepositoryUrl + "/blob/main/USER-GUIDE.md" + (awards ? "#поиск-для-дипломов-hamlog" : "");
             Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
         }
         void ShowBugReport()
@@ -765,8 +770,6 @@ namespace JtdxAutoCq
         void UpdateListHint()
         {
             listHint.Text = lists.SelectedIndex==2 ? "После пяти минут станцию снова можно вызвать по свежему сообщению. При остановке мониторинга список очищается."
-                : engine.Awards != null && lists.SelectedIndex == 0 && !engine.Awards.AnswerOtherCallers
-                    ? "В поиске для дипломов AutoCQ отвечает на входящие от станций, которые подходят выбранным целям."
                 : engine.Monitoring && lists.SelectedIndex==0 ? "Входящие вызовы принимаются вне фильтра мониторинга. После очереди программа вернётся к поиску целей."
                 : engine.Monitoring ? "Можно вручную позвать любую станцию: выберите её слева в JTDX или здесь и нажмите «Позвать выбранную»."
                 : lists.SelectedIndex == 1 ? "Свежие CQ, 73, RRR и RR73 из левого окна JTDX. Двойной щелчок выбирает станцию."
@@ -958,11 +961,12 @@ namespace JtdxAutoCq
             replayRequested = nativeStatusSeen = false; engine.Waiting.Invalidate(); engine.Cqs.Invalidate();
             Log("Прежние настройки восстановлены. JTDX снова готов к запуску.");
         }
-        void StartRadioSession(bool awards)
+        void StartRadioSession(AwardCatalog awards)
         {
             if (engine.Options.ExcludedDxcc.Length > 0 || engine.HasPriorityCountries
                 || engine.Options.MonitorEnabled && engine.Options.MonitorDxcc.Length > 0
-                || awards && preferences.Awards.Programs.Any(program => program.Selected && program.Goals.Any(goal => goal.Kind == "dxcc")))
+                || awards != null && awards.Programs.Any(program => program.Selected
+                    && (program.UsesOnlineRules || program.Goals.Any(goal => goal.Kind == "dxcc"))))
                 CountryTable();
             if (!demo)
             {
@@ -999,10 +1003,10 @@ namespace JtdxAutoCq
                 tail.Reset(); direction = settings.Direction();
             }
             AwardSearch search = null;
-            if (awards)
+            if (awards != null)
             {
                 if (engine.Status == null) throw new InvalidOperationException("Ожидается состояние JTDX.");
-                search = new AwardSearch(preferences.Awards, startupHistory, Callsign.Clean(engine.Status.DeCall),
+                search = new AwardSearch(awards, startupHistory, Callsign.Clean(engine.Status.DeCall),
                     JtdxAdif.Band(engine.Status.Frequency), engine.Status.Mode, engine.DxccForCall);
             }
             engine.Start(DateTime.UtcNow, search);

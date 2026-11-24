@@ -85,7 +85,7 @@ namespace JtdxAutoCq
         {
             DateTime end = r.DateTimeUtc();
             string call = Callsign.Parse(r.Text());
-            r.Text(); // DX grid
+            string locator = AwardLocator.Parse(r.Text());
             string band = JtdxAdif.Band(r.U64());
             string mode = r.Text().Trim().ToUpperInvariant();
             for (int field = 0; field < 5; ++field) r.Text(); // reports, power, comments, name
@@ -93,7 +93,7 @@ namespace JtdxAutoCq
             string operatorCall = Callsign.Clean(r.Text());
             string station = Callsign.Clean(r.Text());
             if (call == null || band == null || mode.Length == 0) return null;
-            return new LogbookQso { Call = call, Band = band, Mode = mode,
+            return new LogbookQso { Call = call, Band = band, Mode = mode, Locator = locator,
                 Station = String.IsNullOrEmpty(station) ? operatorCall : station, StartedUtc = start, EndedUtc = end };
         }
 
@@ -361,7 +361,7 @@ namespace JtdxAutoCq
             sentAcknowledgedReports.Clear();
             unexplainedStop = null;
             if (Awards != null)
-                Notice("Мониторинг включён на " + Options.RunMinutes + " мин. Ищу станции для выбранных дипломов.");
+                Notice("Мониторинг включён на " + Options.RunMinutes + " мин. Ищу станции для выбранных дипломов и отвечаю на входящие вызовы.");
             else if (Monitoring)
                 Notice("Мониторинг включён на " + Options.RunMinutes + " мин. Ищу цели и отвечаю на входящие вызовы.");
             else
@@ -703,7 +703,11 @@ namespace JtdxAutoCq
         internal void OnLoggedContact(LogbookQso contact)
         {
             if (Monitoring && Awards != null && Status.Frequency == sessionFrequency && Status.Mode == sessionMode)
+            {
+                if (String.IsNullOrEmpty(contact.Locator))
+                    contact.Locator = Cqs.LocatorFor(contact.Call, contact.EndedUtc ?? DateTime.UtcNow);
                 Awards.Record(contact);
+            }
         }
 
         void ContinueAfterRetry(string call, DateTime now, bool busyTarget = false, bool noDecode = false)
@@ -895,7 +899,7 @@ namespace JtdxAutoCq
         {
             Predicate<WaitingStation> fresh = row => row.Call != exceptCall && row.Decode.IsNew
                 && row.LastHeardUtc <= now && now - row.LastHeardUtc < SlotDuration + SlotDuration
-                && CallerWithinSession(row, now);
+                && CallerWithinSession(row);
             return RankedCaller(Monitoring, fresh);
         }
         WaitingStation RankedCaller(bool allowPeriodChange, Predicate<WaitingStation> eligible = null)
@@ -918,13 +922,12 @@ namespace JtdxAutoCq
             WaitingStation fresh = FreshCaller(now);
             if (fresh != null) return fresh;
             return RankedCaller(true, row => !Monitoring || row.Decode.IsNew && row.LastHeardUtc <= now
-                && CallerWithinSession(row, now));
+                && CallerWithinSession(row));
         }
 
-        bool CallerWithinSession(WaitingStation row, DateTime now)
+        bool CallerWithinSession(WaitingStation row)
         {
-            return (!Monitoring || !finishing || row.QueuedUtc < SessionDeadline || row.LastHeardUtc < SessionDeadline)
-                && (Awards == null || Awards.AnswerOtherCallers || Awards.Score(row.Call, now) > 0);
+            return !Monitoring || !finishing || row.QueuedUtc < SessionDeadline || row.LastHeardUtc < SessionDeadline;
         }
 
         void ReplyToQueuedCaller(WaitingStation next)
@@ -1245,7 +1248,7 @@ namespace JtdxAutoCq
         public bool IsMonitorCandidate(CqStation row, DateTime now)
         {
             return Monitoring && IsMonitorMessage(row, now)
-                && (Awards == null ? monitorTargets.CanTry(row.Call) : Awards.Score(row.Call, now) > 0);
+                && (Awards == null ? monitorTargets.CanTry(row.Call) : Awards.Score(row.Call, now, Cqs.LocatorFor(row.Call, now)) > 0);
         }
 
         bool IsMonitorMessage(CqStation row, DateTime now)
@@ -1272,7 +1275,7 @@ namespace JtdxAutoCq
             {
                 if (Awards != null)
                 {
-                    if (Awards.Score(call, now) == 0) return Awards.Reason(call, now);
+                    if (Awards.Score(call, now, Cqs.LocatorFor(call, now)) == 0) return Awards.Reason(call, now, Cqs.LocatorFor(call, now));
                 }
                 else
                 {
@@ -1295,7 +1298,7 @@ namespace JtdxAutoCq
                 return "Сейчас идёт обмен с " + Status.DxCall + ". Выбор продолжится после связи.";
             WaitingStation next = Status == null ? null : NextCaller(now);
             if (next != null) return "Сначала AutoCQ ответит на входящий вызов " + next.Call + ".";
-            if (Awards != null) return Awards.Reason(call, now);
+            if (Awards != null) return Awards.Reason(call, now, Cqs.LocatorFor(call, now));
             return "Станция подходит. AutoCQ проверит свежесть сообщения при следующем выборе.";
         }
 
@@ -1328,7 +1331,7 @@ namespace JtdxAutoCq
             }
             if (!manual) station = Cqs.Next(now, CanCall, includeSignoffs: true,
                 eligible: row => IsMonitorCandidate(row, now), allowWorked: true,
-                priority: Awards == null ? (Func<CqStation, int>)null : row => Awards.Score(row.Call, now));
+                priority: Awards == null ? (Func<CqStation, int>)null : row => Awards.Score(row.Call, now, Cqs.LocatorFor(row.Call, now)));
             if (station == null) return;
             loggedCall = null; ResetContact();
             manualCq = null;
@@ -1340,7 +1343,7 @@ namespace JtdxAutoCq
             ReplyCommands++;
             Notice((manual ? "Ручной вызов " : "Цель мониторинга ") + station.Call + ". Вызываю по " + (station.Signoff ?? "CQ") + "."
                 + (manual ? " После связи или лимита вызовов продолжу мониторинг."
-                    : Awards == null ? "" : " " + Awards.Reason(station.Call, now)));
+                    : Awards == null ? "" : " " + Awards.Reason(station.Call, now, Cqs.LocatorFor(station.Call, now))));
             RequestReply(station.Decode.Copy());
         }
 

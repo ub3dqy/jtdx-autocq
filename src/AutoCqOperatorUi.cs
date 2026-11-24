@@ -144,12 +144,76 @@ namespace JtdxAutoCq
         void FinishStart(int request, LogbookHistory history, Exception failure, bool awards)
         {
             if (request != historyStartRequest) return;
-            startingWithHistory = false;
             startupHistory = history ?? LogbookHistory.Empty;
-            UpdateUi();
             if (failure != null) Log("История связей недоступна. Автомат запустится без данных прошлых сеансов.");
             else if (!demo) Log("История связей загружена из журнала " + LogbookName(history.Path) + ".");
-            Guard(() => StartRadioSession(awards));
+            if (awards && !demo)
+            {
+                RefreshAwardCredit(request);
+                return;
+            }
+            startingWithHistory = false;
+            UpdateUi();
+            Guard(() => StartRadioSession(awards ? preferences.Awards : null));
+        }
+
+        void RefreshAwardCredit(int request)
+        {
+            string own = engine.Status == null ? null : Callsign.Parse(engine.Status.DeCall);
+            if (own == null)
+            {
+                startingWithHistory = false;
+                UpdateUi();
+                Guard(() => { throw new InvalidOperationException("Подключите JTDX с вашим позывным перед сверкой с HAMLOG."); });
+                return;
+            }
+            AwardCatalog selected = preferences.Awards.Copy();
+            DateTime now = DateTime.UtcNow;
+            var programs = selected.Programs.Where(program => program.Selected && !program.ClosedByIssuance
+                && (program.UsesOnlineRules || program.UsesPointRules) && (!program.Until.HasValue || now < program.Until.Value)).ToArray();
+            if (programs.Length == 0)
+            {
+                startingWithHistory = false;
+                UpdateUi();
+                Guard(() => StartRadioSession(selected));
+                return;
+            }
+            Log("Сверяю зачёт выбранных дипломов по позывному " + own + ".");
+            var failures = new string[programs.Length];
+            var worker = new BackgroundWorker();
+            worker.DoWork += delegate {
+                System.Threading.Tasks.Parallel.For(0, programs.Length,
+                    new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = 3 }, index => {
+                        AwardProgram program = programs[index];
+                        try { program.Hamlog = HamlogStandingClient.Read(program.Template, own); }
+                        catch (Exception error) { failures[index] = program.Title + ". " + error.Message; program.Selected = false; }
+                    });
+            };
+            worker.RunWorkerCompleted += delegate(object sender, RunWorkerCompletedEventArgs args) {
+                worker.Dispose();
+                if (IsDisposed || Disposing || request != historyStartRequest) return;
+                startingWithHistory = false;
+                UpdateUi();
+                Guard(() => {
+                    if (args.Error != null) throw new InvalidOperationException("Не удалось сверить зачёт с HAMLOG.", args.Error);
+                    if (engine.Status == null || Callsign.Clean(engine.Status.DeCall) != own
+                        || engine.Status.TxEnabled || engine.Status.Transmitting)
+                        throw new InvalidOperationException("Состояние JTDX изменилось во время сверки. Запустите поиск на приёме.");
+                    for (int index = 0; index < programs.Length; index++)
+                    {
+                        if (failures[index] != null) { Log("Диплом пропущен: " + failures[index]); continue; }
+                        AwardProgram snapshot = programs[index];
+                        AwardProgram saved = preferences.Awards.Programs.FirstOrDefault(program => program.Id == snapshot.Id);
+                        if (saved != null) saved.Hamlog = snapshot.Hamlog;
+                    }
+                    if (failures.All(failure => failure != null) && !selected.Programs.Any(program => program.Selected && program.UsesLocalTargets))
+                        throw new InvalidOperationException("HAMLOG не подтвердил зачёт выбранных дипломов. Подробности в журнале AutoCQ.");
+                    preferenceStore.Save(preferences);
+                    Log("Зачёт обновлён для " + failures.Count(failure => failure == null) + " дипломов.");
+                    StartRadioSession(selected);
+                });
+            };
+            worker.RunWorkerAsync();
         }
 
         void ShowAwards()
@@ -360,6 +424,8 @@ namespace JtdxAutoCq
             } };
             var falcon = HamlogAward.Murom.Create();
             var tula = HamlogAward.Tula.Create();
+            var russia = HamlogAward.Russia.Create();
+            var gunsmiths = HamlogAward.Gunsmiths.Create();
             DateTime october = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
             falcon.Hamlog = new HamlogStanding {
                 Callsign = "K1ABC", Points = 78, Required = 85, CheckedUtc = october.AddDays(14).AddHours(11),
@@ -368,19 +434,26 @@ namespace JtdxAutoCq
                 }).ToList()
             };
             tula.Hamlog = new HamlogStanding { Callsign = "K1ABC", Required = 50, CheckedUtc = falcon.Hamlog.CheckedUtc };
+            russia.Selected = true;
+            russia.Hamlog = new HamlogStanding {
+                Callsign = "K1ABC", Points = 87, Required = 100, CheckedUtc = falcon.Hamlog.CheckedUtc,
+                ConfirmedSquares = Enumerable.Range(0, 87).Select(square => "KO" + square.ToString("00")).ToArray()
+            };
+            gunsmiths.Selected = true;
+            gunsmiths.Hamlog = new HamlogStanding { Callsign = "K1ABC", Points = 62, Required = 100, CheckedUtc = falcon.Hamlog.CheckedUtc };
             var awardHistory = new LogbookHistory(history.Path, history.Records.Concat(falcon.Hamlog.Credits.Take(12).Select(credit =>
                 new LogbookQso { Call = credit.Call, Band = credit.Band, Mode = credit.Mode, StartedUtc = credit.DayUtc }))
                 .Concat(new[] {
                     new LogbookQso { Call = "R5AV", Band = "40m", Mode = "FT8", StartedUtc = october.AddDays(14) },
                     new LogbookQso { Call = "R4CQ", Band = "160m", Mode = "FT8", StartedUtc = october.AddDays(13) },
                 }).ToList());
-            var example = new AwardCatalog { Programs = new List<AwardProgram> { diploma, stations, falcon, tula } };
+            var example = new AwardCatalog { Programs = new List<AwardProgram> { russia, gunsmiths, diploma, stations, falcon, tula } };
             foreach (AwardProgram program in example.Programs) program.Validate();
             var awards = new AwardsDialog(example, awardHistory, "K1ABC", call => {
                 DxccCountry country = table.Find(call);
                 return country == null ? null : country.Prefix;
             }, true);
-            awards.SelectDemoProgram(falcon);
+            awards.SelectDemoProgram(russia);
             return new Form[] {
                 new LogbookSourceDialog("", history.Path, "LogHX"),
                 new ProfilesDialog(profiles, profiles[0].Options, true),

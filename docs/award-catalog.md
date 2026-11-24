@@ -1,6 +1,6 @@
 # Award catalog import
 
-AutoCQ reads a UTF-8 JSON file through **«Журнал и дипломы → Дипломы HAMLOG → Импорт»**. A catalog export can list programs and issuance without providing targets. The operator can enter the targets in the award editor.
+AutoCQ reads a UTF-8 JSON file through **«Журнал и дипломы → Дипломы HAMLOG → Импорт»**. A catalog can list HAMLOG awards and any awards already issued. For a personal search list, leave `url` blank and include your own targets in `goals`.
 
 ```json
 {
@@ -32,7 +32,9 @@ AutoCQ reads a UTF-8 JSON file through **«Журнал и дипломы → Д
 - Leave `band` and `mode` blank to accept any recorded band or mode. For an explicit mode, use `FT8` or `FT4`. Automatic searches run in the band and digital mode currently selected in JTDX.
 - Date-only bounds use UTC and include the final day. An exact timestamp ending in `Z` can be used for either bound. An exact end timestamp is exclusive.
 
-AutoCQ computes manual goals from the main logbook and presents HAMLOG issuance separately. For the two built-in templates, a catalog row with the matching page URL and empty goals uses the published dates and built-in rules. Existing manually entered goals take precedence. A **Check HAMLOG** result belongs to the local operator profile and is preserved when the matching catalog entry is refreshed.
+AutoCQ computes manual goals from the main logbook and presents HAMLOG issuance separately. For the supported award URLs under **Built-in awards**, AutoCQ looks up the operator's credit before starting a search. It applies the built-in rules even if an older catalog included general callsign masks or DXCC goals. A **Check HAMLOG** result belongs to the local operator profile and is preserved when the matching catalog entry is refreshed. Other HAMLOG entries open the official award page for reference.
+
+My Russia uses the HAMLOG Hunter square map to find the next tier and checks the first four characters of a fresh grid locator. For regional and club awards that allow competing on several bands, AutoCQ tracks the callsign, band and mode group according to the award. For awards that require a new RDA district, the callsign and fresh locator must match a known RDA record from previous credit or the logbook. [My Russia rules](https://hamlog.online/rrnars/rules.pdf#page=27) · [Legendary Gunsmiths of Tula rules](https://hamlog.online/global/russia/r3p/eb739f05ee1eb35b118a447552a8d0c2/rules/)
 
 Murom Falcon uses 85 credited points. A new local contact is worth 6 or 10 points before multipliers. The calculation uses the public club roster checked on 2026-11-23. Same-day repeats are grouped by member, band and mode group. Confirmed contacts come from the public callsign search. Local contacts awaiting credit are shown separately. [Award rules](https://hamlog.online/club/nebo/dc4b742d6f1c2c631f11703d0565cacf/rules/) · [Club roster](https://www.skyham.ru/spisok-kluba.htm)
 

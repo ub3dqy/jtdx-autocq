@@ -2304,6 +2304,44 @@ class AutoCqTests
                         && e.SessionDeadline == deadline && commands.Single() == "CALLER K1ABC F1ABC JN07",
                         "Completing a manual QSO hid the next incoming caller");
                 });
+                Run("Award monitoring answers a non-target caller in the same slot as a manual QSO's final 73", () => {
+                    foreach (bool farewellFirst in new[] { false, true })
+                    {
+                        var commands = new List<string>();
+                        var e = new AutoCqEngine { UseNativeSelection = true, DxccForCall = call => call.StartsWith("R") ? "UA" : null };
+                        e.RequestHalt = () => commands.Add("HALT");
+                        e.RequestCallerReply = d => commands.Add("CALLER " + d.Message);
+                        e.RequestReply = d => commands.Add("TARGET " + d.Message);
+                        var tula = HamlogAward.Gunsmiths.Create();
+                        tula.Selected = true;
+                        tula.Hamlog = new HamlogStanding { Callsign = "K1ABC", CheckedUtc = At, Required = 100 };
+                        var catalog = new AwardCatalog { Programs = new List<AwardProgram> { tula } };
+                        var search = new AwardSearch(catalog, LogbookHistory.Empty, "K1ABC", "20m", "FT8", e.DxccForCall);
+                        e.OnStatus(S(false, ""), At);
+                        e.Start(At, search);
+                        e.OnLine(ManualSelection(At.AddSeconds(2), "W3AAA"), At.AddSeconds(2));
+                        e.OnStatus(S(true, "W3AAA"), At.AddSeconds(2.1));
+                        e.OnLine(Tx(At.AddSeconds(30), "W3AAA", "RR73"), At.AddSeconds(30));
+                        e.OnLine("QSO logged: W3AAA", At.AddSeconds(30.1));
+                        var caller = D(At.AddSeconds(45), "DO1ZZZ", "JO53");
+                        var farewell = D(At.AddSeconds(45), "W3AAA", "73");
+                        e.OnDecode(farewellFirst ? farewell : caller, At.AddSeconds(58.9));
+                        e.OnDecode(farewellFirst ? caller : farewell, At.AddSeconds(59));
+                        var awardTarget = CqD(At.AddSeconds(45), "R3PAA");
+                        awardTarget.IsNew = false; // Replay of the left pane from JTDX.
+                        e.OnDecode(awardTarget, At.AddSeconds(59.1));
+                        e.OnLine(DecodeFinished(At.AddSeconds(59.2)), At.AddSeconds(59.2));
+                        e.Tick(At.AddSeconds(59.3), true);
+                        e.OnLine("Halt Tx triggered at RX: UDP request", At.AddSeconds(59.4));
+                        e.OnStatus(S(false, "W3AAA"), At.AddSeconds(59.5));
+                        e.Tick(At.AddSeconds(59.6), true);
+                        Assert(search.Score("DO1ZZZ", At) == 0 && search.Score("R3PAA", At) == 1,
+                            "The fixture failed to distinguish the caller from an award target");
+                        Assert(e.Monitoring && e.ManualMonitorCall == "" && e.IncomingMonitorCall == "DO1ZZZ"
+                            && commands.SequenceEqual(new[] { "HALT", "CALLER K1ABC DO1ZZZ JO53" }),
+                            "An award target took precedence over the incoming call after a manual QSO");
+                    }
+                });
                 Run("Monitoring applies Answer B4 to a new incoming call after a completed QSO", () => {
                     foreach (bool answerB4 in new[] { false, true })
                     {

@@ -11,7 +11,7 @@ namespace JtdxAutoCq
 {
     public sealed class HamlogCredit
     {
-        public string Call, Band, Mode;
+        public string Call, Band, Mode, County, Locator;
         public DateTime DayUtc;
         public decimal Points;
     }
@@ -23,7 +23,10 @@ namespace JtdxAutoCq
         public decimal Points;
         public int Required;
         public List<HamlogCredit> Credits = new List<HamlogCredit>();
+        public string[] ConfirmedSquares = new string[0];
     }
+
+    internal enum HamlogRule { Legacy, Grid, Stations, Bands, Tula, Tatarstan, Bryansk, Vysotsky, Marathon }
 
     internal sealed class HamlogAward
     {
@@ -31,22 +34,64 @@ namespace JtdxAutoCq
             "club/nebo/dc4b742d6f1c2c631f21703d0565cacf/", "2026-09-11", "", 85);
         internal static readonly HamlogAward Tula = new HamlogAward("Тула — 875 лет",
             "global/russia/r3p/a8052398c5047a367fe59da599b1818f/", "2021-09-01", "2021-09-30", 50);
-        internal static readonly HamlogAward[] Templates = { Murom, Tula };
+        internal static readonly HamlogAward Russia = new HamlogAward("Моя Россия", "rrnars/", "2026-01-01", "", 750, HamlogRule.Grid);
+        internal static readonly HamlogAward Gunsmiths = new HamlogAward("Легендарные оружейники Тулы",
+            "global/russia/r3p/eb739f05ee1eb35b118a447552a8d0c2/", "2022-09-19", "", 100, HamlogRule.Tula);
+        internal static readonly HamlogAward Tatarstan = new HamlogAward("Татарстан",
+            "club/kazan/a7df3f8685baaaf26d8abf691e0d4cd7/", "2024-01-01", "", 50, HamlogRule.Tatarstan);
+        internal static readonly HamlogAward Bryansk = new HamlogAward("Работал с R3Y",
+            "club/r3ydosaaf/db8799094e17ba762616ac19f8252502/", "2002-06-12", "", 27, HamlogRule.Bryansk);
+        internal static readonly HamlogAward Vysotsky = new HamlogAward("В. С. Высоцкому — 88 лет",
+            "club/arck/f4001e43804b7424b605414bbeaddef8/", "2026-01-15", "2026-12-31", 88, HamlogRule.Vysotsky);
+        internal static readonly HamlogAward Marathon = new HamlogAward("36 лет Miller-DX-Club",
+            "club/mdxc/ba9d1e767d8d1afea1cd10c5f4ef9a1d/", "2026-11-16", "2026-11-30T21:00:00Z", 1990, HamlogRule.Marathon);
+        internal static readonly HamlogAward Estonia4 = new HamlogAward("Северное побережье Эстонии (ES4)",
+            "club/swfriends/a8b08bdaadd7c0021aa6c8e4ab9d5191/", "2021-12-09", "", 30, HamlogRule.Stations, "ES4");
+        internal static readonly HamlogAward Estonia5 = new HamlogAward("5-й регион Эстонии (ES5)",
+            "club/swfriends/b44b72619808961043250cb8d6267a7b/", "2019-05-26", "", 50, HamlogRule.Stations, "ES5");
+        internal static readonly HamlogAward Romania = new HamlogAward("YP40CSM — 40 лет клуба CSM Bistrița",
+            "club/romania/b61c03dc2a9c2f25db6dc450931e8908/", "2026-11-01", "2026-11-30", 1, HamlogRule.Stations, "YP40CSM");
+        internal static readonly HamlogAward Foundation = Vk5Esm("Foundation", "e4a58b8314cbcd79cfccb8287f0ddd00", "80m 40m 15m 10m");
+        internal static readonly HamlogAward Standard = Vk5Esm("Standard", "eb7f951b84bb0bba23fb8b1a97682801", "80m 40m 20m 15m 10m");
+        internal static readonly HamlogAward Advanced = Vk5Esm("Advanced", "fb25c0f16b919c5dea0a4ba0d9a99f9e", "80m 40m 30m 20m 17m 15m 12m 10m");
+        internal static readonly HamlogAward Warc = Vk5Esm("WARC", "c87e288d35a637c97959b983680df96b", "30m 17m 12m");
+        internal static readonly HamlogAward[] Templates = {
+            Russia, Gunsmiths, Tatarstan, Bryansk, Vysotsky, Marathon, Estonia4, Estonia5, Romania,
+            Foundation, Standard, Advanced, Warc, Murom, Tula
+        };
         internal readonly string Title, Url, From, Until;
         internal readonly int Required;
+        internal readonly HamlogRule Rule;
+        internal readonly string Station;
+        internal readonly string[] Bands;
         internal bool HasPointRules { get { return this == Murom; } }
+        internal bool HasOnlineRules { get { return Rule != HamlogRule.Legacy; } }
 
-        HamlogAward(string title, string path, string from, string until, int required)
+        HamlogAward(string title, string path, string from, string until, int required, HamlogRule rule = HamlogRule.Legacy,
+            string station = "", string[] bands = null)
         {
             Title = title;
             Url = "https://hamlog.online/" + path;
             From = from;
             Until = until;
             Required = required;
+            Rule = rule;
+            Station = station;
+            Bands = bands ?? new string[0];
+        }
+
+        static HamlogAward Vk5Esm(string level, string id, string bands)
+        {
+            string[] list = bands.Split(' ');
+            return new HamlogAward("VK5ESM — Worked All Bands (" + level + ")", "global/australia/vk5/" + id + "/",
+                "2026-11-01", "", list.Length, HamlogRule.Bands, "VK5ESM", list);
         }
 
         internal static HamlogAward Find(string url)
-        { return Templates.FirstOrDefault(award => award.Url == url); }
+        {
+            if (String.IsNullOrEmpty(url)) return null;
+            return Templates.FirstOrDefault(award => award.Url == url || award.HasOnlineRules && award.Url + "rules/" == url);
+        }
 
         internal AwardProgram Create()
         {
@@ -67,6 +112,11 @@ namespace JtdxAutoCq
         static readonly Regex Cell = new Regex(@"<td\b[^>]*>(.*?)</td>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
         static readonly Regex Tag = new Regex(@"<[^>]*>", RegexOptions.Singleline);
         static readonly string[] DateFormats = { "d MMM yyyy", "dd MMM yyyy", "d MMMM yyyy", "dd.MM.yyyy", "yyyy-MM-dd" };
+        static readonly Regex Hunter = new Regex(@"<section\s+class=""rrnars-award-group""[^>]*>\s*<h5>\s*(?:Hunter|Охотник)\s*</h5>(.*?)</section>",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        static readonly Regex Tier = new Regex(@"<div\s+class=""small mb-2""[^>]*>\s*(\d+)\s*/\s*(\d+)\s*</div>", RegexOptions.IgnoreCase);
+        static readonly Regex SquareButton = new Regex(@"<button\b[^>]*\bdata-locator=""([A-R]{2}\d{2})""[^>]*\bdata-status=""(cfm|both)""",
+            RegexOptions.IgnoreCase);
         const int MaximumPageBytes = 2 * 1024 * 1024;
 
         internal static HamlogStanding Read(HamlogAward award, string own)
@@ -80,6 +130,7 @@ namespace JtdxAutoCq
             request.UserAgent = "JTDX-AutoCQ";
             request.Accept = "text/html";
             request.Headers[HttpRequestHeader.AcceptLanguage] = "en-US,en;q=0.9";
+            request.Headers[HttpRequestHeader.CacheControl] = "no-cache";
             request.AllowAutoRedirect = false;
             request.Timeout = request.ReadWriteTimeout = 15000;
             request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
@@ -131,6 +182,7 @@ namespace JtdxAutoCq
             if (!Regex.IsMatch(WebUtility.HtmlDecode(html), @"(?:Results of|Результаты(?: для)?)\s+" + Regex.Escape(own) + @"\s*</p>",
                     RegexOptions.IgnoreCase))
                 throw new InvalidDataException("HAMLOG не вернул результат для " + own + ".");
+            if (award.Rule == HamlogRule.Grid) return ParseSquares(html, award, own, checkedUtc);
             Match table = ResultsTable.Match(html);
             Match body = Body.Match(table.Groups[1].Value);
             if (!body.Success) throw new InvalidDataException("На странице HAMLOG отсутствует таблица зачтённых связей.");
@@ -150,17 +202,37 @@ namespace JtdxAutoCq
                     throw new InvalidDataException("Некорректная строка зачёта HAMLOG.");
                 credits.Add(new HamlogCredit {
                     Call = call, DayUtc = ContactDay(values[1]), Band = band, Mode = values[3].ToUpperInvariant(),
-                    Points = Number(values[6])
+                    County = values[4].ToUpperInvariant(), Locator = AwardLocator.Parse(values[5]),
+                    Points = award.Rule == HamlogRule.Bryansk && values[6] == "-" ? 1 : Number(values[6])
                 });
             }
             Match total = Total.Match(html);
-            if (total.Success && (total.NextMatch().Success || Number(total.Groups[2].Value) != award.Required)
-                || !total.Success && credits.Count != 0)
-                throw new InvalidDataException("Схема зачёта HAMLOG отличается от положения этого диплома.");
+            int required = total.Success ? (int)Number(total.Groups[2].Value) : award.Required;
             decimal points = total.Success ? Number(total.Groups[1].Value) : 0;
+            if (total.Success && total.NextMatch().Success || !total.Success && (award.HasOnlineRules || credits.Count != 0)
+                || required != award.Required && !(award.Rule == HamlogRule.Vysotsky && required == 15))
+                throw new InvalidDataException("Схема зачёта HAMLOG отличается от положения этого диплома.");
             if (credits.Sum(credit => credit.Points) != points)
                 throw new InvalidDataException("Очки в таблице HAMLOG не совпадают с итогом.");
-            return new HamlogStanding { Callsign = own, CheckedUtc = checkedUtc, Required = award.Required, Points = points, Credits = credits };
+            return new HamlogStanding { Callsign = own, CheckedUtc = checkedUtc, Required = required, Points = points, Credits = credits };
+        }
+
+        static HamlogStanding ParseSquares(string html, HamlogAward award, string own, DateTime checkedUtc)
+        {
+            Match hunter = Hunter.Match(html);
+            var values = Tier.Matches(hunter.Groups[1].Value).Cast<Match>().Select(match => new {
+                Points = (int)Number(match.Groups[1].Value), Required = (int)Number(match.Groups[2].Value)
+            }).ToArray();
+            string[] squares = SquareButton.Matches(html).Cast<Match>()
+                .Select(match => match.Groups[1].Value.ToUpperInvariant()).Distinct().ToArray();
+            if (values.Length == 0 || values.Max(value => value.Required) != award.Required
+                || values.Any(value => value.Points != squares.Length))
+                throw new InvalidDataException("Список подтверждённых квадратов HAMLOG не совпадает с итогом.");
+            int required = values.Where(value => value.Required > squares.Length).Select(value => value.Required)
+                .DefaultIfEmpty(award.Required).Min();
+            return new HamlogStanding {
+                Callsign = own, CheckedUtc = checkedUtc, Required = required, Points = squares.Length, ConfirmedSquares = squares
+            };
         }
     }
 
@@ -243,11 +315,11 @@ namespace JtdxAutoCq
         internal bool Within(DateTime time)
         { return (!from.HasValue || time >= from.Value) && (!until.HasValue || time < until.Value); }
 
-        static string ModeGroup(string mode)
+        internal static string ModeGroup(string mode)
         {
             mode = (mode ?? "").ToUpperInvariant();
             if (Digital.IsMatch(mode)) return "DIGI";
-            if (mode == "USB" || mode == "LSB" || mode == "PHONE") return "SSB";
+            if (mode == "USB" || mode == "LSB" || mode == "PHONE" || mode == "PH" || mode == "AM" || mode == "FM") return "SSB";
             return mode;
         }
 

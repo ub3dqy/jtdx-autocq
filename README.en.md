@@ -65,7 +65,9 @@ Spotted an interesting station outside your targets? While monitoring is listeni
 
 ## Main logbook, profiles and session results
 
-Open **«Журнал и дипломы»** (Logbook and awards) to select your LogHX logbook or an ADIF export from another program. AutoCQ uses that history, including voice and contacts made through other software. In **«Подбор целей DXCC»** (Find DXCC targets), select a band and tick the entities that you still need on that band. **«Дипломы HAMLOG»** (HAMLOG awards) starts a search for the selected awards.
+Open **«Журнал и дипломы»** (Logbook and awards) to select your LogHX logbook or an ADIF export from another program. AutoCQ uses that history, including voice and contacts made through other software. In **«Подбор целей DXCC»** (Find DXCC targets), select a band and tick the entities that you still need on that band.
+
+In **«Дипломы HAMLOG»** (HAMLOG awards), tick one or more built-in awards. AutoCQ checks the credit for your callsign before it starts. It looks for missing grid squares for My Russia and follows the repeat-contact rules for awards such as Legendary Gunsmiths of Tula. If a station calls you, AutoCQ answers through the regular queue and returns to the search. [How to start an award search](USER-GUIDE.en.md#search-for-hamlog-award-contacts)
 
 The same menu lets you save settings under a name and check **«Итоги сеанса»** (Session results). The results show final confirmations and which records were found in your main logbook. If a callsign remains in the left list, select it and click **«Почему пропущена?»** (Why was this station skipped?).
 

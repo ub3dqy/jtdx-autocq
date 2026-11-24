@@ -30,7 +30,16 @@ namespace JtdxAutoCq
         public AppPreferences Load()
         {
             if(path==null || !File.Exists(path))return new AppPreferences();
-            try { using(var input=File.OpenRead(path))return (AppPreferences)new XmlSerializer(typeof(AppPreferences)).Deserialize(input); }
+            try
+            {
+                using (var input = File.OpenRead(path))
+                {
+                    var preferences = (AppPreferences)new XmlSerializer(typeof(AppPreferences)).Deserialize(input);
+                    if (preferences.Awards == null) preferences.Awards = new AwardCatalog();
+                    preferences.Awards.NormalizeOnlinePrograms();
+                    return preferences;
+                }
+            }
             catch(IOException){return new AppPreferences();}catch(InvalidOperationException){return new AppPreferences();}catch(UnauthorizedAccessException){return new AppPreferences();}
         }
         public void Save(AppPreferences value)

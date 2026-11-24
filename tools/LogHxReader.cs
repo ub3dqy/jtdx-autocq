@@ -69,7 +69,7 @@ static class LogHxReader
             throw new ArgumentException("Имя таблицы журнала нельзя прочитать. Выберите экспорт в ADIF.");
         var fields = tables[selected];
         string[] wanted = { "Call", "BandADIF", "Mode", "SubMode", "StationCallsign",
-            "DateQSO", "TimeQSO", "DateQSO_Off", "TimeQSO_Off", "SWL" };
+            "DateQSO", "TimeQSO", "DateQSO_Off", "TimeQSO_Off", "SWL", "WWLoc", "CNTY" };
         using (var command = db.CreateCommand())
         {
             command.CommandText = "SELECT " + String.Join(",", wanted.Where(fields.Contains).Select(column => "[" + column + "]"))
@@ -88,7 +88,8 @@ static class LogHxReader
                         submode.Length == 0 ? Text(reader, indexes, "Mode") : submode,
                         Text(reader, indexes, "StationCallsign"),
                         Text(reader, indexes, "DateQSO", "yyyyMMdd"), Text(reader, indexes, "TimeQSO", "HHmmss"),
-                        Text(reader, indexes, "DateQSO_Off", "yyyyMMdd"), Text(reader, indexes, "TimeQSO_Off", "HHmmss")
+                        Text(reader, indexes, "DateQSO_Off", "yyyyMMdd"), Text(reader, indexes, "TimeQSO_Off", "HHmmss"),
+                        Text(reader, indexes, "WWLoc"), Text(reader, indexes, "CNTY")
                     }));
                 }
             }

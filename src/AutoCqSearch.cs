@@ -22,6 +22,8 @@ namespace JtdxAutoCq
         readonly HashSet<string> worked = new HashSet<string>();
         sealed class SignoffReplay { public DecodedMessage Decode; public DateTime HeardUtc; }
         readonly Dictionary<string,SignoffReplay> signoffReplays = new Dictionary<string,SignoffReplay>();
+        sealed class HeardLocator { public string Grid; public DateTime HeardUtc; }
+        readonly Dictionary<string, HeardLocator> locators = new Dictionary<string, HeardLocator>();
         string context;
         public Action Changed = delegate { };
         public ReadOnlyCollection<CqStation> Rows { get { return rows.AsReadOnly(); } }
@@ -29,10 +31,10 @@ namespace JtdxAutoCq
         {
             string next = status.Frequency + "/" + status.Mode + "/" + Callsign.Clean(status.DeCall);
             if (next == context) return;
-            rows.Clear(); worked.Clear(); signoffReplays.Clear(); context = next; Changed();
+            rows.Clear(); worked.Clear(); signoffReplays.Clear(); locators.Clear(); context = next; Changed();
         }
         public void Invalidate()
-        { foreach(CqStation row in rows)row.Available=false; Changed(); }
+        { foreach(CqStation row in rows)row.Available=false; locators.Clear(); Changed(); }
         public void InvalidateCall(string call)
         {CqStation row=Find(call);if(row==null)return;row.Available=false;Changed();}
         public void Observe(DecodedMessage decode, RadioStatus status, DateTime now)
@@ -59,7 +61,7 @@ namespace JtdxAutoCq
             }
             string own = Callsign.Clean(status.DeCall);
             bool generalCall = words[0] == "CQ" || words[0] == "CQDX" || words[0] == "QRZ";
-            if (generalCall && !visible) return;
+            int sender = 1;
             string call = null;
             if (generalCall)
             {
@@ -67,7 +69,7 @@ namespace JtdxAutoCq
                 {
                     if (Regex.IsMatch(words[i], @"^[A-R]{2}\d{2}(?:[A-X]{2})?$")) continue;
                     call = Callsign.Parse(words[i]);
-                    if (call != null) break;
+                    if (call != null) { sender = i; break; }
                 }
             }
             else if (words.Length >= 3)
@@ -75,6 +77,14 @@ namespace JtdxAutoCq
                 call = Callsign.Parse(words[1]);
             }
             if (call == null || call == own) return;
+            string locator = !decode.LowConfidence && sender + 1 < words.Length ? AwardLocator.Parse(words[sender + 1]) : null;
+            HeardLocator previous;
+            if (locator != null && (!locators.TryGetValue(call, out previous) || time >= previous.HeardUtc))
+            {
+                locators[call] = new HeardLocator { Grid = locator, HeardUtc = time };
+                if (locators.Count > 220) locators.Remove(locators.OrderBy(item => item.Value.HeardUtc).First().Key);
+            }
+            if (generalCall && !visible) return;
 
             string recipient = Callsign.Clean(words[0]);
             string ownBase = BaseCall(own);
@@ -144,6 +154,13 @@ namespace JtdxAutoCq
 
         public CqStation Find(string call)
         {return rows.FirstOrDefault(r=>r.Call==Callsign.Clean(call));}
+
+        internal string LocatorFor(string call, DateTime now)
+        {
+            HeardLocator heard;
+            return locators.TryGetValue(call, out heard) && heard.HeardUtc <= now.AddSeconds(2)
+                && now - heard.HeardUtc <= TimeSpan.FromMinutes(2) ? heard.Grid : null;
+        }
         public bool Fresh(CqStation row,DateTime now)
         {
             if (row == null || !row.Available || row.Busy || row.Decode == null || row.HeardUtc > now.AddSeconds(2)) return false;

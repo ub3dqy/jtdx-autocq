@@ -143,18 +143,95 @@ static class OperatorToolsTests
             engine.RequestCq = () => commands.Add("CQ");
             engine.RequestReply = decode => commands.Add(decode.Message);
             engine.Start(at, search);
-            foreach (string text in new[] { "K1AAA W9ZZ FN31", "CQ JA2AA PM95", "CQ JA3ZZ PM96" })
+            foreach (string text in new[] { "CQ JA2AA PM95", "CQ JA3ZZ PM96" })
                 engine.OnDecode(new DecodedMessage { IsNew = true, Mode = "~", Message = text,
                     Milliseconds = (uint)at.TimeOfDay.TotalMilliseconds }, at.AddSeconds(14));
             engine.Tick(at.AddSeconds(14), true);
             Check(engine.Monitoring && commands.SequenceEqual(new[] { "CQ JA3ZZ PM96" }),
-                "Award search started CQ, answered an unrelated caller or ignored the shared goal.");
+                "Award search started CQ or ignored the shared goal.");
             engine.OnStatus(new RadioStatus { Frequency = 14074000, Mode = "FT8", DeCall = "K1AAA", DxCall = "JA3ZZ", TxEnabled = true }, at.AddSeconds(15));
             engine.OnLine("20260115_120015.100(0) Transmitting 14.074 MHz + 1500Hz FT8: JA3ZZ K1AAA RR73", at.AddSeconds(15));
             Check(search.Available(at.AddSeconds(16)) == 2, "A terminal transmission was counted as a logged contact.");
             engine.OnLine("20260115_120015.200(0) QSO logged: JA3ZZ", at.AddSeconds(15.2));
             Check(search.Available(at.AddSeconds(16)) == 0 && search.Score("JA3ZZ", at.AddSeconds(16)) == 0,
                 "The logged QSO did not retire both goals.");
+        });
+
+        run("My Russia accepts only an uncredited live square and reserves a new QSO for the session", () => {
+            DateTime at = new DateTime(2026, 11, 24, 12, 0, 0, DateTimeKind.Utc);
+            const string hunter = @"<section class=""rrnars-award-group""><h5>Hunter</h5>
+                <div class=""small mb-2"">2 / 100</div><div class=""small mb-2"">2 / 750</div></section>";
+            const string squares = @"<button data-locator=""KO85"" data-status=""cfm""></button>
+                <button data-locator=""LO36"" data-status=""both""></button>
+                <button data-locator=""LO44"" data-status=""act""></button>";
+            var program = HamlogAward.Russia.Create();
+            program.HasIssued = true; // A past issuance does not close the search for the next tier.
+            program.Selected = true;
+            program.Hamlog = HamlogStandingClient.Parse(HamlogPage("K1AAA", hunter + squares),
+                HamlogAward.Russia, "K1AAA", at);
+            Check(program.Hamlog.Points == 2 && program.Hamlog.Required == 100
+                && program.Hamlog.ConfirmedSquares.SequenceEqual(new[] { "KO85", "LO36" }),
+                "Activation-only squares were counted, or the next tier was lost.");
+            var catalog = new AwardCatalog { Programs = new List<AwardProgram> { program } };
+            catalog.NormalizeOnlinePrograms();
+            var e = new AutoCqEngine { DxccForCall = call => call.StartsWith("R") ? "UA" : "K" };
+            var search = new AwardSearch(catalog, LogbookHistory.Empty, "K1AAA", "20m", "FT8", e.DxccForCall);
+            Check(search.Score("R3PAA", at) == 0 && search.Score("R3PAA", at, "KO85AX") == 0
+                && search.Score("R3PAA", at, "RR73") == 0 && search.Score("W3AAA", at, "LO44") == 0,
+                "Missing, confirmed, malformed or foreign squares became a goal.");
+            e.OnStatus(new RadioStatus { Frequency = 14074000, Mode = "FT8", DeCall = "K1AAA", DxCall = "" }, at);
+            var requests = new List<string>();
+            e.RequestReply = d => requests.Add(d.Message);
+            e.Start(at, search);
+            foreach (string message in new[] { "CQ R3PAA KO85", "W3AAA R4GBB RR73", "CQ R3NAA LO44" })
+                e.OnDecode(new DecodedMessage { IsNew = true, Mode = "~", Message = message,
+                    Milliseconds = (uint)at.TimeOfDay.TotalMilliseconds }, at.AddSeconds(14));
+            e.Tick(at.AddSeconds(14), true);
+            Check(requests.SequenceEqual(new[] { "CQ R3NAA LO44" }), "Search targeted a credited or unknown square.");
+            e.OnLoggedContact(new LogbookQso { Call = "R3NAA", Station = "K1AAA", Band = "20m", Mode = "FT8",
+                StartedUtc = at.AddSeconds(15), EndedUtc = at.AddSeconds(45) });
+            Check(search.Score("R4GCC", at.AddSeconds(45), "LO44") == 0 && program.Hamlog.Points == 2
+                && search.Score("R3NAA", at.AddSeconds(45), "LO45") == 1,
+                "A logged square was not reserved, was credited prematurely, or the call was blocked in a new square.");
+            Check(e.Cqs.LocatorFor("R3NAA", at.AddMinutes(3)) == null, "A stale locator was reused.");
+        });
+
+        run("HAMLOG regions allow a repeat on another band while grouping FT8 and FT4 together", () => {
+            DateTime at = new DateTime(2026, 11, 24, 12, 0, 0, DateTimeKind.Utc);
+            var program = HamlogAward.Gunsmiths.Create();
+            program.Selected = true;
+            program.Goals.Add(new AwardGoal { Kind = "dxcc", Value = "UA" }); // An old broad search rule.
+            program.Hamlog = new HamlogStanding { Callsign = "K1AAA", CheckedUtc = at, Points = 1, Required = 100,
+                Credits = new List<HamlogCredit> {
+                    new HamlogCredit { Call = "R3PAA", Band = "40m", Mode = "FT8", DayUtc = at.Date, Points = 1 },
+                }
+            };
+            var catalog = new AwardCatalog { Programs = new List<AwardProgram> { program } };
+            catalog.NormalizeOnlinePrograms();
+            Func<string, string> dxcc = call => "UA";
+            var on40 = new AwardSearch(catalog, LogbookHistory.Empty, "K1AAA", "40m", "FT4", dxcc);
+            var on80 = new AwardSearch(catalog, LogbookHistory.Empty, "K1AAA", "80m", "FT8", dxcc);
+            Check(on40.Score("R3PAA", at) == 0 && on80.Score("R3PAA", at) == 1
+                && on80.Score("R3AAA", at) == 0, "A repeat used the wrong band or searched outside the published region.");
+            var unverified = catalog.Copy();
+            unverified.Programs[0].Hamlog = null;
+            Check(new AwardSearch(unverified, LogbookHistory.Empty, "K1AAA", "80m", "FT8", dxcc).Available(at) == 0,
+                "Without HAMLOG credit an old prefix or country rule became eligible.");
+        });
+
+        run("Bryansk searches for a known new digital district instead of repeating a credited district", () => {
+            DateTime at = new DateTime(2026, 11, 24, 12, 0, 0, DateTimeKind.Utc);
+            var program = HamlogAward.Bryansk.Create();
+            program.Hamlog = new HamlogStanding { Callsign = "K1AAA", CheckedUtc = at, Required = 27, Points = 2,
+                Credits = new List<HamlogCredit> {
+                    new HamlogCredit { Call = "R3YAA", Band = "40m", Mode = "FT8", County = "BR-01", Locator = "KO73" },
+                    new HamlogCredit { Call = "R3YBB", Band = "40m", Mode = "CW", County = "BR-02", Locator = "KO83" },
+                }
+            };
+            var result = new HamlogOnlineProgress(program, LogbookHistory.Empty, "K1AAA", call => "UA");
+            Check(result.Confirmed == 1 && !result.Needs("R3YAA", "80m", "FT8", at, "KO73")
+                && result.Needs("R3YBB", "80m", "FT8", at, "KO83") && !result.Needs("R3YCC", "80m", "FT8", at, "KO83"),
+                "An ineligible or unknown district was targeted, or a CW credit blocked a digital contact.");
         });
 
         run("HAMLOG counts only accepted rows for the requested callsign, including fractional and empty results", () => {

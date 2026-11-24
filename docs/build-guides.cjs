@@ -29,7 +29,12 @@ function render(source) {
       out.push('<pre><code>' + escape(block.join('\n')) + '</code></pre>'); continue;
     }
     const heading = /^(#{1,6}) (.+)$/.exec(line);
-    if (heading) { const n = heading[1].length; out.push('<h' + n + '>' + inline(heading[2]) + '</h' + n + '>'); continue; }
+    if (heading) {
+      const n = heading[1].length;
+      const id = ['Поиск для дипломов HAMLOG', 'Search for HAMLOG award contacts'].includes(heading[2]) ? ' id="hamlog-awards"' : '';
+      out.push('<h' + n + id + '>' + inline(heading[2]) + '</h' + n + '>');
+      continue;
+    }
     if (line.startsWith('|') && /^\|[\s:|-]+\|$/.test(lines[i + 1] || '')) {
       const cells = s => s.trim().slice(1, -1).split('|').map(v => v.trim());
       out.push('<div class="table-scroll"><table><thead><tr>' + cells(line).map(c => '<th>' + inline(c) + '</th>').join('') + '</tr></thead><tbody>'); i++;

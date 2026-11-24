@@ -59,11 +59,13 @@ namespace JtdxAutoCq
         public HamlogStanding Hamlog;
 
         internal HamlogAward Template { get { return HamlogAward.Find(Url); } }
-        internal bool UsesTemplate { get { return Goals.Count == 0 && Template != null; } }
+        internal bool UsesTemplate { get { return Template != null && (Goals.Count == 0 || Template.HasOnlineRules); } }
         internal bool UsesPointRules { get { return UsesTemplate && Template.HasPointRules; } }
+        internal bool UsesOnlineRules { get { return UsesTemplate && Template.HasOnlineRules; } }
+        internal bool UsesLocalTargets { get { return String.IsNullOrEmpty(Url) && Goals.Count != 0; } }
         internal DateTime? From { get { return AwardCatalog.ReadTime(UsesTemplate ? Template.From : FromUtc); } }
         internal DateTime? Until { get { return AwardCatalog.ReadTime(UsesTemplate ? Template.Until : UntilUtc, true); } }
-        internal bool ClosedByIssuance { get { return HasIssued == true && !OtherLevel; } }
+        internal bool ClosedByIssuance { get { return HasIssued == true && !OtherLevel && Template != HamlogAward.Russia; } }
 
         internal AwardProgram Copy()
         {
@@ -99,7 +101,7 @@ namespace JtdxAutoCq
             if (Goals.Count > 300 || Goals.Any(goal => goal == null))
                 throw new InvalidDataException("У одного диплома может быть до 300 целей.");
             foreach (AwardGoal goal in Goals) goal.Validate();
-            if (ClosedByIssuance || Goals.Count == 0 && !UsesPointRules) Selected = false;
+            if (ClosedByIssuance || !UsesLocalTargets && !UsesPointRules && !UsesOnlineRules) Selected = false;
         }
     }
 
@@ -110,8 +112,6 @@ namespace JtdxAutoCq
         [DataMember(Name = "callsign")] public string Callsign;
         [DataMember(Name = "generatedUtc")] public string GeneratedUtc;
         [DataMember(Name = "programs")] public List<AwardProgram> Programs = new List<AwardProgram>();
-        public bool AnswerOtherCallers;
-
         internal AwardCatalog Copy()
         {
             var copy = (AwardCatalog)MemberwiseClone();
@@ -173,13 +173,42 @@ namespace JtdxAutoCq
                         row.UntilUtc = old.UntilUtc;
                     }
                     row.OtherLevel = old.OtherLevel;
-                    row.Selected = old.Selected && !row.ClosedByIssuance && (row.Goals.Count != 0 || row.UsesPointRules);
+                    row.Selected = old.Selected && !row.ClosedByIssuance && (row.UsesLocalTargets || row.UsesPointRules || row.UsesOnlineRules);
                 }
                 merged[row.Id] = row;
             }
             Programs = merged.Values.ToList();
+            NormalizeOnlinePrograms();
             if (imported.HasValue) GeneratedUtc = incoming.GeneratedUtc;
             if (incoming.Callsign.Length > 0) Callsign = incoming.Callsign;
+        }
+
+        internal void NormalizeOnlinePrograms()
+        {
+            var result = new List<AwardProgram>();
+            var known = new Dictionary<string, AwardProgram>(StringComparer.Ordinal);
+            foreach (AwardProgram row in Programs)
+            {
+                if (!row.UsesOnlineRules) { result.Add(row); continue; }
+                HamlogAward award = row.Template;
+                AwardProgram prior;
+                if (known.TryGetValue(award.Url, out prior))
+                {
+                    prior.Selected |= row.Selected;
+                    prior.OtherLevel |= row.OtherLevel;
+                    if (row.HasIssued == true) prior.HasIssued = true;
+                    if (prior.Hamlog == null || row.Hamlog != null && row.Hamlog.CheckedUtc > prior.Hamlog.CheckedUtc)
+                        prior.Hamlog = row.Hamlog;
+                    continue;
+                }
+                var current = row.Copy();
+                current.Id = current.Url = award.Url;
+                current.Title = award.Title;
+                current.Goals.Clear();
+                known.Add(award.Url, current);
+                result.Add(current);
+            }
+            Programs = result;
         }
     }
 
@@ -189,6 +218,7 @@ namespace JtdxAutoCq
         readonly DateTime? from, until;
         readonly GoalProgress[] goals;
         internal readonly HamlogPointProgress Points;
+        internal readonly HamlogOnlineProgress Online;
 
         sealed class GoalProgress
         {
@@ -221,12 +251,17 @@ namespace JtdxAutoCq
             Program = program;
             from = program.From; until = program.Until;
             goals = program.Goals.Select(goal => new GoalProgress(goal, dxcc)).ToArray();
+            if (program.UsesOnlineRules)
+            {
+                Online = new HamlogOnlineProgress(program, history, own, dxcc);
+                return;
+            }
             if (program.UsesTemplate)
             {
                 Points = new HamlogPointProgress(program, history, own);
                 return;
             }
-            if (goals.Length == 0 || program.ClosedByIssuance) return;
+            if (!program.UsesLocalTargets || program.ClosedByIssuance) return;
             foreach (LogbookQso row in history.Records)
                 if (row.BelongsTo(own)) Record(row.Call, row.Band, row.Mode, row.StartedUtc ?? row.EndedUtc);
         }
@@ -237,24 +272,27 @@ namespace JtdxAutoCq
         internal int GoalsCount { get { return goals.Length; } }
         internal int CompletedGoals { get { return goals.Count(goal => goal.Complete); } }
         internal bool Complete { get { return Program.ClosedByIssuance
-            || (Points == null ? goals.Length > 0 && CompletedGoals == goals.Length : Points.ConfirmedComplete); } }
+            || (Online != null ? Online.Complete : Points != null ? Points.ConfirmedComplete
+                : Program.UsesLocalTargets && CompletedGoals == goals.Length); } }
         internal int LoggedFor(int index) { return goals[index].Count; }
         internal bool Available(string band, string mode, DateTime time)
         {
-            return !Program.ClosedByIssuance && Within(time) && (Points == null
-                ? goals.Any(goal => !goal.Complete && goal.OnBand(band, mode)) : Points.Available(band, mode, time));
+            return !Program.ClosedByIssuance && Within(time) && (Online != null ? Online.Available(band, mode, time)
+                : Points != null ? Points.Available(band, mode, time)
+                : Program.UsesLocalTargets && goals.Any(goal => !goal.Complete && goal.OnBand(band, mode)));
         }
-        internal bool Needs(string call, string band, string mode, DateTime time)
+        internal bool Needs(string call, string band, string mode, DateTime time, string grid = null)
         {
-            return !Program.ClosedByIssuance && Within(time) && (Points == null
-                ? goals.Any(goal => goal.Needs(call, band, mode)) : Points.CandidatePoints(call, band, mode, time) > 0);
+            return !Program.ClosedByIssuance && Within(time) && (Online != null ? Online.Needs(call, band, mode, time, grid)
+                : Points != null ? Points.CandidatePoints(call, band, mode, time) > 0
+                : Program.UsesLocalTargets && goals.Any(goal => goal.Needs(call, band, mode)));
         }
         internal void Record(string call, string band, string mode, DateTime? time)
         {
             if (!Within(time)) return;
-            if (Points == null)
+            if (Program.UsesLocalTargets)
                 foreach (GoalProgress goal in goals) goal.Record(call, band, mode);
-            else if (time.HasValue) Points.Record(call, band, mode, time.Value);
+            else if (Points != null && time.HasValue) Points.Record(call, band, mode, time.Value);
         }
     }
 
@@ -262,32 +300,33 @@ namespace JtdxAutoCq
     {
         readonly AwardProgress[] programs;
         readonly string band, mode, own;
-        internal readonly bool AnswerOtherCallers;
 
         internal AwardSearch(AwardCatalog catalog, LogbookHistory history, string own, string band, string mode, Func<string, string> dxcc)
         {
             catalog.CheckCallsign(own);
             this.band = band; this.mode = mode;
             this.own = own;
-            AnswerOtherCallers = catalog.AnswerOtherCallers;
             programs = catalog.Programs.Where(program => program.Selected && !program.ClosedByIssuance)
                 .Select(program => new AwardProgress(program, history, own, dxcc)).ToArray();
         }
 
         internal int Available(DateTime now) { return programs.Count(program => program.Available(band, mode, now)); }
-        internal int Score(string call, DateTime now) { return programs.Count(program => program.Needs(call, band, mode, now)); }
-        internal string Reason(string call, DateTime now)
+        internal int Score(string call, DateTime now, string grid = null)
+        { return programs.Count(program => program.Needs(call, band, mode, now, grid)); }
+        internal string Reason(string call, DateTime now, string grid = null)
         {
-            string[] matches = programs.Where(program => program.Needs(call, band, mode, now))
-                .Select(program => program.Program.Title + (program.Points == null ? ""
-                    : " (+" + program.Points.CandidatePoints(call, band, mode, now).ToString("0.##") + " очк.)")).ToArray();
-            return matches.Length == 0 ? "Станция не продвигает выбранные дипломы на этом диапазоне и в этом виде работы."
-                : "Подходит для " + String.Join(", ", matches) + ".";
+            AwardProgress[] matches = programs.Where(program => program.Needs(call, band, mode, now, grid)).ToArray();
+            if (matches.Length == 0) return "Станция не подходит для выбранных дипломов на текущем диапазоне и в этом виде работы.";
+            string names = String.Join(", ", matches.Select(program => program.Program.Title + (program.Points == null ? ""
+                : " (+" + program.Points.CandidatePoints(call, band, mode, now).ToString("0.##") + " очк.)")));
+            string square = matches.Any(program => program.Program.Template == HamlogAward.Russia)
+                ? " Незачтённый квадрат " + AwardLocator.Parse(grid) + "." : "";
+            return "Подходит для " + names + "." + square;
         }
         internal void Record(string call, DateTime at)
         {
             foreach (AwardProgress program in programs)
-                if (program.Points == null) program.Record(call, band, mode, at);
+                if (program.Program.UsesLocalTargets) program.Record(call, band, mode, at);
         }
 
         internal void Record(LogbookQso contact)
@@ -295,7 +334,10 @@ namespace JtdxAutoCq
             // Use the recorded start date for awards with daily repeat rules.
             if (!contact.StartedUtc.HasValue || contact.Band != band || contact.Mode != mode || !contact.BelongsTo(own)) return;
             foreach (AwardProgress program in programs)
-                if (program.Points != null) program.Record(contact.Call, band, mode, contact.StartedUtc);
+            {
+                if (program.Online != null) program.Online.Record(contact);
+                else if (program.Points != null) program.Record(contact.Call, band, mode, contact.StartedUtc);
+            }
         }
     }
 }
