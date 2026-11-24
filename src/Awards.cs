@@ -484,7 +484,10 @@ namespace JtdxAutoCq
                 : " (+" + program.Points.CandidatePoints(call, band, mode, now).ToString("0.##") + " очк.)")));
             string square = matches.Any(program => program.Program.Template == HamlogAward.Russia)
                 ? " Незачтённый квадрат " + AwardLocator.Parse(grid) + "." : "";
-            return "Подходит для " + names + "." + square;
+            var districts = matches.Where(program => program.Online != null).Select(program => program.Online.NeededDistrict(call, grid))
+                .Where(county => county != null).Distinct().ToArray();
+            string district = districts.Length == 0 ? "" : " Незачтённые районы RDA " + String.Join(", ", districts) + ".";
+            return "Подходит для " + names + "." + square + district;
         }
         internal void Record(string call, DateTime at)
         {

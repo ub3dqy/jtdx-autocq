@@ -459,11 +459,19 @@ namespace JtdxAutoCq
             var raem = new AwardProgram { Title = "RAEM", Url = HamlogLinks.Origin + "raem/", Sponsor = "СРР", RuleDocumentStatus = "downloaded",
                 RuleNote = "Охотнику нужны 68 очков за связи телеграфом на КВ. Для автоматического поиска в AutoCQ доступны FT8 и FT4."
             };
+            var voronezh = new AwardProgram { Title = "Воронежская область", Url = HamlogLinks.Origin + "club/demo/1802/",
+                Sponsor = "Воронежское отделение СРР", Selected = true, RuleDocumentStatus = "downloaded",
+                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2019-01-01",
+                    Required = 39, MemberPoints = 1, ExtraPoints = 1,
+                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.District, CountyPrefix = "VR",
+                        LastCounty = 44, RetiredCounties = new[] { 8, 10, 11, 12, 16 }, Levels = new[] { 20, 25, 30, 39 } }
+                }
+            };
             new HamlogRuleCache(awardCache, (url, cancel) => new HamlogRules(url, "Демонстрационный документ", null),
                 (delay, cancel) => { }).Scan(new[] { border }, default(System.Threading.CancellationToken), result => { });
             var custom = new AwardProgram { Title = "Учебный диплом", Url = HamlogLinks.Origin + "club/demo/19/",
                 ManualSearch = true, Goals = new List<AwardGoal> { new AwardGoal { Kind = "call", Value = "W2ABC" } } };
-            foreach (AwardProgram program in new[] { russia, gunsmiths, falcon, tula, arck, counties, angels, border, romania, raem, custom })
+            foreach (AwardProgram program in new[] { russia, gunsmiths, falcon, tula, arck, counties, angels, border, romania, raem, voronezh, custom })
             {
                 program.PublicEntry = true;
                 program.Section = "Клубные и региональные";
@@ -484,6 +492,12 @@ namespace JtdxAutoCq
                 ConfirmedSquares = Enumerable.Range(0, 87).Select(square => "KO" + square.ToString("00")).ToArray()
             };
             gunsmiths.Hamlog = new HamlogStanding { Callsign = "K1ABC", Points = 62, Required = 100, CheckedUtc = falcon.Hamlog.CheckedUtc };
+            voronezh.Hamlog = new HamlogStanding {
+                Callsign = "K1ABC", Points = 17, Required = 20, CheckedUtc = falcon.Hamlog.CheckedUtc,
+                Credits = Enumerable.Range(1, 22).Except(voronezh.DownloadedRules.Contacts.RetiredCounties).Select(district =>
+                    new HamlogCredit { Call = "R3Q" + (char)('A' + district), County = "VR-" + district.ToString("D2"),
+                        Locator = "KO91", Band = "40m", Mode = "FT8", DayUtc = october, Points = 1 }).ToList()
+            };
             var awardHistory = new LogbookHistory(history.Path, history.Records.Concat(falcon.Hamlog.Credits.Take(12).Select(credit =>
                 new LogbookQso { Call = credit.Call, Band = credit.Band, Mode = credit.Mode, StartedUtc = credit.DayUtc }))
                 .Concat(new[] {
@@ -492,14 +506,14 @@ namespace JtdxAutoCq
                 }).ToList());
             var example = new AwardCatalog {
                 Callsign = "K1ABC", PublicCatalogUtc = DateTime.UtcNow.AddMinutes(-20),
-                Programs = new List<AwardProgram> { russia, gunsmiths, arck, counties, diploma, stations, falcon, tula, angels, border, romania, raem, custom }
+                Programs = new List<AwardProgram> { russia, gunsmiths, arck, counties, diploma, stations, falcon, tula, angels, border, romania, raem, voronezh, custom }
             };
             foreach (AwardProgram program in example.Programs) program.Validate();
             var awards = new AwardsDialog(example, awardHistory, "K1ABC", call => {
                 DxccCountry country = table.Find(call);
                 return country == null ? null : country.Prefix;
             }, cache: awardCache, demo: true);
-            awards.SelectDemoProgram(raem);
+            awards.SelectDemoProgram(voronezh);
             return new Form[] {
                 new LogbookSourceDialog("", history.Path, "LogHX"),
                 new ProfilesDialog(profiles, profiles[0].Options, true),
@@ -512,7 +526,7 @@ namespace JtdxAutoCq
                 new AwardGoalsDialog(diploma),
                 new HamlogJournalDialog(falcon.Title, new HamlogPointProgress(falcon, awardHistory, "K1ABC")),
                 new HamlogAccountDialog("K1ABC", ""),
-                new HamlogPlanDialog(romania),
+                new HamlogPlanDialog(voronezh),
             };
         }
     }

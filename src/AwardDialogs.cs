@@ -205,7 +205,9 @@ namespace JtdxAutoCq
                 if (online.Standing == null) return "Сверится перед поиском";
                 if (online.Complete) return "Условия выполнены";
                 if (online.NeedsCounties) return "Районы RDA · " + online.CountyCount + " из 25";
-                return "Осталось " + Points(Math.Max(0, online.Required - online.Confirmed)) + " " + online.Unit;
+                string remaining = Points(Math.Max(0, online.Required - online.Confirmed));
+                return program.EffectiveRules != null && program.EffectiveRules.Districts
+                    ? "Не хватает районов RDA — " + remaining : "Осталось " + remaining + " " + online.Unit;
             }
             HamlogPointProgress points = status.Points;
             if (points == null)
@@ -672,26 +674,42 @@ namespace JtdxAutoCq
         readonly TextBox contactBands = new TextBox { MaxLength = 230 };
         readonly TextBox contactModes = new TextBox { MaxLength = 30 };
         readonly TextBox levels = new TextBox { MaxLength = 95 };
+        readonly TextBox districtPrefix = new TextBox { MaxLength = 2 };
+        readonly NumericUpDown lastCounty = new NumericUpDown { Minimum = 1, Maximum = 99 };
+        readonly TextBox retiredCounties = new TextBox { MaxLength = 190 };
         readonly ComboBox repeats = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
         static readonly string[] RepeatKeys = { HamlogContactCriteria.BandMode, HamlogContactCriteria.DayBandMode,
             HamlogContactCriteria.EveryQso, HamlogContactCriteria.Call, HamlogContactCriteria.Band, HamlogContactCriteria.Day };
         HamlogRulePlan loadedPlan;
         internal HamlogRulePlan Edited { get; private set; }
 
-        static bool HasContactAreas(AwardProgram program)
+        static bool HasContactGroups(AwardProgram program)
         {
             return program.EffectiveRules.ContactAward && (program.EffectiveRules.BonusGroups.Length != 0
                 || program.DownloadedRules != null && program.DownloadedRules.BonusGroups.Length != 0);
         }
 
         internal HamlogPlanDialog(AwardProgram program) : base("Правила поиска диплома", 740,
-            program.EffectiveRules.Club ? 574 : HasContactAreas(program) ? 703 : program.EffectiveRules.ContactAward ? 624 : 468)
+            program.EffectiveRules.Club ? 574 : program.EffectiveRules.Districts ? 520
+                : program.EffectiveRules.Rcpw && program.EffectiveRules.RcpwOnlineAfterPoints > 0 ? 506
+                : HasContactGroups(program) ? 703 : program.EffectiveRules.ContactAward ? 624 : 468)
         {
             this.program = program;
             HamlogRulePlan plan = program.EffectiveRules;
             LabelAt(program.Title, 20, 58, 699, 28);
             edition = LabelAt("", 20, 88, 699, 24);
-            if (plan.Rcpw)
+            if (plan.Districts)
+            {
+                LabelAt("Код области RDA", 20, 126, 188, 24);
+                Place(districtPrefix, 212, 124, 75, 27);
+                LabelAt("Последний номер района", 312, 126, 237, 24);
+                Place(lastCounty, 557, 124, 79, 27);
+                LabelAt("Упразднённые районы", 20, 166, 188, 24);
+                Place(retiredCounties, 212, 161, 506, 27);
+                LabelAt("Для поиска должен быть известен район RDA по позывному и принятому локатору.",
+                    20, 198, 698, 24);
+            }
+            else if (plan.Rcpw)
             {
                 LabelAt("AutoCQ ищет членов клуба RCPW по списку клуба. Порог для вашего позывного берёт с HAMLOG.",
                     20, 127, 680, 45);
@@ -727,10 +745,13 @@ namespace JtdxAutoCq
             }
             else if (plan.Rcpw)
             {
-                LabelAt("Обычный порог", 20, 270, 166, 27);
+                LabelAt("Нужно очков", 20, 270, 166, 27);
                 Place(required, 212, 267, 78, 27);
-                LabelAt("Порог для 0-го района и за рубежом", 315, 270, 304, 27);
-                Place(alternative, 640, 267, 78, 27);
+                if (plan.AlternativeRequired != plan.Required)
+                {
+                    LabelAt("Порог для 0-го района и за рубежом", 315, 270, 304, 27);
+                    Place(alternative, 640, 267, 78, 27);
+                }
                 LabelAt("Очков в дни активности", 20, 307, 188, 27);
                 Place(special, 212, 304, 78, 27);
                 LabelAt("Очков после активности", 315, 307, 281, 27);
@@ -739,6 +760,20 @@ namespace JtdxAutoCq
                 Place(bonusUntil, 296, 341, 152, 27);
                 LabelAt("Повтор учитывается на другом диапазоне или другим видом. FT8 и FT4 считаются одним видом.",
                     20, 374, 700, 30);
+                if (plan.RcpwOnlineAfterPoints > 0)
+                    LabelAt("За поздние связи HAMLOG также начислял " + plan.RcpwOnlineAfterPoints + " очк. AutoCQ сверяет ставку по зачёту.",
+                        20, 405, 698, 30);
+            }
+            else if (plan.Districts)
+            {
+                LabelAt("Высший порог", 20, 270, 188, 24);
+                Place(required, 212, 267, 77, 27);
+                LabelAt("Пороги степеней", 20, 309, 188, 24);
+                Place(levels, 212, 305, 506, 27);
+                LabelAt("Диапазоны (пусто — все)", 20, 349, 188, 24);
+                Place(contactBands, 212, 345, 506, 27);
+                LabelAt("Виды (пусто — все)", 20, 389, 188, 24);
+                Place(contactModes, 212, 385, 506, 27);
             }
             else if (plan.ContactAward)
             {
@@ -766,16 +801,18 @@ namespace JtdxAutoCq
                     LabelAt("Специальные позывные дают повышенные очки только в срок мероприятия.", 20, 530, 697, 24);
                 if (!String.IsNullOrEmpty(plan.Contacts.Roster))
                     LabelAt(plan.Contacts.Roster == "rcpw" ? "Используется список членов клуба RCPW."
+                        : plan.Contacts.Roster == "lefty" ? "Используется опубликованный список членов клуба «Левша»."
                         : plan.Contacts.Roster == "arck" ? "Используется список членов клуба ARCK."
                         : "Используется список членов ARCK за пределами России.", 20, 555, 697, 25);
-                if (HasContactAreas(program))
+                if (HasContactGroups(program))
                 {
-                    LabelAt("Очки по территориям", 20, 588, 188, 24);
+                    LabelAt("Дополнительные группы", 20, 588, 188, 24);
                     Place(groups, 212, 582, 506, 56);
                 }
             }
             else LabelAt("Для диплома нужна одна связь с этой станцией в указанный срок.", 20, 278, 699, 45);
-            int buttons = plan.Club ? 516 : HasContactAreas(program) ? 645 : plan.ContactAward ? 582 : 410;
+            int buttons = plan.Club ? 516 : plan.Districts ? 464 : HasContactGroups(program) ? 645 : plan.ContactAward ? 582
+                : plan.Rcpw && plan.RcpwOnlineAfterPoints > 0 ? 447 : 410;
             var restore = ButtonAt("Вернуть исходные", 20, buttons, 205, () => LoadValues(program.DownloadedRules, false));
             restore.Enabled = program.DownloadedRules != null;
             ButtonAt("Отмена", 449, buttons, 112, () => DialogResult = DialogResult.Cancel);
@@ -813,6 +850,12 @@ namespace JtdxAutoCq
                 repeats.SelectedIndex = Array.IndexOf(RepeatKeys, plan.Contacts.Repeat);
                 modeGroups.Checked = plan.Contacts.GroupModes;
                 portableAliases.Checked = plan.Contacts.PortableAliases;
+                if (plan.Districts)
+                {
+                    districtPrefix.Text = plan.Contacts.CountyPrefix;
+                    lastCounty.Value = plan.Contacts.LastCounty;
+                    retiredCounties.Text = String.Join(", ", plan.Contacts.RetiredCounties);
+                }
             }
             groups.Lines = (plan.BonusGroups ?? new HamlogBonusGroup[0]).Select(group =>
                 group.Points.ToString(CultureInfo.InvariantCulture) + " | " + String.Join(", ", group.Targets)).ToArray();
@@ -828,21 +871,28 @@ namespace JtdxAutoCq
                     MemberPoints = previous.Points ? (int)member.Value : 0, ExtraPoints = previous.Points ? (int)special.Value : 0,
                     HfOnly = previous.Club && hf.Checked, VhfBonus = previous.Club && !hf.Checked && !flat.Checked && vhfBonus.Checked,
                     NoMultipliers = previous.Club && flat.Checked,
-                    AlternativeRequired = previous.Rcpw ? (int)alternative.Value : previous.AlternativeRequired,
+                    AlternativeRequired = previous.Rcpw && previous.AlternativeRequired == previous.Required ? (int)required.Value
+                        : previous.Rcpw ? (int)alternative.Value : previous.AlternativeRequired,
+                    RcpwOnlineAfterPoints = member.Value == previous.MemberPoints && special.Value == previous.ExtraPoints
+                        && bonusUntil.Text == previous.BonusUntilUtc ? previous.RcpwOnlineAfterPoints : 0,
                     BonusUntilUtc = previous.Rcpw ? bonusUntil.Text : "",
                     Calls = Tokens(calls.Text),
-                    BonusGroups = previous.Club || HasContactAreas(program) ? groups.Lines.Where(line => !String.IsNullOrWhiteSpace(line)).Select(ReadGroup).ToArray()
+                    BonusGroups = previous.Club || HasContactGroups(program) ? groups.Lines.Where(line => !String.IsNullOrWhiteSpace(line)).Select(ReadGroup).ToArray()
                         : new HamlogBonusGroup[0]
                 };
                 if (previous.ContactAward)
                     plan.Contacts = new HamlogContactCriteria {
-                        Repeat = RepeatKeys[repeats.SelectedIndex], GroupModes = modeGroups.Checked,
+                        Repeat = previous.Districts ? HamlogContactCriteria.District : RepeatKeys[repeats.SelectedIndex],
+                        GroupModes = modeGroups.Checked,
                         PortableAliases = portableAliases.Checked,
                         AcceptObserverCredit = previous.Contacts.AcceptObserverCredit,
                         Countries = Tokens(territories.Text.ToUpperInvariant()), Bands = Tokens(contactBands.Text.ToLowerInvariant()),
                         Modes = Tokens(contactModes.Text.ToUpperInvariant()),
                         Levels = Tokens(levels.Text).Select(value => Int32.Parse(value, CultureInfo.InvariantCulture)).ToArray(),
                         BonusFromUtc = previous.Contacts.BonusFromUtc, BonusUntilUtc = previous.Contacts.BonusUntilUtc,
+                        CountyPrefix = previous.Districts ? districtPrefix.Text.Trim().ToUpperInvariant() : "",
+                        LastCounty = previous.Districts ? (int)lastCounty.Value : 0,
+                        RetiredCounties = Tokens(retiredCounties.Text).Select(code => Int32.Parse(code, CultureInfo.InvariantCulture)).ToArray(),
                         Roster = previous.Contacts.Roster
                     };
                 plan.Validate();

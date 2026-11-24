@@ -5,6 +5,12 @@ namespace JtdxAutoCq
 {
     internal static class HamlogAwardRosters
     {
+        // The club publishes callsigns separately from most of its award documents.
+        // https://rk3pwa.ru/viewtopic.php?f=2&t=3
+        internal static readonly HashSet<string> Lefty = Calls(
+            "RK3PWA R2PT R2PU R3PKS RW3PM R3PG UB3PEF R3PM RK3P R3PLN R3PY R2PF R3PLY RA3PGR R3PJU R3PKD R3PJN RD3PO UA3PEZ " +
+            "RW3PL R3PKF UA3PTY R3PJX R3PLQ R3PJ UA3PY R3PIZ R3PI R3PMU UB3PDL R2DNP RQ3P UB3PEQ R5PC R3PBB R3PMF UA3PSV UB3PEW");
+
         // Published callsign rosters, checked 2026-11-24.
         // http://rcarck.ru/p0004.htm
         internal static readonly HashSet<string> Arck = Calls(

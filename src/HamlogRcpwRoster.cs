@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -17,10 +18,10 @@ namespace JtdxAutoCq
             TimeSpan.FromSeconds(2));
         static readonly Regex Markup = new Regex(@"<[^>]+>");
         static readonly Regex MemberNumber = new Regex(@"\A#?\s*\d{1,5}\z");
-        static string[] current;
+        static Dictionary<string, string> current;
         static DateTime loadedUtc;
 
-        internal static string[] Read()
+        internal static Dictionary<string, string> Read()
         {
             lock (Gate)
             {
@@ -43,8 +44,8 @@ namespace JtdxAutoCq
                         if (body.Length + count > MaximumBytes) throw new IOException("Список членов RCPW слишком большой.");
                         body.Write(buffer, 0, count);
                     }
-                    current = Parse(Encoding.UTF8.GetString(body.ToArray()));
-                    if (current.Length < 100)
+                    current = ParseMembers(Encoding.UTF8.GetString(body.ToArray()));
+                    if (current.Count < 100)
                     {
                         current = null;
                         throw new InvalidDataException("Не удалось прочитать список членов RCPW.");
@@ -56,12 +57,18 @@ namespace JtdxAutoCq
         }
 
         internal static string[] Parse(string html)
+        { return ParseMembers(html).Keys.ToArray(); }
+
+        internal static Dictionary<string, string> ParseMembers(string html)
         {
             return Row.Matches(html).Cast<Match>().Where(row => MemberNumber.IsMatch(Text(row.Groups[1].Value))
                 && Text(row.Groups[3].Value).IndexOf("(SK)", StringComparison.OrdinalIgnoreCase) < 0)
-                .SelectMany(row => Regex.Split(Text(row.Groups[2].Value), @"[\s,;]+"))
-                .Where(token => token.IndexOf('-') < 0)
-                .Select(Callsign.Parse).Where(call => call != null).Distinct(StringComparer.Ordinal).ToArray();
+                .SelectMany(row => Regex.Split(Text(row.Groups[2].Value), @"[\s,;]+")
+                    .Select(token => new { Call = Callsign.Parse(token), Member = Text(row.Groups[1].Value).TrimStart('#').Trim() }))
+                .Where(entry => entry.Call != null)
+                .GroupBy(entry => entry.Call, StringComparer.Ordinal)
+                .Where(group => group.Select(entry => entry.Member).Distinct(StringComparer.Ordinal).Count() == 1)
+                .ToDictionary(group => group.Key, group => group.First().Member, StringComparer.Ordinal);
         }
 
         static string Text(string markup)

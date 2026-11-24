@@ -1821,8 +1821,32 @@
     "Url": "https://hamlog.online/club/kazan/d11496c6b535e1991c23fff55906da45/",
     "Title": "Tatarstan Cup",
     "TextSha256": "58e4cc999d166c5bf8755b858ff459359d0e112046d30c535214cd4abfbbbb59",
-    "Plan": null,
-    "Note": "Для кубка нужны все 63 района Татарстана (TA-01 — TA-63). Для автоматического поиска требуется подтверждённый район станции на момент связи."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-01-01",
+      "UntilUtc": "",
+      "Required": 63,
+      "AlternativeRequired": 0,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "district",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "TA",
+        "LastCounty": 66,
+        "RetiredCounties": [
+          16
+        ]
+      }
+    },
+    "Note": "Порог 63 взят из зачёта HAMLOG. Справочник заменил TA-16 на TA-64, TA-65 и TA-66. В зачёте есть новые коды."
   },
   {
     "Url": "https://hamlog.online/club/nebo/ee4eafadbb16d522bb7cea2e26d73dcd/",
@@ -1835,8 +1859,19 @@
     "Url": "https://hamlog.online/club/rcpw/db5f65b76fb1ac76fb92212b16cbe83b/",
     "Title": "Alex Koryakov II",
     "TextSha256": "a56c7c080f828838e22d82d568ee261cdbcb4b5af5beb5ee3c5a5d21489686b0",
-    "Plan": null,
-    "Note": "Положение даёт 3 очка за связь после дней активности, а в проверенных строках HAMLOG начисляет 5. Требуется уточнить действующую ставку."
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2023-11-23",
+      "UntilUtc": "",
+      "BonusUntilUtc": "2023-12-01",
+      "Required": 100,
+      "AlternativeRequired": 100,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [],
+      "BonusGroups": []
+    }
   },
   {
     "Url": "https://hamlog.online/global/russia/r3r/f995b9f5f9c67e789ccaba4907e3d1aa/",
@@ -1998,5 +2033,1675 @@
     "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
     "Plan": null,
     "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/f6470456be06605ec2e345e8a6a1b77e/",
+    "Title": "Alex Koryakov I",
+    "TextSha256": "a56c7c080f828838e22d82d568ee261cdbcb4b5af5beb5ee3c5a5d21489686b0",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2023-11-23",
+      "UntilUtc": "",
+      "Required": 50,
+      "AlternativeRequired": 25,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "call",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "rcpw",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/df2d4850852c134a75db609cf1d7c871/",
+    "Title": "Vadim Matrosov I",
+    "TextSha256": "c644cd41c3a3469daa1f71c81ff98e148852f6eae0fab4f9b372008b5c2fab23",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2023-04-15",
+      "UntilUtc": "",
+      "Required": 50,
+      "AlternativeRequired": 25,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "call",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "rcpw",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/e45d68673d7702dfc0049f3f5486c4c7/",
+    "Title": "Nikita Karatsupa I",
+    "TextSha256": "cf6cc4d708a765d7e0c540a24a0948acb9796cb5a7cf0b543c8c71c33fc61940",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2023-02-11",
+      "UntilUtc": "",
+      "Required": 50,
+      "AlternativeRequired": 25,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "call",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "rcpw",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/fac7bb6f414852f3e481384537a1c7d4/",
+    "Title": "Border outpost named after Valentin Kotelnikov I",
+    "TextSha256": "483bebff18c5b63b8ae80615afaa496777ae67ec3b4307f2012a723a7a2cfb0d",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2021-11-29",
+      "UntilUtc": "",
+      "Required": 50,
+      "AlternativeRequired": 25,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "call",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "rcpw",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/c0d9111901609abc9a7945cb32ad4c31/",
+    "Title": "Senior border guard",
+    "TextSha256": "2026c5f8f7fd1d5f360062dae715a21b9088bf4a13bf5f2b8a9de33915bc6ffc",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2021-05-26",
+      "UntilUtc": "",
+      "Required": 50,
+      "AlternativeRequired": 25,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "call",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "rcpw",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/de345cfb6c5e779861b2b6b34a34eb87/",
+    "Title": "Border outpost named after Alexei Lopatin I",
+    "TextSha256": "cc7e830df72ba645539f1e832aeb3b80db2dbd5e6e5129f874e01785828064cb",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2021-04-26",
+      "UntilUtc": "",
+      "Required": 50,
+      "AlternativeRequired": 25,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "call",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "rcpw",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/ba61547acb514ef5e8de7733575e99af/",
+    "Title": "Border outpost named after Andrey Korobitsyn I grade",
+    "TextSha256": "f7b7efa6b9e07018d827ff574341009d83cd8f0a649fcf247293b2cd3fc12d5f",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2020-11-27",
+      "UntilUtc": "",
+      "Required": 50,
+      "AlternativeRequired": 25,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "call",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "rcpw",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/f67f54300e97023df0aa78fed473a348/",
+    "Title": "Nikita Kaymanov - II degree",
+    "TextSha256": "ade9902ee8fc023c0d3ee4f6947fd7655fc43e44329653f0ff82fe34f3060084",
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2024-01-26",
+      "UntilUtc": "",
+      "BonusUntilUtc": "2024-02-03",
+      "Required": 100,
+      "AlternativeRequired": 100,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/fe2370219f9ea338fadd08f1e2e8d6de/",
+    "Title": "Vadim Matrosov II",
+    "TextSha256": "c644cd41c3a3469daa1f71c81ff98e148852f6eae0fab4f9b372008b5c2fab23",
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2023-04-15",
+      "UntilUtc": "",
+      "BonusUntilUtc": "2023-04-24",
+      "Required": 100,
+      "AlternativeRequired": 100,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/a0295ca9f8fcca2af82a348ef21a0583/",
+    "Title": "Grigoriy Kofanov",
+    "TextSha256": "b3615fdbd31e3843ea38c7e8c440b7b801fb3f15fb32dc8eba416e99fb2078c9",
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2023-03-18",
+      "UntilUtc": "",
+      "BonusUntilUtc": "2023-03-27",
+      "Required": 100,
+      "AlternativeRequired": 100,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/aab0c5372595decb6e786d247880f83a/",
+    "Title": "Nikita Karatsupa II",
+    "TextSha256": "cf6cc4d708a765d7e0c540a24a0948acb9796cb5a7cf0b543c8c71c33fc61940",
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2023-02-11",
+      "UntilUtc": "",
+      "BonusUntilUtc": "2023-02-20",
+      "Required": 100,
+      "AlternativeRequired": 100,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/d4029934f0c2e368aa403c4c60fca119/",
+    "Title": "USSR 100",
+    "TextSha256": "56fcabd241b9638685fe0eb40f776c81e3f5696236cc0594c60374c0c406af37",
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2022-12-30",
+      "UntilUtc": "",
+      "BonusUntilUtc": "2023-01-11",
+      "Required": 100,
+      "AlternativeRequired": 100,
+      "MemberPoints": 2,
+      "ExtraPoints": 4,
+      "RcpwOnlineAfterPoints": 4,
+      "Calls": [],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/c36c068b599d49a381a8b10f4938abc9/",
+    "Title": "I'm not going anywhere from here",
+    "TextSha256": "5b86aaea5d67814efb3b9e4cc392e9d6dc3fdecf53aad753b2449fe525c323bf",
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2022-06-22",
+      "UntilUtc": "",
+      "BonusUntilUtc": "2022-06-27",
+      "Required": 100,
+      "AlternativeRequired": 100,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/d00b7865402262461241b18d9bbded6a/",
+    "Title": "Border outpost named after Pavel Zyryanov II",
+    "TextSha256": "3c9795a8c8602c1bbaea46668b799cc41bbba804aa9ccb6ef95e78b88ca97c30",
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2022-04-25",
+      "UntilUtc": "",
+      "BonusUntilUtc": "2022-05-03",
+      "Required": 100,
+      "AlternativeRequired": 100,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/c1a0836273f65a6ebb31c26326f848e0/",
+    "Title": "Border outpost named after Valentin Kotelnikov II",
+    "TextSha256": "483bebff18c5b63b8ae80615afaa496777ae67ec3b4307f2012a723a7a2cfb0d",
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2021-11-29",
+      "UntilUtc": "",
+      "BonusUntilUtc": "2021-12-06",
+      "Required": 100,
+      "AlternativeRequired": 100,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/ac11fd12a4c977948a8d4aa3d7f19f10/",
+    "Title": "Border outpost named after Alexei Lopatin II",
+    "TextSha256": "cc7e830df72ba645539f1e832aeb3b80db2dbd5e6e5129f874e01785828064cb",
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2021-04-26",
+      "UntilUtc": "",
+      "BonusUntilUtc": "2021-05-03",
+      "Required": 100,
+      "AlternativeRequired": 100,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/a03be16e66964942b3b73d123844fb4f/",
+    "Title": "Border outpost named after Tomofey Lukshin II",
+    "TextSha256": "4cd86e844d9a13e30d1db17a43fec54e0e11fd71ade33b06f77fca8926932b03",
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2021-03-15",
+      "UntilUtc": "",
+      "BonusUntilUtc": "2021-03-22",
+      "Required": 100,
+      "AlternativeRequired": 100,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/bb50a0e34e9e4e9d10e0c7eb448e5061/",
+    "Title": "Seacoast border",
+    "TextSha256": "5b757d9a9a2e4d08872b7677d6816b084b0ca3d82e6c020db6ca6a90116e8d4a",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2022-07-31",
+      "UntilUtc": "",
+      "Required": 30,
+      "AlternativeRequired": 0,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "rcpw",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/safonovo/a302b4c490a39cd206811f558f063c4d/",
+    "Title": "Partisan Radio Operator",
+    "TextSha256": "bdd9bd6ca5cc67403587599f4cf9bd5b8f81aab7cf64f7ea31d37a65425524e1",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-06-01",
+      "UntilUtc": "2026-12-31",
+      "Required": 85,
+      "AlternativeRequired": 0,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [
+        {
+          "Points": 7,
+          "Targets": [
+            "MU",
+            "LO",
+            "TV",
+            "MO",
+            "SM",
+            "TL",
+            "BR",
+            "KU",
+            "OR",
+            "VR",
+            "RO",
+            "VG"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "",
+        "Countries": [],
+        "Bands": [
+          "160m",
+          "80m",
+          "60m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m"
+        ],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/swfriends/a42df36e0074c68e187a065847be4553/",
+    "Title": "Baltic states",
+    "TextSha256": "e27eb76e12c56c5185f536bca14862d8f71c2f66b316f2f67d8b2aa6443548c5",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2023-11-29",
+      "UntilUtc": "",
+      "Required": 30,
+      "AlternativeRequired": 0,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "call",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "",
+        "Countries": [
+          "ES",
+          "YL",
+          "LY"
+        ],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r0a/ca4bfd1475a419f726e178b8ac7a5753/",
+    "Title": "Achinsk amateur radio",
+    "TextSha256": "79327546f131750fc766debf7033b2fab012765f64db83a5e1d0515f2af0408f",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-07-01",
+      "UntilUtc": "",
+      "Required": 30,
+      "AlternativeRequired": 0,
+      "MemberPoints": 1,
+      "ExtraPoints": 3,
+      "Calls": [
+        "R0AK"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 1,
+          "Targets": [
+            "R0AA",
+            "R0AB",
+            "R0ABI",
+            "R0ACS",
+            "R0AFA",
+            "R0AGG",
+            "R0AH",
+            "R0AIM",
+            "R0AJP",
+            "R0AKB",
+            "R0AL",
+            "R0AN",
+            "R0AR",
+            "R0AW",
+            "R0AX",
+            "R0AEW",
+            "R0AEZ",
+            "R0AGZ",
+            "RA0AM",
+            "RA0AMI",
+            "RA0AY",
+            "RU0ANR",
+            "RU0ANX",
+            "RU0AOO",
+            "RW0AJ",
+            "RY0A",
+            "RZ0L",
+            "R2BW",
+            "RT2H",
+            "R7DI",
+            "RY7C",
+            "UA0ALS",
+            "UA0AGI",
+            "UB0A",
+            "UB0AKK",
+            "UF0B",
+            "UI0A",
+            "UI0B",
+            "R0AGH",
+            "UA9OBA",
+            "UA9OV",
+            "RA0A",
+            "RA0ADQ",
+            "R0AHR"
+          ],
+          "Area": false
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "",
+        "Countries": [],
+        "Bands": [
+          "160m",
+          "80m",
+          "60m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m"
+        ],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/lefty/dd91cd1899f827feed40c2786beffb2e/",
+    "Title": "Vasily Dmitrievich Polenov",
+    "TextSha256": "83246a5b1f749c1e632ef30520b14bc5ee07e8225381f0ff3225f4ec0ee5e6dd",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-06-01",
+      "UntilUtc": "",
+      "Required": 100,
+      "AlternativeRequired": 0,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "Calls": [
+        "RK3PWA"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "TL"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "lefty",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/lefty/ced686609570d2dbc7f74cbe7b7af51a/",
+    "Title": "Nikolai Fedorovich Makarov",
+    "TextSha256": "5cbabbab3fbfead5ae1e26daafdfd2793ac1680cfa9c2ad4bcb838fb19c96412",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-05-22",
+      "UntilUtc": "",
+      "Required": 110,
+      "AlternativeRequired": 0,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "Calls": [
+        "RK3PWA"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "TL"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "lefty",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/lefty/c8a3d157770391da8ba10e202f2491f4/",
+    "Title": "Sergei Ivanovich Mosin",
+    "TextSha256": "19f20dd85240a27a4054a1443c3067c42e8a62d11ed3e685db9d00db4b300f58",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-04-02",
+      "UntilUtc": "",
+      "Required": 175,
+      "AlternativeRequired": 0,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "Calls": [
+        "RK3PWA"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "TL"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "lefty",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/lefty/a2fc092602dbde3f13050964f9dafee6/",
+    "Title": "Leonid Tihmanov",
+    "TextSha256": "e3b2bd9b67cf562355db48244b24738c90e0182dbcc327904067301564d488c1",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-02-24",
+      "UntilUtc": "",
+      "Required": 80,
+      "AlternativeRequired": 0,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "Calls": [
+        "RK3PWA"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "TL"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "lefty",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/lefty/e9a8c4d0c1ea26964e7ef6a941372a4e/",
+    "Title": "Tula - Tokarev",
+    "TextSha256": "1c612a247549570f826cad00ba2f0c603c874177cd6e2a105abc42c69ffeb201",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-01-02",
+      "UntilUtc": "",
+      "Required": 100,
+      "AlternativeRequired": 0,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "Calls": [
+        "RK3PWA"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "TL"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "lefty",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/lefty/d9d9d7d3dd4966a78ac8e47bf63732bc/",
+    "Title": "120 years of the heroism of the cruiser Varyag",
+    "TextSha256": "55ee4fdb506c569be7582758a968b7d26ca8e7c16d37d992793611ccac715206",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-01-02",
+      "UntilUtc": "",
+      "Required": 120,
+      "AlternativeRequired": 0,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "Calls": [
+        "RK3PWA"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "TL"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "lefty",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/lefty/f6612e36219d2dcbac47fa5463e2622f/",
+    "Title": "Tula gingerbread",
+    "TextSha256": "5ee6de1694f0c3ef67007d03ec8e32f975c2b97fa2614035113cf25576f60dc8",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2023-02-25",
+      "UntilUtc": "",
+      "Required": 100,
+      "AlternativeRequired": 0,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "Calls": [
+        "RK3PWA"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "TL"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "lefty",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/lefty/d23f371dfa63338c9cd58c516c7cc560/",
+    "Title": "Tula samovar",
+    "TextSha256": "61066c53285ec2279c7e6bd868e8dd57bc76f81157b36f52c9badcef1b2f501c",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2023-02-25",
+      "UntilUtc": "",
+      "Required": 150,
+      "AlternativeRequired": 0,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "Calls": [
+        "RK3PWA"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "TL"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "lefty",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/lefty/b4c3f3beddd45e045baf6c98560cfaac/",
+    "Title": "Leo Tolstoy",
+    "TextSha256": "ae960483ff0b34cf2402d67d321c1358cd4b7b497294de13eb3c90ca9d71c0a7",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2023-02-25",
+      "UntilUtc": "",
+      "Required": 195,
+      "AlternativeRequired": 0,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "Calls": [
+        "RK3PWA"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "TL"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "lefty",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/lefty/b2ceeded65ae9073454238aa03d6795a/",
+    "Title": "Tula's Lefty",
+    "TextSha256": "7574fef1685e308a91833180c3f7ac90411ad33d2de1b0792ec80cbdc8096f27",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2022-01-01",
+      "UntilUtc": "",
+      "Required": 140,
+      "AlternativeRequired": 0,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "Calls": [
+        "RK3PWA"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "TL"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "lefty",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r3p/fb9ef6a5efc70cd29323ad890225850a/",
+    "Title": "TOZ-310",
+    "TextSha256": "80e6789b0fc79d62b2976c50ad47ed1a55526f92499e2df1507d0f972b737a89",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2022-10-01",
+      "UntilUtc": "2022-12-31",
+      "Required": 310,
+      "AlternativeRequired": 0,
+      "MemberPoints": 1,
+      "ExtraPoints": 50,
+      "Calls": [
+        "R310TOZ"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 10,
+          "Targets": [
+            "TL"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r3q/a5da8ca651130a5a9984e1a867bd1253/",
+    "Title": "Voronezh region",
+    "TextSha256": "0104c92d567da2b6645669b953e15bba4555bf4d7ce4a70d1379e71b4a8d0fe4",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2019-01-01",
+      "UntilUtc": "",
+      "Required": 39,
+      "AlternativeRequired": 0,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "district",
+        "GroupModes": true,
+        "Levels": [
+          20,
+          25,
+          30,
+          39
+        ],
+        "Roster": "",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "VR",
+        "LastCounty": 44,
+        "RetiredCounties": [
+          8,
+          10,
+          11,
+          12,
+          16
+        ]
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/comrade/b4c6dd74e40bf0e48d7ca60314daf7b7/",
+    "Title": "Volgograd region",
+    "TextSha256": "8379431e526a315787c2a649fb41983bbcac3bcbdee56cef6e37b0b4791afd54",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "",
+      "UntilUtc": "",
+      "Required": 46,
+      "AlternativeRequired": 0,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "district",
+        "GroupModes": true,
+        "Levels": [
+          10,
+          20,
+          30,
+          46
+        ],
+        "Roster": "",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "VG",
+        "LastCounty": 46,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r4p/ab8bc56c04fdc7e224549be233bd24b6/",
+    "Title": "Tatarstan",
+    "TextSha256": "28a218e79a6fcba2fa9e66e3dfb681e66bfe3cf126291418fc81815214434e35",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2014-01-01",
+      "UntilUtc": "",
+      "Required": 63,
+      "AlternativeRequired": 0,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "district",
+        "GroupModes": true,
+        "Levels": [
+          10,
+          30,
+          63
+        ],
+        "Roster": "",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "TA",
+        "LastCounty": 66,
+        "RetiredCounties": [
+          16
+        ]
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r4s/d26be6c61486f87b509f85226d9838e9/",
+    "Title": "Yoshkin cat",
+    "TextSha256": "7547f1a48c1925fe11c2204d9f28adb9b75220b566cf5ec3fa62482fc4082c1a",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-01-01",
+      "UntilUtc": "",
+      "Required": 440,
+      "AlternativeRequired": 0,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [
+        {
+          "Points": 30,
+          "Targets": [
+            "MR"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r4s/f1a62e2d0ce02d3ee5a37115c3d8eaf0/",
+    "Title": "Voivode",
+    "TextSha256": "bb3452a0c3c62e5c690f1041b2559d1cc241d45f0da56e7e1f535ce5c5fcee3e",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-01-01",
+      "UntilUtc": "",
+      "Required": 440,
+      "AlternativeRequired": 0,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [
+        {
+          "Points": 20,
+          "Targets": [
+            "MR"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r4p/cee038d3c8589bf44c34d4cdf4311a2e/",
+    "Title": "90 years of Aznakaevsky district",
+    "TextSha256": "26a9c9e53aad7fa7bbb0dc5f09deeed776c3e841485e5442341cfe4319ad6adb",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2021-04-01",
+      "UntilUtc": "",
+      "Required": 90,
+      "AlternativeRequired": 0,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [
+        {
+          "Points": 1,
+          "Targets": [
+            "TA"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "day-band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "",
+        "Countries": [],
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "RetiredCounties": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/d867801409922fcb2879911537ddd8a2/",
+    "Title": "Storm 333",
+    "TextSha256": "cad57f63195c20ce47084afb260f0cf76e04e18de2a5ccc2b936b5b4cd157b75",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2026-02-15",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": false,
+      "NoMultipliers": false,
+      "Calls": [
+        "EV6C",
+        "EV6W",
+        "EW8LL",
+        "R2AKN",
+        "UA3FQ",
+        "R8FF",
+        "U4MIR",
+        "UA9CES",
+        "R4CQ",
+        "RA3TD",
+        "RA6F",
+        "LZ1ZF",
+        "AC1ZF",
+        "LZ07RN",
+        "LZ81ZZ"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/nebo/c4ccf7094716d4e95f5d39f23f504922/",
+    "Title": "Afghan 'Gastello'",
+    "TextSha256": "7904b2359ec636bcf6f254aef9d7f4b86de318c563cdce6df07baa03acb83531",
+    "Plan": {
+      "Kind": "sky-hunter",
+      "FromUtc": "2025-02-15",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 10,
+      "ExtraPoints": 20,
+      "HfOnly": false,
+      "VhfBonus": false,
+      "NoMultipliers": false,
+      "Calls": [
+        "EV6C",
+        "EV6W",
+        "EW8LL",
+        "R2AKN",
+        "UA3FQ",
+        "R8FF",
+        "U4MIR",
+        "UA9CES",
+        "R4CQ",
+        "RA6F",
+        "LZ1ZF",
+        "AC1ZF",
+        "LZ06RN",
+        "LZ80ZZ"
+      ],
+      "BonusGroups": []
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/muzhestvo/eebf4e98de47a2d259a3cf403ab09818/",
+    "Title": "Karpukhin V. F.",
+    "TextSha256": "bf12589c4a8a918978fe9fc4e96a27b4d2aebcf4fe2e5bd7f039c6ef6254e4eb",
+    "Plan": null,
+    "Note": "Кроме 100 очков нужны обязательные связи с коллективными станциями и участниками из специальных списков. Две даты и отдельные диапазоны удваивают очки."
+  },
+  {
+    "Url": "https://hamlog.online/club/kwant/f71a519e60ae449577964fca849e1edb/",
+    "Title": "Tambov wolf...",
+    "TextSha256": "7d5b845b402624766e8e1159412d5c4d2c91a36a45cc4723aa9e04d867efd530",
+    "Plan": null,
+    "Note": "Пороги 50, 20 и 10 относятся к разным диапазонам. Для удвоенной ставки нужен опубликованный перечень членов «Кванта»."
+  },
+  {
+    "Url": "https://hamlog.online/club/kwant/be6227b2cf5b7f55593d7fd3ca69bdd9/",
+    "Title": "In memory of Y. N. Samoilov",
+    "TextSha256": "1931a0a9bbd5061559295c5d29e053db6a6bca7817e52253854af41ef4fdee5a",
+    "Plan": null,
+    "Note": "Требуется 146 очков. Ставка членов клуба «Квант» отличается от ставки остальных станций. Нужен список клуба для проверки очков."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r3d/f74111d3df7510a6f4112de75b474879/",
+    "Title": "Flight of Friendship",
+    "TextSha256": "efe9c9abaa9c72b957d515fe99436db679866e0b7e7046d729087af552fda780",
+    "Plan": null,
+    "Note": "Зачёт зависит от фактического района RDA, клуба и специальных позывных. Общий порог привязан к году перелёта, а 160 м и УКВ имеют множитель."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r3q/c9c19aa9c17514e682f19cfdcd636748/",
+    "Title": "White Bim",
+    "TextSha256": "385be2a5c3e188a4c5c3c71854381ebc90fedce213dc10adc865df4f47c63aa9",
+    "Plan": null,
+    "Note": "Нужны пределы для радиостанций области, специальных станций и выездов RDA, RFF и других программ. Ставки зависят от района, диапазона и даты."
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/db3781a8aaf30a657aecab0e69e03b5d/",
+    "Title": "Border outpost named after Andrey Korobitsyn",
+    "TextSha256": "7eaae7d64f1144640dd22139d8b49759f404b56540fc529445192eefdc43fd26",
+    "Plan": null,
+    "Note": "В доступном тексте указаны 5 очков в дни активности и 3 после. Дата окончания дней активности в положении этой карточки отсутствует."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r1a/d74cdd8512de59887e0d4cae34c704b7/",
+    "Title": "65th Anniversary of the Metropolitan in St. Petersburg",
+    "TextSha256": "6cf58225baf41881f9a65da80500587fd48979116d0db64328a802b35f7739ff",
+    "Plan": null,
+    "Note": "Кроме 65 очков требуется обязательная связь с работником метрополитена. Исторический зачёт RM65LP относится к периоду мемориальной станции."
+  },
+  {
+    "Url": "https://hamlog.online/club/arktika/d2528b7178e745bfa10d8d2a8c174524/",
+    "Title": "Antarctica 200 years",
+    "TextSha256": "84a1c871528b25ec15dcd41dabdefcf26db9c287b92c92e5a4ad15ae1ee35ab9",
+    "Plan": null,
+    "Note": "В разных степенях меняются общий порог, требования к антарктическим QSO и зачёт клубных станций. Нужны списки антарктических станций, операторов и членов «Арктики»."
+  },
+  {
+    "Url": "https://hamlog.online/club/kwant/d496695b55b9b09cc97a1eb7535d9650/",
+    "Title": "Tambov Treasurer",
+    "TextSha256": "7a2824b0e71135b7c87138bc6ba161339913796569296cd95ac298072b91aa19",
+    "Plan": null,
+    "Note": "Нужны 30 разных позывных, из них не менее 10 членов «Кванта», и обязательная связь с R2REC. HAMLOG показывает дополнительный порог 11 для объединённой группы."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r3d/ce1797b4b527d746d951f074d7579daf/",
+    "Title": "Star Patrol",
+    "TextSha256": "9dc356f1bddcce5e47452c37b081e594a1c5ffb43939fca34fd147fc62b1cc7e",
+    "Plan": null,
+    "Note": "Связь с орбиты, космонавт на Земле, коллективная станция и член клуба дают разные очки. Перечень станций «Подлипок» обновляется ежегодно."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r1o/ee033e615a25ddce996d534f9df6df7a/",
+    "Title": "Lomonosov",
+    "TextSha256": "abc3474c50a9987b329b761db50550f5e3f90c831e56a6878d579659712e4111",
+    "Plan": null,
+    "Note": "Требуются 310 очков за станции Архангельской области. Для других континентов и 0-го района ставка удваивается, поэтому условие зависит от позывного соискателя."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r4y/a3fd4d10d2bd37aeddcad539834d530b/",
+    "Title": "V. Chapaev",
+    "TextSha256": "ec5e5d65648ea57d7e84d704a161f585cc695cf028925917a3c1cf18c28a9b6b",
+    "Plan": null,
+    "Note": "Зачёт идёт с февраля по апрель. Есть альтернативы за десять разных станций Чувашии, одну связь с указанной коллективной станцией, работу автопробега или QSO на УКВ."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r0a/f1c261eab739f648b413e71eb2a7241f/",
+    "Title": "Bogotol residents - Heroes of the Great Patriotic War",
+    "TextSha256": "5739e58032a782ac229fa53ba768c5ad13f7f4c103374ed1ee13253c3b3c71f2",
+    "Plan": null,
+    "Note": "Положение различает участников по месту работы, отдельным позывным и УКВ. Для расчёта требуется подтвердить списки станций Боготола и округа."
+  },
+  {
+    "Url": "https://hamlog.online/club/r4cdosaaf/f87ac5f4e45f84cde8f77bb0a0b5e7c9/",
+    "Title": "80 Years of the Saratov Regional DOSAAF Radio Club",
+    "TextSha256": "50bf4b4449f11b770c8adf50cf0072ffa667df8bd8395e809ee5c416bf98543d",
+    "Plan": null,
+    "Note": "Для зачёта нужны отдельные группы станций ДОСААФ, молодёжных коллективов и района. Положение использует обязательные категории, кроме общего порога."
+  },
+  {
+    "Url": "https://hamlog.online/club/mdxc/bd6412492f4bf23b93a2b1eeafaebe1c/",
+    "Title": "Sholokhov's Spring 2026",
+    "TextSha256": "05c8cd87e1aa50fd70ecea70fe2dbd20e64fa4eed0d454fc1605246b82192816",
+    "Plan": null,
+    "Note": "В основной части зачёт 121 балл с разными ставками для спецпозывных, членов клуба, почётных членов и Ростовской области. Плакетки имеют отдельный зачёт. Нужен полный список почётных и специальных станций."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r0s/d297eb8c229c31d421abe45247f0a867/",
+    "Title": "175th Anniversary of the Founding of the Irkutsk Branch of the RGS",
+    "TextSha256": "5565e28a6d75fc4d1f0b39f896788889626419927a11855b8dded91b2cef69a1",
+    "Plan": null,
+    "Note": "Фиксированные станции Иркутской области дают 5 очков. Для 10 очков требуется подтвердить, что спецпозывной или станция /P или /M работает с территории области."
+  },
+  {
+    "Url": "https://hamlog.online/club/arktika/a702f53a1d09d9543ad9e07f6e98bf42/",
+    "Title": "First Over the North Pole",
+    "TextSha256": "5180c34551733e843d6be6174e4ca1fcb0913564c924e6d3925cdc03c3ba8434",
+    "Plan": null,
+    "Note": "Нужно 100 очков с членами «Арктики», INORC и станциями за Полярным кругом. Для последних требуется положение станции во время передачи, а для клубных ставок нужны оба списка."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r4c/bd448e04d95f3d09a9bba190eb2cc403/",
+    "Title": "90 Years of the Pugachev House of Pioneers",
+    "TextSha256": "9ac94dce39ce242744930d2d485a05ec58542df0fbe23b139bd1a448f2067054",
+    "Plan": null,
+    "Note": "Обязательна связь с районом SA-45. Общий порог 90 очков. Для связи с районом нужен точный RDA, отдельные станции дают повышенные очки."
+  },
+  {
+    "Url": "https://hamlog.online/club/arto/fe3a0fc7959eb1c6f3bf93e57f5d8eda/",
+    "Title": "Southern Kazakhstan, Great Silk Road",
+    "TextSha256": "8066ef1c70cc7922a6740f7c8b156e15bf6d350b7a1ef606049bf738d59ba56e",
+    "Plan": null,
+    "Note": "Положение разделяет города, спецпозывные и участников региональной программы. Требуется связать каждый зачётный позывной с нужной категорией."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r3q/de4028527a11e33132a2f81b2ee343aa/",
+    "Title": "83 years since the liberation of Voronezh",
+    "TextSha256": "90f5ea4e31565f0437f1247c42f5cf708a95b51f25ca919b9b59c2d14ef3e21b",
+    "Plan": null,
+    "Note": "Очки удваиваются на 160 м, УКВ и в дни активности. Требуется полный перечень активаторов и их ставок для карточки 2026 года."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r3y/c409e0e74c97c1a12d3ab2e05695e367/",
+    "Title": "Gagarin on Bryansk land - 60",
+    "TextSha256": "0535b154f80b931bf7581240fff77cb6935d882d7e873f7afd0c2375add49885",
+    "Plan": null,
+    "Note": "Положение объединяет разные виды наград. Нужно отделить требования к электронному диплому и группы станций от зачёта плакетки."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r3s/ceddda6399c0f0c743c89d76a8340145/",
+    "Title": "Homeland of the Russian Poet S. A. Yesenin",
+    "TextSha256": "27e140f0e7c06a32e8068dd64a51bd72386e457181525385ed4d01ae4d5e183c",
+    "Plan": null,
+    "Note": "Обычные связи с Рязанской областью дают по 1 очку, в ежегодные дни активности по 3. На 3 октября действует отдельное условие по трём QSO."
+  },
+  {
+    "Url": "https://hamlog.online/club/lefty/a2c2837a0c37b0bd630fe7dba1d3d913/",
+    "Title": "645 Years of the Battle of Kulikovo",
+    "TextSha256": "a7b7f9884c0d72e6f130acd8b9321f1af9788fd66aac764120e9a1dcfc348ff0",
+    "Plan": null,
+    "Note": "Обе группы дают 10 очков. Для зачёта нужны не только члены центра «Левша», но и отдельный список РО СРР по Тульской области."
+  },
+  {
+    "Url": "https://hamlog.online/club/r4cdosaaf/d27ebf73533b61a7971785e003d6d583/",
+    "Title": "In the sky 'Skomorokh'",
+    "TextSha256": "34a7618820cf285e87190ed293c0e442400778d5faa1fe1b03a35808a4b7add1",
+    "Plan": null,
+    "Note": "Учитываются Саратовская область, оба клуба и отдельные позывные R4CQ и RK4CWA. На 160 м и УКВ ставки удваиваются. Нужен список членов СРВС."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r3n/d01934db383479f0d50c13ec7a9d0467/",
+    "Title": "Kostroma - the cradle of the Romanovs",
+    "TextSha256": "e476f528db4e6b798e94ad463216011a129c95f5b034c9db4597482121eff93e",
+    "Plan": null,
+    "Note": "На КВ, УКВ и для RK3NWA действуют разные ставки. Положение также учитывает конкретные режимы на высоких диапазонах."
+  },
+  {
+    "Url": "https://hamlog.online/club/r4cdosaaf/c79a9d53dfd138529a1c20125b2137a2/",
+    "Title": "Engels Industrial and Economic College",
+    "TextSha256": "f9fd25d448053f79cf416473ce1553b8a25a89398254df0f93ee53404267b4ee",
+    "Plan": null,
+    "Note": "Саратовская область и станции из положения имеют разные ставки. Для отдельного зачёта учитывается роль активатора, а на 160 м и УКВ действует множитель."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r4c/a8f87e372e2e2b5441d40d9f804c24db/",
+    "Title": "In memory of Kabdulmazhit Azhinov, RA4CCB",
+    "TextSha256": "0b65cde972aa6780e3e5ca9cb30d264fd1618a41b58c38a8b7cb61f14911c336",
+    "Plan": null,
+    "Note": "Четыре опубликованных позывных дают 25 очков, прочие станции Саратовской области 10. На 160 м обе ставки удваиваются."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r9c/acb198ce8587aded88fe2d7647601e80/",
+    "Title": "Hero Telyatnikov L.P.",
+    "TextSha256": "d926c4ea9c24680253cc29b54a1c9c4446cf327b4ef6f88d365bca459c109e45",
+    "Plan": null,
+    "Note": "Кроме 30 очков нужна связь с обязательной коллективной станцией. Для зачёта остальных контактов требуются перечни МЧС и РАС из приложений."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r9c/d556abf3b59d6f35f7c03f056766e3a6/",
+    "Title": "Hero Zamaraev V.V.",
+    "TextSha256": "58869015e14e38514d40fa84633f80aab41645f082d1cba078593888b447b7ed",
+    "Plan": null,
+    "Note": "Порог 27 очков и обязательная связь с коллективной станцией Уральского института ГПС МЧС. Для других целей нужны списки операторов МЧС и РАС."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r4c/f5e87fe2d86cae300790e6d2b39026f3/",
+    "Title": "Saratov Land - the left bank",
+    "TextSha256": "39297021383e087939204e32adb5343682d8a549a80b9adc065349f4d71c34b3",
+    "Plan": null,
+    "Note": "Для левого берега нужно 8 разных районов из списка, для правого 15. Поиск зависит от списка районов каждого берега и фактического RDA корреспондента."
+  },
+  {
+    "Url": "https://hamlog.online/club/kazan/be5792cd277125309bc1216c86f36bba/",
+    "Title": "Kazan",
+    "TextSha256": "56e447f990e81e51150017a941283495ab2cfa007226e5d460c061c31198c884",
+    "Plan": null,
+    "Note": "Нужны 25 связей и пять разных районов из TA-01 — TA-07. Станции повторно засчитываются на другом диапазоне или другим видом."
+  },
+  {
+    "Url": "https://hamlog.online/club/seafarer/a4298ebc36366f479a6124dac8692092/",
+    "Title": "Kola Arctic - the land of wild nature",
+    "TextSha256": "4f3fb0229043911bf1858e980743fbcf6d5bc6c53f2f3cee6ce6448a65ab52b3",
+    "Plan": null,
+    "Note": "Две связи с Мурманской областью. В положении отдельно упомянуты разные диапазоны и виды, а открытая таблица показывает зачёт по связям. Нужно подтвердить, какие повторы допускают."
+  },
+  {
+    "Url": "https://hamlog.online/club/seafarer/d38ca20a6e4a7fa53d6df48f0cd4f826/",
+    "Title": "Karelia is the birthplace of shungite",
+    "TextSha256": "26673ec657634a1bcc9a9433ecc6a30a9a94bcec1cb7824e0cfdef3d37c6a2f9",
+    "Plan": null,
+    "Note": "Для электронного диплома нужны две связи с Карелией. Уточняется, как HAMLOG применяет требование разных диапазонов и видов."
+  },
+  {
+    "Url": "https://hamlog.online/club/seafarer/fe7410e394490b163a6f2ba5f59fd113/",
+    "Title": "Buryatiya",
+    "TextSha256": "04c3449901e8f6a0dcda1be41add63dd461af2c4f13de93fe93240e786b3e4c5",
+    "Plan": null,
+    "Note": "Две связи с Бурятией. В опубликованном зачёте есть карточки с RDA других областей. Требуется уточнить, как определяется принадлежность к Бурятии в этой карточке."
+  },
+  {
+    "Url": "https://hamlog.online/club/seafarer/ddfba6643fbcf44b37be94552ad2830e/",
+    "Title": "Kaliningrad region - the birthplace of amber",
+    "TextSha256": "318bbc2293df136e750d4a2a6ed7dbfad8b46e685a30524e24037e853e9acc74",
+    "Plan": null,
+    "Note": "Две связи с радиолюбителями Калининградской области. В зачёт также попали связи с RDA другого региона. Требуется подтвердить правило для выездной работы."
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/dd8ac424bbb4dc3c911eede00750d99b/",
+    "Title": "105 years of border troops",
+    "TextSha256": "550b395974494f7fe1ebeab9a202afad893062826a1128f528162c61fc8ac283",
+    "Plan": null,
+    "Note": "В положении две награды и удвоенные ставки для 0-го района. Современный зачёт показывает обычную ставку в 5 очков и после дней активности."
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/f7cbdc2a638f700ae625436e8a13ba6a/",
+    "Title": "Dinamo 100",
+    "TextSha256": "5985fae069adf5c20db53603ac4305ef0ad43ed5b3c163a55a14496d460ce804",
+    "Plan": null,
+    "Note": "Для 0-го района действует удвоенная ставка. Обычной станции HAMLOG выставляет 5 очков и после дней активности, хотя в положении указаны 3."
+  },
+  {
+    "Url": "https://hamlog.online/club/seafarer/e05988296bf0a032b39ad035d7579bd5/",
+    "Title": "Chukotka",
+    "TextSha256": "a5fb1b015a0f43b3aed7f119fbbfbb1d89a11d4dba9b899b425c2f4cd7b8ea39",
+    "Plan": null,
+    "Note": "Для «Чукотки» нужны связи с радиолюбителями региона. Необходимо уточнить, входят ли в зачёт два QSO на одном диапазоне тем же видом с разными станциями."
+  },
+  {
+    "Url": "https://hamlog.online/club/seafarer/b45f65e07f485e1421a29427ecf750a6/",
+    "Title": "Yakutia - homeland of the mammut",
+    "TextSha256": "386a6345a5d056eae845f05b24ec7893d9f376b3704866a7a3c951184a0ba286",
+    "Plan": null,
+    "Note": "Положение описывает электронный диплом за две связи с Якутией, а карточка HAMLOG показывает порог три. Нужна сверка редакций."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r1a/a75954ec9180c819a1a6d4bb4e2fd522/",
+    "Title": "St. Petersburg TV Tower: 60 years on the air",
+    "TextSha256": "3447edef4cba3448957062b0821fd59c267a9002fbb05a233cfe96f96486651a",
+    "Plan": null,
+    "Note": "Кроме 60 очков требуется обязательная связь с RC1B или со станцией из списка сотрудников. У других филиалов своя ставка. Нужен отдельный счётчик обязательной группы."
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/c4529d23cec501996cdd4e80b006891b/",
+    "Title": "USSR 100 - 10 clubs",
+    "TextSha256": "56fcabd241b9638685fe0eb40f776c81e3f5696236cc0594c60374c0c406af37",
+    "Plan": null,
+    "Note": "В совместном зачёте участвуют десять клубов. Нужны их отдельные списки и состав действующих участников после дней активности."
+  },
+  {
+    "Url": "https://hamlog.online/club/comrade/db9dfe864c8ca092db028cab41ea9aad/",
+    "Title": "Saray-Batu",
+    "TextSha256": "da67352d499b38e8f8351f8ffc05dc00ba62e6375241f28538613b74e7d6b2c5",
+    "Plan": null,
+    "Note": "Очки зависят от конкретного района Астраханской области, диапазона и года. В тексте приведён порог 772 для 2022 года. Для новых связей требуется подтвердить текущий порог."
+  },
+  {
+    "Url": "https://hamlog.online/club/comrade/c56a48916cf7d6f8d09bce98edae6c9f/",
+    "Title": "Lake Baskunchak",
+    "TextSha256": "11f7364e30ee563dcf798af241853c096a92a4ce2c50e4dd14aacb6bb61c40b0",
+    "Plan": null,
+    "Note": "Диплом требует 106 очков. Коды районов AO дают разные ставки, на УКВ от 144 МГц очки выше. Нужен район кандидата."
+  },
+  {
+    "Url": "https://hamlog.online/club/comrade/d16fce1445dfabfc5b909f337ff6d063/",
+    "Title": "Saray-Berke",
+    "TextSha256": "96adf5054ee998fba649aa48923722ca5151391f6dae4b402b968ea71e52f135",
+    "Plan": null,
+    "Note": "В 2022 году порог составлял 762. Районы Волгоградской области разделены по ставкам, у VG-29 самая высокая. Требуются актуальный порог и район станции."
+  },
+  {
+    "Url": "https://hamlog.online/club/comrade/ecf32145e668115373987060178a4fa7/",
+    "Title": "Lake Elton",
+    "TextSha256": "ca8db98acbcd44441e2b6fd02d56611f4efae04515e9ceee4d2432d9f896d5c1",
+    "Plan": null,
+    "Note": "Порог 152, у районов VG разные ставки на КВ и УКВ. Без точного района нельзя определить стоимость связи."
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/f354a1d65975b0d75af9ecb4ae926375/",
+    "Title": "Day of activity",
+    "TextSha256": "fa49dedc47e769ebd142491e00ecd3eeda056c63ec3ad24e229614219146a3c9",
+    "Plan": null,
+    "Note": "Позывные R105FSB и R105KGB дают по 10 очков за связь. Для остальных действуют ставки клуба по датам. Для расчёта нужен отдельный зачёт специальных станций."
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/d5c1c02b43a5e1571bb334af98ed3657/",
+    "Title": "Border outpost named after Pavel Zyranov I",
+    "TextSha256": "3c9795a8c8602c1bbaea46668b799cc41bbba804aa9ccb6ef95e78b88ca97c30",
+    "Plan": null,
+    "Note": "Положение требует разных членов клуба для I степени, а HAMLOG подтверждает повторные связи с несколькими позывными. Условия и фактический зачёт расходятся."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r3q/c8473cf9f2fe2a1fa3a9e152410dd8c1/",
+    "Title": "Voronezh Admiralty",
+    "TextSha256": "dcd6d0dc22b833b08e101032e699192989a78c47f7dbce93a84222b1b618efae",
+    "Plan": null,
+    "Note": "Указано зачетное окно 9 июня — 31 декабря 2022 года. Дни активности и диапазоны дают разные очки. Для заявки только на УКВ обязательны десять корреспондентов."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r3p/f5a0b9ee6a01f044bedf0b967e6220b4/",
+    "Title": "Tula",
+    "TextSha256": "b161d71084d4db82fcb3e57616ed6e1d7ed26d963cdeb718943fc8a75b08a076",
+    "Plan": null,
+    "Note": "Общий результат равен очкам за QSO, умноженным на число разных районов RDA Тульской области. Для корректного поиска нужен район кандидата."
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/c3729a290cc9f016ecc0b2349ac341d2/",
+    "Title": "Day of the employee of the security organs of the Russian Federation",
+    "TextSha256": "3a0a57d0ff29335fd48a5b0d24c69ff71f2998e7e5c09d0ee9244ef16c552eae",
+    "Plan": null,
+    "Note": "Позывные R104FSB и R104KGB имеют отдельное условие. После периода активности проверенные строки HAMLOG сохраняют ставку 5 очков, хотя положение указывает 3."
+  },
+  {
+    "Url": "https://hamlog.online/global/russia/r9u/b5d01a49569afc45cbf31e9c71817d74/",
+    "Title": "Miner's glory",
+    "TextSha256": "9f39c9f1f866efdcd38e5fd88ce76c0f2e7e068f831b688b0382c211781dda7d",
+    "Plan": null,
+    "Note": "Разные ставки за станции Кемеровской области, членов СРР и опубликованные позывные. В День шахтёра действует ежегодный множитель, повторы разрешены по диапазону."
+  },
+  {
+    "Url": "https://hamlog.online/club/krv/ff25e4f985c4530baa1f99535cb0c76d/",
+    "Title": "10th anniversary of the Volzhsky Radio Amateurs Club",
+    "TextSha256": "4b55c794658a4775ef5c35a0162d87a1a7f444d31c1ef1413f3041f7799dbaa4",
+    "Plan": null,
+    "Note": "Нужны 10 очков и хотя бы один член клуба «КРВ». Повторы считаются по суткам, диапазону и виду, 19 октября действует удвоение."
+  },
+  {
+    "Url": "https://hamlog.online/club/muzhestvo/c4cb936b8ef5999a1a43c0552d518b33/",
+    "Title": "Donors",
+    "TextSha256": "62f90b29424a737e251f50c930f06487d666f295a5f41eaa517a05b26b3f3fd8",
+    "Plan": null,
+    "Note": "Три степени имеют пороги 10, 20 и 30. Нужны перечень участников клуба «Мужество», таблица надбавок по диапазонам и даты удвоения."
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/c69623174657fe04432541c094f8f9a4/",
+    "Title": "Excellence in border troops",
+    "TextSha256": "8097d9c4c21d93d9ac32387db6c4ead6a2ea2f72cc64427c04293b6335ec9848",
+    "Plan": null,
+    "Note": "В положении после дней активности требуются 30 и 40 разных членов, а карточка HAMLOG показывает 15 и 20. Требуется уточнить действующие пороги обеих степеней."
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/ca80a7a72e6eecbba490e54809507f2f/",
+    "Title": "Border guards",
+    "TextSha256": "b5850a7a920c8659d8e1e1cb3dac8c99b1272155079712fae275468e0ee6dc3e",
+    "Plan": null,
+    "Note": "В положении в зачёт входят также специальные позывные, оформленные на RCPW. Для корректного поиска нужен отдельный список таких позывных."
   }
 ]

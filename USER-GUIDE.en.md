@@ -175,7 +175,7 @@ Select a callsign in **«Станции из левого окна JTDX»** and 
 2. To hide issued awards, click **«Выполненные из кабинета…»** (Completed awards from my account). In your browser, sign in to HAMLOG, open **My received awards** and save it with **Ctrl+S** as **Webpage, HTML only**. Select the saved file in AutoCQ. [Open HAMLOG Awards](https://hamlog.online/account/awards.php)
 3. Choose **«Состояние → Доступны для поиска»** (Status → Available for search) and tick the awards you want in the **«Поиск»** (Search) column. Close the window to save your choices. While JTDX is receiving, choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring). AutoCQ checks available HAMLOG credit and listens on the current band.
 
-![Catalog filters and the explanation for the selected award](docs/awards-demo.png)
+![RDA district credit in the HAMLOG award list](docs/awards-demo.png)
 
 ![Importing a saved page from your HAMLOG account](docs/hamlog-account-demo.png)
 
@@ -190,6 +190,8 @@ Import the saved account page again after receiving new awards. To check an indi
 If a row says **«Проверено · поиск недоступен»** (Reviewed, search unavailable), select it to see the reason below the list. RAEM, for example, counts CW contacts, while Rivers of Russia needs the reference of the river being activated at the time of the QSO.
 
 Each prepared award follows its own repeat-contact rule. For the OE6XMF award, one QSO counts per UTC day, even if the station changes bands or uses a portable callsign. For Stelvio Pass, the points depend on the other station's DXCC entity.
+
+For RDA district awards such as Voronezh Region, AutoCQ tracks progress toward the next available tier. It looks for a new district when the callsign and locator match a known record. Districts come from the main logbook and HAMLOG credit. If two records give different districts for the same callsign and locator, AutoCQ waits for another eligible station.
 
 For My Russia, AutoCQ reads the grid locator from a recent JTDX decode. Each credited square counts once across all bands. For Legendary Gunsmiths of Tula, another QSO with the same station on a different band can count. FT8 and FT4 belong to the same digital mode group on a given band. ARCK 35 Years requires distinct club members, so each callsign counts once. For RDA district awards, AutoCQ needs a known district from earlier HAMLOG credit or from your logbook.
 

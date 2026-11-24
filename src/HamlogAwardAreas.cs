@@ -21,9 +21,14 @@ namespace JtdxAutoCq
         // Regular home calls in the official SRR subject table. A suffix or a special
         // event call must not inherit a subject from these series.
         static readonly Dictionary<string, string> Series = new Dictionary<string, string> {
-            { "AL", "8Y 9Y" }, { "AM", "0J" }, { "AR", "1O" }, { "LP", "2G 3G 5G" },
+            { "AL", "8Y 9Y" }, { "AM", "0J" }, { "AR", "1O" }, { "BR", "2Y 3Y 5Y" },
+            { "BU", "0O" }, { "CK", "0K" }, { "KL", "1N" }, { "KU", "2W 3W 5W" }, { "LO", "1C" },
+            { "LP", "2G 3G 5G" },
             { "MA", "2A 2B 2C 3A 3B 3C 5A 5B 5C" },
             { "MO", "2D 2H 3D 3F 3H 5D 5F 5H" },
+            { "MR", "4S 4T" }, { "MU", "1Z" }, { "OR", "2E 3E 5E" }, { "RO", "6L 6M 6N 7L 7M 7N" },
+            { "SA", "4C 4D" }, { "SM", "2L 3L 5L" }, { "TL", "2P 3P 5P" },
+            { "TA", "4P 4Q 4R" }, { "TV", "2I 3I 5I" }, { "VG", "4A 4B" }, { "VR", "2O 2Q 3K 3O 3Q 5K 5O 5Q" },
         };
         static readonly Regex Country = new Regex(@"\ADXCC [A-Z0-9]{1,8}\z", RegexOptions.CultureInvariant);
         static readonly HashSet<string> RussianDxcc = new HashSet<string> { "UA", "UA2", "UA9", "R1FJ" };

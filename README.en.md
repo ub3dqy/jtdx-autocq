@@ -71,9 +71,11 @@ In **«Дипломы HAMLOG»** (HAMLOG awards), click **«Обновить к�
 
 Select a reviewed award whose search is unavailable to see the reason below the list. For example, a river award needs the reference of the river the station is activating.
 
+For RDA district awards, AutoCQ looks for districts you still need. It matches the callsign and received locator to a district in your main logbook or HAMLOG credit.
+
 After an interruption, **«Продолжить загрузку»** (Resume download) uses documents already downloaded. The AutoCQ log shows the reason for the interruption.
 
-![Award catalog filters and an explanation for the selected award](docs/awards-demo.png)
+![Choosing an award and viewing RDA district credit](docs/awards-demo.png)
 
 The same menu lets you save settings under a name and check **«Итоги сеанса»** (Session results). The results show final confirmations and which records were found in your main logbook. If a callsign remains in the left list, select it and click **«Почему пропущена?»** (Why was this station skipped?).
 

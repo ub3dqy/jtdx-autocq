@@ -17,10 +17,11 @@ static class OperatorToolsTests
             + "<table class='award-results-table'><tbody>" + String.Join("", rows) + "</tbody></table>";
     }
 
-    static string HamlogRow(string call, string date, string band, string mode, string points, bool accepted = true)
+    static string HamlogRow(string call, string date, string band, string mode, string points, bool accepted = true,
+        string county = "", string grid = "")
     {
         return "<tr><td><strong>" + call + "</strong></td><td>" + date + "</td><td>" + band + "</td><td>" + mode
-            + "</td><td></td><td></td><td>" + points + "</td><td><i class='fas fa-"
+            + "</td><td>" + county + "</td><td>" + grid + "</td><td>" + points + "</td><td><i class='fas fa-"
             + (accepted ? "check" : "times") + "'></i></td></tr>";
     }
 
@@ -542,6 +543,73 @@ static class OperatorToolsTests
                 && score.Needs("OE6XMF/M", "40m", "FT8", day.AddDays(1))
                 && !score.Needs("OE6XMF", "40m", "CW", day.AddDays(1)),
                 "A portable variant, a prohibited mode or a new UTC day was counted incorrectly.");
+        });
+
+        run("District awards use HAMLOG's next tier and require an unambiguous new district", () => {
+            const string own = "K1ABC";
+            DateTime now = new DateTime(2026, 11, 24, 12, 0, 0, DateTimeKind.Utc);
+            var award = new AwardProgram { Title = "Example RDA award", Url = "https://hamlog.online/club/demo/7/",
+                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2026-11-01",
+                    Required = 3, MemberPoints = 1, ExtraPoints = 1,
+                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.District, CountyPrefix = "VR",
+                        LastCounty = 44, RetiredCounties = new[] { 8, 10 }, Levels = new[] { 2, 3 } } } };
+            award.Validate();
+            string totals = "<span class='award-dashboard-value'>1 / 2</span><span class='award-dashboard-value'>1 / 3</span>";
+            award.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, totals,
+                HamlogRow("R3QAA", "23 Nov 2026", "20m", "FT8", "-", county: "VR-01", grid: "KO91")),
+                award.Template, own, now);
+            var history = new LogbookHistory("example.adi", new List<LogbookQso> {
+                new LogbookQso { Call = "R3QBB", County = "VR-02", Locator = "KO92AA", StartedUtc = now.AddMonths(-1) },
+                new LogbookQso { Call = "R3QCC", County = "VR-03", Locator = "KO93", StartedUtc = now.AddMonths(-1) },
+                new LogbookQso { Call = "R3QCC", County = "VG-03", Locator = "KO93", StartedUtc = now.AddMonths(-1) },
+                new LogbookQso { Call = "R3QDD", County = "VR-08", Locator = "KO94", StartedUtc = now.AddMonths(-1) },
+                new LogbookQso { Call = "R3QEE/AM", County = "VR-04", Locator = "KO95", StartedUtc = now.AddMonths(-1) },
+            });
+            var progress = new AwardProgress(award, history, own, call => "UA");
+            Check(progress.Online.Required == 2 && progress.Online.Confirmed == 1
+                && progress.Needs("R3QBB", "40m", "FT8", now, "KO92")
+                && !progress.Needs("R3QBB", "40m", "FT8", now, "KO93")
+                && !progress.Needs("R3QAA", "40m", "FT8", now, "KO91")
+                && !progress.Needs("R3QCC", "40m", "FT8", now, "KO93")
+                && !progress.Needs("R3QDD", "40m", "FT8", now, "KO94")
+                && !progress.Needs("R3QEE/AM", "40m", "FT8", now, "KO95")
+                && !progress.Needs("R3QFF", "40m", "FT8", now, "KO92"),
+                "A worked, retired, unverified or ambiguous district was selected.");
+            progress.Online.Record(new LogbookQso { Call = "R3QBB", Band = "40m", Mode = "FT8", Locator = "KO92", StartedUtc = now });
+            Check(!progress.Available("40m", "FT8", now) && !progress.Complete,
+                "A logged district should stop further calls toward the tier while it awaits confirmation.");
+        });
+
+        run("RCPW preserves published rates, adopts a corroborated online rate and groups a member's calls", () => {
+            const string own = "K1ABC";
+            DateTime boundary = new DateTime(2024, 2, 3, 0, 0, 0, DateTimeKind.Utc);
+            var plan = new HamlogRulePlan { Kind = "rcpw-hunter", Required = 100, AlternativeRequired = 100,
+                FromUtc = "2024-01-26", BonusUntilUtc = "2024-02-03", MemberPoints = 3, ExtraPoints = 5, RcpwOnlineAfterPoints = 5 };
+            var award = new AwardProgram { Title = "Example club points", Url = "https://hamlog.online/club/demo/8/", DownloadedRules = plan };
+            award.Validate();
+            var members = HamlogRcpwRoster.ParseMembers("<table><tr><td>#12</td><td>R3QAA, R3QAB</td><td>Member</td></tr>"
+                + "<tr><td>#13</td><td>R3QBB</td><td>Member</td></tr></table>");
+            string totals = "<span class='award-dashboard-value'>5 / 100</span>";
+            award.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, totals, HamlogRow("R3QAA", "3 Feb 2024", "20m", "FT8", "5")),
+                award.Template, own, boundary);
+            award.Hamlog.RcpwMembers = members.Keys.ToArray();
+            var log = new LogbookHistory("example.adi", new List<LogbookQso>());
+            var score = new AwardProgress(award, log, own, call => "UA");
+            Check(award.Hamlog.RcpwAfterPoints == 5 && score.Points.CandidatePoints("R3QBB", "40m", "FT8", boundary) == 5,
+                "The corroborated HAMLOG rate was not used for pending contacts.");
+            var empty = HamlogStandingClient.Parse(HamlogPage(own, ""), award.Template, own, boundary);
+            Check(empty.RcpwAfterPoints == 3, "The published rate was not used for an empty standing.");
+            award.DownloadedRules = new HamlogRulePlan { Kind = "contact-points", Required = 25, MemberPoints = 1, ExtraPoints = 1,
+                Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.Call, Roster = "rcpw" } };
+            award.Validate();
+            award.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, "<span class='award-dashboard-value'>1 / 25</span>",
+                HamlogRow("R3QAA", "3 Feb 2024", "20m", "FT8", "1")), award.Template, own, boundary);
+            var membership = members.ToArray();
+            award.Hamlog.RcpwMemberNumbers = membership.Select(member => member.Value).ToArray();
+            award.Hamlog.RcpwMembers = membership.Select(member => member.Key).ToArray();
+            score = new AwardProgress(award, log, own, call => "UA");
+            Check(!score.Needs("R3QAB", "40m", "FT8", boundary) && score.Needs("R3QBB", "40m", "FT8", boundary),
+                "A previously worked member's alternate callsign was selected again.");
         });
 
         run("Catalog refresh and re-reading conditions preserve an edited rule and keep the new original", () => {
