@@ -431,7 +431,8 @@ namespace JtdxAutoCq
                 : Program.UsesLocalTargets && CompletedGoals == goals.Length); } }
         internal bool Expired(DateTime now) { return until.HasValue && now >= until.Value; }
         internal bool Upcoming(DateTime now) { return from.HasValue && now < from.Value; }
-        internal bool CanSelectForSearch(DateTime now) { return Program.HasSearchRules && Within(now) && !Complete; }
+        internal bool CanSelectForSearch(DateTime now)
+        { return Program.HasSearchRules && Within(now) && !Complete && (Points == null || !Points.IsMember); }
         internal DateTime NextValidityChange(DateTime now)
         {
             if (Expired(now)) return DateTime.MaxValue;
@@ -447,7 +448,7 @@ namespace JtdxAutoCq
         internal bool Needs(string call, string band, string mode, DateTime time, string grid = null)
         {
             return CanSelectForSearch(time) && (Online != null ? Online.Needs(call, band, mode, time, grid)
-                : Points != null ? Points.CandidatePoints(call, band, mode, time) > 0
+                : Points != null ? Points.CandidatePoints(call, band, mode, time, grid) > 0
                 : Program.UsesLocalTargets && goals.Any(goal => goal.Needs(call, band, mode)));
         }
         internal void Record(string call, string band, string mode, DateTime? time)
@@ -481,7 +482,7 @@ namespace JtdxAutoCq
             AwardProgress[] matches = programs.Where(program => program.Needs(call, band, mode, now, grid)).ToArray();
             if (matches.Length == 0) return "Станция не подходит для выбранных дипломов на текущем диапазоне и в этом виде работы.";
             string names = String.Join(", ", matches.Select(program => program.Program.Title + (program.Points == null ? ""
-                : " (+" + program.Points.CandidatePoints(call, band, mode, now).ToString("0.##") + " очк.)")));
+                : " (+" + program.Points.CandidatePoints(call, band, mode, now, grid).ToString("0.##") + " очк.)")));
             string square = matches.Any(program => program.Program.Template == HamlogAward.Russia)
                 ? " Незачтённый квадрат " + AwardLocator.Parse(grid) + "." : "";
             var districts = matches.Where(program => program.Online != null).Select(program => program.Online.NeededDistrict(call, grid))
@@ -502,7 +503,8 @@ namespace JtdxAutoCq
             foreach (AwardProgress program in programs)
             {
                 if (program.Online != null) program.Online.Record(contact);
-                else if (program.Points != null) program.Record(contact.Call, band, mode, contact.StartedUtc);
+                else if (program.Points != null)
+                    program.Points.Record(contact.Call, band, mode, contact.StartedUtc.Value, contact.County, contact.Locator);
             }
         }
     }

@@ -16,9 +16,33 @@ namespace JtdxAutoCq
         }
     }
 
-    internal sealed class HamlogOnlineProgress
+    internal sealed class HamlogCountyIndex
     {
         static readonly Regex CountyCode = new Regex(@"\A[A-Z]{2}-[0-9]{2}\z", RegexOptions.CultureInvariant);
+        readonly Dictionary<string, HashSet<string>> records = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+
+        internal static bool IsCounty(string value) { return CountyCode.IsMatch(value ?? ""); }
+
+        internal void Add(string call, string grid, string county)
+        {
+            grid = AwardLocator.Parse(grid);
+            if (grid == null || !IsCounty(county) || String.IsNullOrEmpty(call)) return;
+            string key = call + "|" + grid;
+            HashSet<string> values;
+            if (!records.TryGetValue(key, out values)) records.Add(key, values = new HashSet<string>(StringComparer.Ordinal));
+            values.Add(county);
+        }
+
+        internal string Find(string call, string grid)
+        {
+            grid = AwardLocator.Parse(grid);
+            HashSet<string> values;
+            return grid != null && records.TryGetValue(call + "|" + grid, out values) && values.Count == 1 ? values.First() : null;
+        }
+    }
+
+    internal sealed class HamlogOnlineProgress
+    {
         static readonly HashSet<string> RussianDxcc = new HashSet<string> { "UA", "UA2", "UA9", "R1FJ" };
         static readonly HashSet<string> TulaSeries = new HashSet<string> { "2P", "3P", "5P" };
         static readonly HashSet<string> TatarstanSeries = new HashSet<string> { "4P", "4Q", "4R" };
@@ -34,7 +58,7 @@ namespace JtdxAutoCq
         readonly HashSet<string> worked = new HashSet<string>(StringComparer.Ordinal);
         readonly HashSet<string> counties = new HashSet<string>(StringComparer.Ordinal);
         readonly HashSet<string> confirmedCounties = new HashSet<string>(StringComparer.Ordinal);
-        readonly Dictionary<string, HashSet<string>> reportedCounties = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        readonly HamlogCountyIndex reportedCounties = new HamlogCountyIndex();
         readonly DateTime? from, until;
         int pending;
 
@@ -72,7 +96,7 @@ namespace JtdxAutoCq
             foreach (HamlogCredit credit in Standing.Credits)
             {
                 string county = AwardCounty(credit.Call, credit.County);
-                RememberCounty(credit.Call, credit.Locator, districts == null ? county : credit.County);
+                reportedCounties.Add(credit.Call, credit.Locator, districts == null ? county : credit.County);
                 string mode = HamlogPointProgress.ModeGroup(credit.Mode);
                 if (award.Rule == HamlogRule.Bryansk && mode != "DIGI") continue;
                 if (county != null) confirmedCounties.Add(county);
@@ -86,7 +110,7 @@ namespace JtdxAutoCq
             foreach (LogbookQso row in history.Records)
             {
                 if (!row.BelongsTo(this.own)) continue;
-                RememberCounty(row.Call, row.Locator, districts == null ? AwardCounty(row.Call, row.County) : row.County);
+                reportedCounties.Add(row.Call, row.Locator, districts == null ? AwardCounty(row.Call, row.County) : row.County);
             }
             if (award.Rule == HamlogRule.Tula || award.Rule == HamlogRule.Tatarstan
                 || award.Rule == HamlogRule.Marathon || award.Rule == HamlogRule.Vysotsky || award.Rule == HamlogRule.Arck35 || districts != null)
@@ -97,27 +121,15 @@ namespace JtdxAutoCq
         string AwardCounty(string call, string value)
         {
             if (districts != null) return districts.DistrictCode(call, value);
-            if (!CountyCode.IsMatch(value ?? "")) return null;
+            if (!HamlogCountyIndex.IsCounty(value)) return null;
             if (award.Rule == HamlogRule.Tatarstan && (!value.StartsWith("TA-", StringComparison.Ordinal)
                 || String.CompareOrdinal(value, "TA-01") < 0 || String.CompareOrdinal(value, "TA-63") > 0)) return null;
             return award.Rule == HamlogRule.Bryansk && !value.StartsWith("BR-", StringComparison.Ordinal) ? null : value;
         }
 
-        void RememberCounty(string call, string grid, string county)
-        {
-            grid = AwardLocator.Parse(grid);
-            if (grid == null || !CountyCode.IsMatch(county ?? "") || String.IsNullOrEmpty(call)) return;
-            string key = call + "|" + grid;
-            HashSet<string> values;
-            if (!reportedCounties.TryGetValue(key, out values)) reportedCounties.Add(key, values = new HashSet<string>());
-            values.Add(county);
-        }
-
         string CountyAt(string call, string grid)
         {
-            HashSet<string> values;
-            return grid != null && reportedCounties.TryGetValue(call + "|" + grid, out values) && values.Count == 1
-                ? AwardCounty(call, values.First()) : null;
+            return AwardCounty(call, reportedCounties.Find(call, grid));
         }
 
         internal string NeededDistrict(string call, string grid)

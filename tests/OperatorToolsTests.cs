@@ -580,6 +580,86 @@ static class OperatorToolsTests
                 "A logged district should stop further calls toward the tier while it awaits confirmation.");
         });
 
+        run("Point awards keep searching for required districts after their main threshold is met", () => {
+            const string own = "K1ABC";
+            DateTime now = new DateTime(2026, 11, 24, 0, 0, 0, DateTimeKind.Utc);
+            var award = new AwardProgram { Title = "Example city award", Url = "https://hamlog.online/club/demo/77/", Selected = true,
+                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", Required = 2, MemberPoints = 1, ExtraPoints = 1,
+                    FromUtc = "2026-01-01", Contacts = new HamlogContactCriteria {
+                        Repeat = HamlogContactCriteria.BandMode, GroupModes = true, CountyPrefix = "TA", LastCounty = 7,
+                        Additional = new[] { new HamlogContactRequirement {
+                            Kind = HamlogContactRequirement.Counties, Required = 2, ReportedByHamlog = true } }
+                    }
+                }
+            };
+            award.Validate();
+            string primary = "<span class='award-dashboard-value'>2 / 2</span>";
+            string secondary = "<li>Required counties: <span class='award-dashboard-value'>1 / 2</span></li>";
+            string first = HamlogRow("R4PAA", "22 Nov 2026", "80m", "FT8", "1", true, "TA-01", "LO44");
+            string second = HamlogRow("R4PAB", "23 Nov 2026", "80m", "FT8", "1", true, "TA-01", "LO44");
+            award.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, primary + secondary, first, second), award.Template, own, now);
+            foreach (string invalid in new[] { "", secondary.Replace("1 / 2", "2 / 2") })
+            {
+                bool rejected = false;
+                try { HamlogStandingClient.Parse(HamlogPage(own, primary + invalid, first, second), award.Template, own, now); }
+                catch (InvalidDataException) { rejected = true; }
+                Check(rejected, "An absent or incorrect required district count was accepted.");
+            }
+            var old = new LogbookQso { Call = "R4PBA", Station = own, Band = "80m", Mode = "FT8",
+                Locator = "LO45", County = "TA-02", StartedUtc = now.AddYears(-1) };
+            var search = new AwardSearch(new AwardCatalog { Programs = new List<AwardProgram> { award } },
+                new LogbookHistory("example.adi", new List<LogbookQso> { old }), own, "40m", "FT8", call => "UA");
+            Check(search.Available(now) == 1 && search.Score("R4PBA", now, "LO45") == 1
+                && search.Score("R4PBA", now, "LO46") == 0 && search.Score("R4PAA", now, "LO44") == 0,
+                "After the main target, the search selected a used or unknown district or missed the last district.");
+            search.Record(new LogbookQso { Call = "R4PBA", Station = own, Band = "40m", Mode = "FT8",
+                Locator = "LO45", StartedUtc = now });
+            Check(search.Available(now) == 0 && award.Hamlog.Points == 2 && award.Hamlog.Credits.Count == 2,
+                "The confirmed total was modified or the pending district did not stop the search.");
+        });
+
+        run("Mandatory district contacts and separate score multipliers survive the preferences round trip", () => {
+            const string own = "K1ABC";
+            DateTime boundary = new DateTime(2026, 11, 23, 21, 0, 0, DateTimeKind.Utc);
+            var award = new AwardProgram { Title = "Example activity", Url = "https://hamlog.online/club/demo/78/",
+                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2026-11-20",
+                    Required = 30, MemberPoints = 1, ExtraPoints = 20, Calls = new[] { "R4CAA" },
+                    BonusGroups = new[] { new HamlogBonusGroup { Area = true, Points = 10, Targets = new[] { "SA-45" } } },
+                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.BandMode,
+                        Additional = new[] { new HamlogContactRequirement { Kind = HamlogContactRequirement.CountyContacts,
+                            CountyCodes = new[] { "SA-45" }, Required = 2, ReportedByHamlog = true } },
+                        Adjustments = new[] {
+                            new HamlogPointAdjustment { Factor = 2, Bands = new[] { "160m" } },
+                            new HamlogPointAdjustment { Factor = 2, FromUtc = "2026-11-23T21:00:00Z", UntilUtc = "2026-11-24T21:00:00Z" }
+                        }
+                    }
+                }
+            };
+            award.Validate();
+            var settings = new AppPreferences();
+            settings.Awards.Programs.Add(award);
+            var store = new AppPreferencesStore(TestWorkspace.Create());
+            store.Save(settings);
+            award = store.Load().Awards.Programs.Single();
+            string totals = "<span class='award-dashboard-value'>20 / 30</span>"
+                + "<li>Required station contacts: <span class='award-dashboard-value'>1 / 2</span></li>";
+            award.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, totals,
+                HamlogRow("R4CBB", "23 Nov 2026", "160m", "FT8", "20", true, "SA-45", "LO42")), award.Template, own, boundary);
+            var score = new HamlogPointProgress(award, new LogbookHistory("example.adi", new List<LogbookQso>()), own, call => "UA");
+            Check(score.CandidatePoints("R4CBB", "40m", "FT8", boundary.AddSeconds(-1), "LO42") == 10
+                && score.CandidatePoints("R4CBB", "40m", "FT8", boundary, "LO42") == 20
+                && score.CandidatePoints("R4CBB", "40m", "FT8", boundary.AddDays(1), "LO42") == 10
+                && score.CandidatePoints("R4CAA", "160m", "FT8", boundary) == 80,
+                "The listed UTC window, exact district and band multiplier were not combined correctly.");
+            score.Record("R4CAA", "160m", "FT8", boundary);
+            Check(!score.PendingEnough && score.CandidatePoints("R4CAA", "40m", "FT8", boundary) == 0
+                && score.CandidatePoints("R4CBB", "40m", "FT8", boundary, "LO42") == 20,
+                "Additional points alone satisfied a required district contact.");
+            score.Record("R4CBB", "40m", "FT8", boundary, locator: "LO42");
+            Check(score.PendingEnough && !score.ConfirmedComplete,
+                "A second qualifying QSO in the same district did not satisfy the contact quota pending confirmation.");
+        });
+
         run("RCPW preserves published rates, adopts a corroborated online rate and groups a member's calls", () => {
             const string own = "K1ABC";
             DateTime boundary = new DateTime(2024, 2, 3, 0, 0, 0, DateTimeKind.Utc);

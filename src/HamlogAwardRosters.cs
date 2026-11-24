@@ -5,6 +5,36 @@ namespace JtdxAutoCq
 {
     internal static class HamlogAwardRosters
     {
+        internal static string Label(string roster)
+        {
+            switch (roster)
+            {
+                case "rcpw": return "членов клуба RCPW";
+                case "lefty": return "членов центра «Левша»";
+                case "arck": return "членов клуба ARCK";
+                case "arck-dx": return "членов ARCK за пределами России";
+                case "miller": return "членов клуба MILLER-DX";
+                case "afaru": return "членов СРВС";
+                case "fifth-ocean": return "членов клуба «Пятый Океан»";
+                case "afaru-fifth-ocean": return "членов СРВС и клуба «Пятый Океан»";
+                default: return "членов клуба из положения";
+            }
+        }
+        internal static HashSet<string> For(string roster)
+        {
+            switch (roster)
+            {
+                case "arck":
+                case "arck-dx": return Arck;
+                case "lefty": return Lefty;
+                case "afaru": return HamlogPublishedRosters.Afaru;
+                case "fifth-ocean": return HamlogPublishedRosters.FifthOcean;
+                case "afaru-fifth-ocean": return HamlogPublishedRosters.AfaruAndFifthOcean;
+                case "miller": return Miller;
+                default: return null;
+            }
+        }
+
         // The club publishes callsigns separately from most of its award documents.
         // https://rk3pwa.ru/viewtopic.php?f=2&t=3
         internal static readonly HashSet<string> Lefty = Calls(

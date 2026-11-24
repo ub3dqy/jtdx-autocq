@@ -133,6 +133,7 @@ $entries = [ordered]@{
     'docs/award-points-journal-demo.png' = 'docs/award-points-journal-demo.png'
     'docs/hamlog-account-demo.png' = 'docs/hamlog-account-demo.png'
     'docs/hamlog-plan-demo.png' = 'docs/hamlog-plan-demo.png'
+    'docs/hamlog-additional-demo.png' = 'docs/hamlog-additional-demo.png'
     'docs/award-catalog.md' = 'docs/award-catalog.md'
     'docs/pdfpig-license.md' = 'docs/pdfpig-license.md'
     'docs/dotnet-license.md' = 'docs/dotnet-license.md'

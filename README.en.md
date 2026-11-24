@@ -67,7 +67,9 @@ Spotted an interesting station outside your targets? While monitoring is listeni
 
 Open **«Журнал и дипломы»** (Logbook and awards) to select your LogHX logbook or an ADIF export from another program. AutoCQ uses that history, including voice and contacts made through other software. In **«Подбор целей DXCC»** (Find DXCC targets), select a band and tick the entities that you still need on that band.
 
-In **«Дипломы HAMLOG»** (HAMLOG awards), click **«Обновить каталог»** (Update catalog). If **«Разобрать скачанное»** (Process downloaded rules) appears after an AutoCQ update, click it to process your saved documents first. Filter for awards available for search, tick the awards you want, close the window, and choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring). Double-click an award to see its conditions. Supported RCPW awards show the rates for contacts during and after the activity period. [How to prepare awards and start monitoring](USER-GUIDE.en.md#search-for-hamlog-award-contacts)
+In **«Дипломы HAMLOG»** (HAMLOG awards), click **«Обновить каталог»** (Update catalog). If **«Разобрать скачанное»** (Process downloaded rules) appears after an AutoCQ update, click it to process your saved documents first. Filter for awards available for search, tick the awards you want, close the window, and choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring).
+
+Double-click an award to see its search rules. **«Зачёт и надбавки»** (Required contacts and bonuses) shows any mandatory callsigns, districts or extra points for particular dates and bands. For Kazan, AutoCQ shows the number of contacts and the number of districts separately. [How to prepare awards and start monitoring](USER-GUIDE.en.md#search-for-hamlog-award-contacts)
 
 Select a reviewed award whose search is unavailable to see the reason below the list. For example, a river award needs the reference of the river the station is activating.
 

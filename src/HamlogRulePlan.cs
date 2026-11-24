@@ -111,12 +111,17 @@ namespace JtdxAutoCq
             Call = "call", Band = "band", Day = "day", District = "district";
         public string Repeat, BonusFromUtc, BonusUntilUtc, Roster, CountyPrefix;
         public int LastCounty;
-        public bool GroupModes, PortableAliases, AcceptObserverCredit;
+        public bool GroupModes, PortableAliases, AcceptObserverCredit, ActivatorRoster;
+        public string[] ActivatorAreas = new string[0];
         public string[] Countries = new string[0];
         public string[] Bands = new string[0];
         public string[] Modes = new string[0];
         public int[] Levels = new int[0];
         public int[] RetiredCounties = new int[0];
+        public HamlogContactRequirement[] Additional = new HamlogContactRequirement[0];
+        public HamlogPointAdjustment[] Adjustments = new HamlogPointAdjustment[0];
+
+        internal bool RestrictsCounties { get { return !String.IsNullOrEmpty(CountyPrefix); } }
 
         internal void Validate(int required, string[] calls, bool areaGroups)
         {
@@ -126,22 +131,34 @@ namespace JtdxAutoCq
             Countries = (Countries ?? new string[0]).Distinct(StringComparer.Ordinal).ToArray();
             Bands = (Bands ?? new string[0]).Distinct(StringComparer.Ordinal).ToArray();
             Modes = (Modes ?? new string[0]).Distinct(StringComparer.Ordinal).ToArray();
+            ActivatorAreas = (ActivatorAreas ?? new string[0]).Distinct(StringComparer.Ordinal).ToArray();
             Levels = (Levels ?? new int[0]).Distinct().OrderBy(level => level).ToArray();
             RetiredCounties = (RetiredCounties ?? new int[0]).Distinct().OrderBy(code => code).ToArray();
+            Additional = Additional ?? new HamlogContactRequirement[0];
+            Adjustments = Adjustments ?? new HamlogPointAdjustment[0];
             if (Countries.Any(country => !Regex.IsMatch(country ?? "", @"\A[A-Z0-9]{1,8}\z"))
                 || Bands.Any(band => !JtdxAdif.BandNames.Contains(band))
                 || Modes.Any(mode => mode != "DIGI" && mode != "SSB" && mode != "CW")
-                || Repeat != District && Countries.Length == 0 && calls.Length == 0 && String.IsNullOrEmpty(Roster) && !areaGroups
-                || !String.IsNullOrEmpty(Roster) && Roster != "arck" && Roster != "arck-dx" && Roster != "rcpw" && Roster != "lefty"
+                || !RestrictsCounties && Countries.Length == 0 && calls.Length == 0 && String.IsNullOrEmpty(Roster) && !areaGroups
+                || !String.IsNullOrEmpty(Roster) && Roster != "rcpw" && HamlogAwardRosters.For(Roster) == null
+                || ActivatorRoster && String.IsNullOrEmpty(Roster) || ActivatorAreas.Any(area => !HamlogAwardAreas.Known(area))
                 || PortableAliases && (calls.Length == 0 || calls.Any(call => call.Contains("/")))
                 || Levels.Length != 0 && (Levels.First() < 1 || Levels.Last() != required))
                 throw new InvalidDataException("Проверьте территории, диапазоны и степени диплома.");
-            if (Repeat == District ? !Regex.IsMatch(CountyPrefix ?? "", @"\A[A-Z]{2}\z")
-                || LastCounty - RetiredCounties.Length < required || LastCounty > 99 || Countries.Length != 0 || calls.Length != 0
-                || RetiredCounties.Any(code => code < 1 || code > LastCounty)
-                || !String.IsNullOrEmpty(Roster) || areaGroups
-                : !String.IsNullOrEmpty(CountyPrefix) || LastCounty != 0 || RetiredCounties.Length != 0)
+            if (RestrictsCounties && (!Regex.IsMatch(CountyPrefix, @"\A[A-Z]{2}\z") || LastCounty < 1 || LastCounty > 99
+                || RetiredCounties.Any(code => code < 1 || code > LastCounty))
+                || !RestrictsCounties && (LastCounty != 0 || RetiredCounties.Length != 0)
+                || Repeat == District && (!RestrictsCounties || LastCounty - RetiredCounties.Length < required
+                    || Countries.Length != 0 || calls.Length != 0 || !String.IsNullOrEmpty(Roster) || areaGroups
+                    || Additional.Length != 0 || Adjustments.Length != 0))
                 throw new InvalidDataException("Проверьте код области и список районов RDA.");
+            if (Additional.Length > 2 || Additional.Any(condition => condition == null)
+                || Additional.Where(condition => condition.ReportedByHamlog)
+                    .GroupBy(condition => condition.Kind == HamlogContactRequirement.Counties).Any(group => group.Count() > 1)
+                || Adjustments.Length > 8 || Adjustments.Any(adjustment => adjustment == null))
+                throw new InvalidDataException("Проверьте дополнительные условия диплома.");
+            foreach (HamlogContactRequirement condition in Additional) condition.Validate(this);
+            foreach (HamlogPointAdjustment adjustment in Adjustments) adjustment.Validate();
             DateTime? from = AwardCatalog.ReadTime(BonusFromUtc), until = AwardCatalog.ReadTime(BonusUntilUtc);
             if (from.HasValue != until.HasValue || from.HasValue && from >= until)
                 throw new InvalidDataException("Проверьте начало и окончание периода для специальных позывных.");
@@ -151,15 +168,32 @@ namespace JtdxAutoCq
         {
             return other != null && Repeat == other.Repeat && GroupModes == other.GroupModes && PortableAliases == other.PortableAliases
                 && AcceptObserverCredit == other.AcceptObserverCredit
+                && ActivatorRoster == other.ActivatorRoster && ActivatorAreas.SequenceEqual(other.ActivatorAreas)
                 && (Roster ?? "") == (other.Roster ?? "")
                 && (CountyPrefix ?? "") == (other.CountyPrefix ?? "") && LastCounty == other.LastCounty
                 && RetiredCounties.SequenceEqual(other.RetiredCounties)
+                && Additional.Length == other.Additional.Length && Additional.Zip(other.Additional, (first, second) => first.SameAs(second)).All(same => same)
+                && Adjustments.Length == other.Adjustments.Length && Adjustments.Zip(other.Adjustments, (first, second) => first.SameAs(second)).All(same => same)
                 && (BonusFromUtc ?? "") == (other.BonusFromUtc ?? "") && (BonusUntilUtc ?? "") == (other.BonusUntilUtc ?? "")
                 && Countries.SequenceEqual(other.Countries) && Bands.SequenceEqual(other.Bands)
                 && Modes.SequenceEqual(other.Modes) && Levels.SequenceEqual(other.Levels);
         }
 
         internal string NamedCall(string call) { return PortableAliases ? Callsign.BaseCall(call) : call; }
+
+        internal decimal Adjust(decimal points, string band, DateTime time)
+        {
+            foreach (HamlogPointAdjustment adjustment in Adjustments) points = adjustment.Apply(points, band, time);
+            return points;
+        }
+
+        internal bool MatchesPoints(int points, HamlogCredit credit)
+        {
+            if (Adjustments.Length == 0) return points == credit.Points;
+            DateTime day = credit.DayUtc.Date;
+            return new[] { day }.Concat(Adjustments.SelectMany(adjustment => adjustment.Boundaries(day)))
+                .Any(time => Adjust(points, credit.Band, time) == credit.Points);
+        }
 
         internal bool AllowsBandMode(string band, string group)
         {
@@ -169,17 +203,22 @@ namespace JtdxAutoCq
 
         internal string DistrictCode(string call, string county, bool allowRetired = false)
         {
-            if (String.IsNullOrEmpty(call) || call.EndsWith("/AM", StringComparison.Ordinal) || county == null
-                || county.Length != 5 || !county.StartsWith(CountyPrefix + "-", StringComparison.Ordinal)) return null;
+            return !String.IsNullOrEmpty(call) && !call.EndsWith("/AM", StringComparison.Ordinal)
+                && InCountyScope(county, allowRetired) ? county : null;
+        }
+
+        internal bool InCountyScope(string county, bool allowRetired)
+        {
+            if (county == null || county.Length != 5 || !county.StartsWith(CountyPrefix + "-", StringComparison.Ordinal)) return false;
             int code;
             return Int32.TryParse(county.Substring(3), NumberStyles.None, CultureInfo.InvariantCulture, out code)
-                && code > 0 && code <= LastCounty && (allowRetired || !RetiredCounties.Contains(code)) ? county : null;
+                && code > 0 && code <= LastCounty && (allowRetired || !RetiredCounties.Contains(code));
         }
     }
 
     internal static class HamlogPlanCompiler
     {
-        internal const int Version = 4;
+        internal const int Version = 5;
         const string Day = @"\d{1,2} [а-яё]+ \d{4}";
         const string Points = @"\s*(?:[-–—]\s*)?(?<count>\d{1,4})\s*оч(?:ков|ка|ко)\.?";
         static readonly Regex Sky = Pattern(

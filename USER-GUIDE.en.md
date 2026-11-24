@@ -175,7 +175,7 @@ Select a callsign in **«Станции из левого окна JTDX»** and 
 2. To hide issued awards, click **«Выполненные из кабинета…»** (Completed awards from my account). In your browser, sign in to HAMLOG, open **My received awards** and save it with **Ctrl+S** as **Webpage, HTML only**. Select the saved file in AutoCQ. [Open HAMLOG Awards](https://hamlog.online/account/awards.php)
 3. Choose **«Состояние → Доступны для поиска»** (Status → Available for search) and tick the awards you want in the **«Поиск»** (Search) column. Close the window to save your choices. While JTDX is receiving, choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring). AutoCQ checks available HAMLOG credit and listens on the current band.
 
-![RDA district credit in the HAMLOG award list](docs/awards-demo.png)
+![Kazan contact and district credit in the HAMLOG award list](docs/awards-demo.png)
 
 ![Importing a saved page from your HAMLOG account](docs/hamlog-account-demo.png)
 
@@ -192,6 +192,12 @@ If a row says **«Проверено · поиск недоступен»** (Rev
 Each prepared award follows its own repeat-contact rule. For the OE6XMF award, one QSO counts per UTC day, even if the station changes bands or uses a portable callsign. For Stelvio Pass, the points depend on the other station's DXCC entity.
 
 For RDA district awards such as Voronezh Region, AutoCQ tracks progress toward the next available tier. It looks for a new district when the callsign and locator match a known record. Districts come from the main logbook and HAMLOG credit. If two records give different districts for the same callsign and locator, AutoCQ waits for another eligible station.
+
+Kazan has two requirements. You need 25 credited contacts and five different city districts. If you see **«25 из 25 · 4 из 5»** (25 of 25, 4 of 5), AutoCQ looks for a station in a fifth district. St. Petersburg TV Tower requires 60 points plus a contact with RC1B or one of the operators named in the rules. [Kazan rules](https://hamlog.online/club/kazan/be5792cd277125309bc1216c86f36bba/rules/) · [TV Tower rules](https://hamlog.online/global/russia/r1a/a75954ec9180c819a1a6d4bb4e2fd522/rules/)
+
+To see the additional conditions, double-click the award and choose **«Зачёт и надбавки»** (Required contacts and bonuses). The window shows mandatory districts, callsigns and any extra points for a date or band. After making changes, click **«Применить»** (Apply), followed by **«Сохранить»** (Save) in the rule editor. When AutoCQ checks credit again, it verifies any mandatory counters supplied by HAMLOG. **«Вернуть исходные»** (Restore original rules) restores the published settings.
+
+![Mandatory districts in the Kazan award rules](docs/hamlog-additional-demo.png)
 
 For My Russia, AutoCQ reads the grid locator from a recent JTDX decode. Each credited square counts once across all bands. For Legendary Gunsmiths of Tula, another QSO with the same station on a different band can count. FT8 and FT4 belong to the same digital mode group on a given band. ARCK 35 Years requires distinct club members, so each callsign counts once. For RDA district awards, AutoCQ needs a known district from earlier HAMLOG credit or from your logbook.
 

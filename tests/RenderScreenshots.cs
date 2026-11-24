@@ -146,7 +146,7 @@ static class RenderScreenshots
             string awardCache = Path.Combine(Path.GetTempPath(), "AutoCQ-demo-" + Guid.NewGuid().ToString("N"));
             string[] names = { "logbook-source-demo.png", "profiles-demo.png", "dxcc-targets-demo.png",
                 "station-reason-demo.png", "session-summary-demo.png", "awards-demo.png", "award-goals-demo.png",
-                "award-points-journal-demo.png", "hamlog-account-demo.png", "hamlog-plan-demo.png" };
+                "award-points-journal-demo.png", "hamlog-account-demo.png", "hamlog-plan-demo.png", "hamlog-additional-demo.png" };
             try
             {
                 var screens = (Form[])Invoke(form,"OperatorToolsDemoForms", awardCache);
@@ -154,7 +154,8 @@ static class RenderScreenshots
                 {
                     for (int index = 0; index < screens.Length; index++)
                         Save(screens[index], Path.Combine(directory, names[index]),
-                            showOffscreen: names[index] == "awards-demo.png" || names[index] == "hamlog-plan-demo.png");
+                            showOffscreen: names[index] == "awards-demo.png" || names[index] == "hamlog-plan-demo.png"
+                                || names[index] == "hamlog-additional-demo.png");
                 }
                 finally { foreach (Form screen in screens) screen.Dispose(); }
             }

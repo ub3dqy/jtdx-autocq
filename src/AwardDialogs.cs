@@ -69,9 +69,9 @@ namespace JtdxAutoCq
                 HeaderText = "Поиск", AutoSizeMode = DataGridViewAutoSizeColumnMode.None, Width = 63
             });
             foreach (var column in new[] {
-                new DataGridViewTextBoxColumn { HeaderText = "Диплом", FillWeight = 43 },
-                new DataGridViewTextBoxColumn { HeaderText = "Зачёт или цели", FillWeight = 14 },
-                new DataGridViewTextBoxColumn { HeaderText = "Вне зачёта", FillWeight = 13 },
+                new DataGridViewTextBoxColumn { HeaderText = "Диплом", FillWeight = 39 },
+                new DataGridViewTextBoxColumn { HeaderText = "Зачёт или цели", FillWeight = 20 },
+                new DataGridViewTextBoxColumn { HeaderText = "Вне зачёта", FillWeight = 11 },
                 new DataGridViewTextBoxColumn { HeaderText = "Состояние", FillWeight = 30 }
             })
             {
@@ -186,7 +186,8 @@ namespace JtdxAutoCq
                 HamlogStanding standing = status.Points.Standing;
                 if (standing == null) return "—";
                 return Points(standing.Points) + " из " + status.Points.Required
-                    + (standing.ProvisionalRequired ? " / " + status.Program.EffectiveRules.Required : "");
+                    + (standing.ProvisionalRequired ? " / " + status.Program.EffectiveRules.Required : "")
+                    + String.Concat(status.Points.Additional.Select(condition => " · " + condition.Confirmed + " из " + condition.Required));
             }
             return status.GoalsCount == 0 || status.Program.ClosedByIssuance ? "—" : status.CompletedGoals + " из " + status.GoalsCount;
         }
@@ -227,6 +228,7 @@ namespace JtdxAutoCq
             if (points.ConfirmedComplete) return "Условия выполнены";
             if (points.PendingEnough) return "Есть связи для зачёта";
             if (points.Standing.ProvisionalRequired) return "HAMLOG уточнит порог после зачёта";
+            if (points.NeedOnline == 0) return "Остались обязательные условия";
             return "Не хватает " + Points(points.NeedOnline) + " очк.";
         }
 
@@ -459,9 +461,14 @@ namespace JtdxAutoCq
             string snapshot = "Сверено " + points.Standing.CheckedUtc.ToLocalTime().ToString("dd.MM в HH:mm") + ". ";
             if (points.Standing.ProvisionalRequired)
                 snapshot += "HAMLOG пока показывает нулевой зачёт. До первой зачтённой связи для поиска используется меньший порог. ";
+            if (points.Additional.Count != 0)
+                snapshot += "Обязательный зачёт — " + String.Join(", ", points.Additional.Select(condition =>
+                    condition.Label + " " + condition.Confirmed + " из " + condition.Required)) + ". ";
             if (points.Closed) return snapshot + "К зачёту подходят связи с 1 по 30 сентября 2021 года.";
             if (history.Path == null) return snapshot + "Выберите доступный основной журнал для сверки связей.";
             if (points.ConfirmedComplete) return snapshot + "Диплом можно получить на HAMLOG.";
+            if (points.Additional.Count != 0 && points.NeedOnline == 0 && !points.PendingEnough)
+                return snapshot + "Автомат ищет связь для обязательного зачёта.";
             string summary = points.Pending.Count == 0 ? "Все найденные в журнале связи уже в зачёте."
                 : "В журнале есть связи ещё на " + Points(points.PendingPoints) + " очк. "
                     + (points.PendingEnough ? "При зачёте их хватит на диплом." : "Откройте список, чтобы проверить их.");
@@ -678,9 +685,12 @@ namespace JtdxAutoCq
         readonly NumericUpDown lastCounty = new NumericUpDown { Minimum = 1, Maximum = 99 };
         readonly TextBox retiredCounties = new TextBox { MaxLength = 190 };
         readonly ComboBox repeats = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
+        readonly Button additionalButton;
         static readonly string[] RepeatKeys = { HamlogContactCriteria.BandMode, HamlogContactCriteria.DayBandMode,
             HamlogContactCriteria.EveryQso, HamlogContactCriteria.Call, HamlogContactCriteria.Band, HamlogContactCriteria.Day };
         HamlogRulePlan loadedPlan;
+        HamlogContactRequirement[] obligations;
+        HamlogPointAdjustment[] adjustments;
         internal HamlogRulePlan Edited { get; private set; }
 
         static bool HasContactGroups(AwardProgram program)
@@ -723,7 +733,7 @@ namespace JtdxAutoCq
             LabelAt("Даты зачёта (UTC)", 20, 232, 190, 26);
             Place(from, 212, 228, 152, 27);
             Place(until, 378, 228, 152, 27);
-            LabelAt("ГГГГ-ММ-ДД", 545, 233, 173, 26);
+            LabelAt("Дата или точное UTC", 545, 233, 173, 26);
             if (plan.Club)
             {
                 LabelAt("Нужно очков", 20, 271, 119, 28);
@@ -777,11 +787,13 @@ namespace JtdxAutoCq
             }
             else if (plan.ContactAward)
             {
-                LabelAt(plan.MultiLevel ? "Высший порог" : "Нужно очков", 20, 270, 124, 24);
+                bool districtContacts = plan.Contacts.RestrictsCounties && plan.Contacts.Additional.Any(condition => condition.ByCounty);
+                LabelAt(plan.MultiLevel ? "Высший порог" : districtContacts ? "Нужно связей" : "Нужно очков", 20, 270, 124, 24);
                 Place(required, 148, 267, 77, 27);
                 LabelAt("За позывной", 245, 270, 123, 24);
                 Place(special, 374, 267, 77, 27);
-                LabelAt(String.IsNullOrEmpty(plan.Contacts.Roster) ? "За станцию DXCC" : "За члена клуба", 466, 270, 157, 24);
+                LabelAt(districtContacts ? "За связь в районе" : String.IsNullOrEmpty(plan.Contacts.Roster) ? "За станцию DXCC"
+                    : "За члена клуба", 466, 270, 157, 24);
                 Place(member, 641, 267, 77, 27);
                 LabelAt("Страны DXCC", 20, 308, 184, 24);
                 Place(territories, 212, 304, 506, 27);
@@ -800,10 +812,7 @@ namespace JtdxAutoCq
                 if (!String.IsNullOrEmpty(plan.Contacts.BonusFromUtc))
                     LabelAt("Специальные позывные дают повышенные очки только в срок мероприятия.", 20, 530, 697, 24);
                 if (!String.IsNullOrEmpty(plan.Contacts.Roster))
-                    LabelAt(plan.Contacts.Roster == "rcpw" ? "Используется список членов клуба RCPW."
-                        : plan.Contacts.Roster == "lefty" ? "Используется опубликованный список членов клуба «Левша»."
-                        : plan.Contacts.Roster == "arck" ? "Используется список членов клуба ARCK."
-                        : "Используется список членов ARCK за пределами России.", 20, 555, 697, 25);
+                    LabelAt("Используется список " + HamlogAwardRosters.Label(plan.Contacts.Roster) + ".", 20, 555, 697, 25);
                 if (HasContactGroups(program))
                 {
                     LabelAt("Дополнительные группы", 20, 588, 188, 24);
@@ -815,6 +824,7 @@ namespace JtdxAutoCq
                 : plan.Rcpw && plan.RcpwOnlineAfterPoints > 0 ? 447 : 410;
             var restore = ButtonAt("Вернуть исходные", 20, buttons, 205, () => LoadValues(program.DownloadedRules, false));
             restore.Enabled = program.DownloadedRules != null;
+            additionalButton = ButtonAt("Зачёт и надбавки", 235, buttons, 200, EditAdditional);
             ButtonAt("Отмена", 449, buttons, 112, () => DialogResult = DialogResult.Cancel);
             ButtonAt("Сохранить", 572, buttons, 146, Save, true);
             LoadValues(plan, program.EditedRules != null);
@@ -843,6 +853,10 @@ namespace JtdxAutoCq
             }
             if (plan.ContactAward)
             {
+                obligations = plan.Contacts.Additional;
+                adjustments = plan.Contacts.Adjustments;
+                additionalButton.Visible = obligations.Length != 0 || adjustments.Length != 0
+                    || plan.Contacts.RestrictsCounties && !plan.Districts || plan.Contacts.ActivatorAreas.Length != 0;
                 territories.Text = String.Join(", ", plan.Contacts.Countries);
                 contactBands.Text = String.Join(", ", plan.Contacts.Bands);
                 contactModes.Text = String.Join(", ", plan.Contacts.Modes);
@@ -857,6 +871,7 @@ namespace JtdxAutoCq
                     retiredCounties.Text = String.Join(", ", plan.Contacts.RetiredCounties);
                 }
             }
+            else additionalButton.Visible = false;
             groups.Lines = (plan.BonusGroups ?? new HamlogBonusGroup[0]).Select(group =>
                 group.Points.ToString(CultureInfo.InvariantCulture) + " | " + String.Join(", ", group.Targets)).ToArray();
         }
@@ -890,10 +905,13 @@ namespace JtdxAutoCq
                         Modes = Tokens(contactModes.Text.ToUpperInvariant()),
                         Levels = Tokens(levels.Text).Select(value => Int32.Parse(value, CultureInfo.InvariantCulture)).ToArray(),
                         BonusFromUtc = previous.Contacts.BonusFromUtc, BonusUntilUtc = previous.Contacts.BonusUntilUtc,
-                        CountyPrefix = previous.Districts ? districtPrefix.Text.Trim().ToUpperInvariant() : "",
-                        LastCounty = previous.Districts ? (int)lastCounty.Value : 0,
-                        RetiredCounties = Tokens(retiredCounties.Text).Select(code => Int32.Parse(code, CultureInfo.InvariantCulture)).ToArray(),
-                        Roster = previous.Contacts.Roster
+                        CountyPrefix = previous.Districts ? districtPrefix.Text.Trim().ToUpperInvariant() : previous.Contacts.CountyPrefix,
+                        LastCounty = previous.Districts ? (int)lastCounty.Value : previous.Contacts.LastCounty,
+                        RetiredCounties = previous.Districts
+                            ? Tokens(retiredCounties.Text).Select(code => Int32.Parse(code, CultureInfo.InvariantCulture)).ToArray()
+                            : previous.Contacts.RetiredCounties,
+                        Roster = previous.Contacts.Roster, ActivatorRoster = previous.Contacts.ActivatorRoster,
+                        ActivatorAreas = previous.Contacts.ActivatorAreas, Additional = obligations, Adjustments = adjustments
                     };
                 plan.Validate();
                 Edited = plan.SameAs(original) ? null : plan;
@@ -906,6 +924,16 @@ namespace JtdxAutoCq
         static string[] Tokens(string text)
         { return System.Text.RegularExpressions.Regex.Split(text.Trim(), @"[\s,;]+").Where(value => value.Length > 0).ToArray(); }
 
+        void EditAdditional()
+        {
+            using (var dialog = new HamlogAdditionalRulesDialog(loadedPlan.Contacts, obligations, adjustments))
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+                obligations = dialog.Obligations;
+                adjustments = dialog.Adjustments;
+            }
+        }
+
         static HamlogBonusGroup ReadGroup(string line)
         {
             string[] parts = line.Split(new[] { '|' }, 2);
@@ -916,6 +944,95 @@ namespace JtdxAutoCq
                 .Select(value => value.Trim()).ToArray();
             bool area = targets.All(HamlogAwardAreas.Known);
             return new HamlogBonusGroup { Points = points, Targets = targets, Area = area };
+        }
+    }
+
+    internal sealed class HamlogAdditionalRulesDialog : OperatorDialog
+    {
+        internal HamlogContactRequirement[] Obligations { get; private set; }
+        internal HamlogPointAdjustment[] Adjustments { get; private set; }
+
+        internal HamlogAdditionalRulesDialog(HamlogContactCriteria criteria, HamlogContactRequirement[] obligations,
+            HamlogPointAdjustment[] adjustments)
+            : base("Обязательный зачёт и надбавки", 780, 205 + obligations.Length * 73 + adjustments.Length * 58
+                + (adjustments.Length == 0 ? 0 : 27))
+        {
+            int top = 58;
+            string eligibility = criteria.RestrictsCounties && criteria.Repeat != HamlogContactCriteria.District
+                ? "Зачётная территория — " + criteria.CountyPrefix + "-01 — " + criteria.CountyPrefix + "-" + criteria.LastCounty.ToString("D2") + ". "
+                : "";
+            if (criteria.ActivatorAreas.Length != 0)
+                eligibility += "Отдельные условия активаторов действуют в " + String.Join(", ", criteria.ActivatorAreas) + ".";
+            if (eligibility.Length == 0) eligibility = "Здесь указаны отдельные требования диплома и правила повышения очков.";
+            LabelAt(eligibility, 20, top, 740, 42);
+            top += 46;
+            var readObligations = new List<Func<HamlogContactRequirement>>();
+            foreach (HamlogContactRequirement condition in obligations)
+            {
+                LabelAt("Минимум — " + condition.Label + (condition.ReportedByHamlog ? " · сверяется с HAMLOG" : ""),
+                    20, top, 685, 22);
+                var count = new NumericUpDown { Minimum = 1, Maximum = 1000, Value = condition.Required };
+                bool counties = condition.ByCounty;
+                var values = new TextBox { MaxLength = 960, Text = String.Join(", ", counties ? condition.CountyCodes : condition.Calls) };
+                Place(count, 20, top + 25, 68, 26);
+                Place(values, 104, top + 25, 656, 26);
+                LabelAt(condition.Kind == HamlogContactRequirement.Counties ? "Пустое поле означает все районы зачётной территории."
+                    : counties ? "Укажите коды районов RDA через запятую." : "Позывные можно перечислить через запятую.",
+                    106, top + 52, 650, 19);
+                readObligations.Add(() => {
+                    string[] names = values.Text.ToUpperInvariant().Split(new[] { ',', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                    var rule = new HamlogContactRequirement { Kind = condition.Kind, Required = (int)count.Value, ReportedByHamlog = condition.ReportedByHamlog };
+                    if (counties) rule.CountyCodes = names;
+                    else rule.Calls = names;
+                    rule.Validate(criteria);
+                    return rule;
+                });
+                top += 73;
+            }
+            var readAdjustments = new List<Func<HamlogPointAdjustment>>();
+            if (adjustments.Length != 0)
+            {
+                LabelAt("×", 20, top, 55, 25);
+                LabelAt("+ очки", 88, top, 62, 25);
+                LabelAt("С даты (UTC)", 163, top, 154, 25);
+                LabelAt("По дату (UTC)", 332, top, 154, 25);
+                LabelAt("Диапазоны через запятую", 503, top, 257, 25);
+                top += 27;
+            }
+            foreach (HamlogPointAdjustment adjustment in adjustments)
+            {
+                var factor = new NumericUpDown { Minimum = 1, Maximum = 5, Value = adjustment.Factor };
+                var extra = new NumericUpDown { Minimum = 0, Maximum = 1000, Value = adjustment.Add };
+                var from = new TextBox { Text = adjustment.FromUtc, MaxLength = 32 };
+                var until = new TextBox { Text = adjustment.UntilUtc, MaxLength = 32 };
+                var bands = new TextBox { Text = String.Join(", ", adjustment.Bands), MaxLength = 230 };
+                Place(factor, 20, top, 55, 26);
+                Place(extra, 88, top, 62, 26);
+                Place(from, 163, top, 154, 26);
+                Place(until, 332, top, 154, 26);
+                Place(bands, 503, top, 257, 26);
+                readAdjustments.Add(() => {
+                    var rule = new HamlogPointAdjustment { Factor = (int)factor.Value, Add = (int)extra.Value,
+                        FromUtc = from.Text.Trim(), UntilUtc = until.Text.Trim(),
+                        Bands = bands.Text.ToLowerInvariant().Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries) };
+                    rule.Validate();
+                    return rule;
+                });
+                top += 58;
+            }
+            if (adjustments.Length != 0)
+                LabelAt("Подойдут дата 2026-11-19 и точное время 2026-11-19T21:00:00Z.", 20, top - 22, 740, 29);
+            ButtonAt("Отмена", 477, top + 51, 126, () => DialogResult = DialogResult.Cancel);
+            ButtonAt("Применить", 614, top + 51, 146, () => {
+                try
+                {
+                    Obligations = readObligations.Select(read => read()).ToArray();
+                    Adjustments = readAdjustments.Select(read => read()).ToArray();
+                    DialogResult = DialogResult.OK;
+                }
+                catch (InvalidDataException error)
+                { MessageBox.Show(this, error.Message, "Правила поиска", MessageBoxButtons.OK, MessageBoxIcon.Information); }
+            }, true);
         }
     }
 

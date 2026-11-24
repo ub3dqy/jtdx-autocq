@@ -3365,8 +3365,75 @@
     "Url": "https://hamlog.online/global/russia/r1a/d74cdd8512de59887e0d4cae34c704b7/",
     "Title": "65th Anniversary of the Metropolitan in St. Petersburg",
     "TextSha256": "6cf58225baf41881f9a65da80500587fd48979116d0db64328a802b35f7739ff",
-    "Plan": null,
-    "Note": "Кроме 65 очков требуется обязательная связь с работником метрополитена. Исторический зачёт RM65LP относится к периоду мемориальной станции."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2020-11-01",
+      "UntilUtc": "",
+      "Required": 65,
+      "MemberPoints": 1,
+      "ExtraPoints": 10,
+      "Calls": [
+        "RM65LP"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "R1MJ",
+            "R1CBL",
+            "RA1AFU",
+            "RN1AB",
+            "RN1AQ",
+            "RZ1A",
+            "R1BAN"
+          ],
+          "Area": false
+        },
+        {
+          "Points": 1,
+          "Targets": [
+            "SP",
+            "LO"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [
+          {
+            "Kind": "stations",
+            "Required": 1,
+            "ReportedByHamlog": false,
+            "Calls": [
+              "R1MJ",
+              "R1CBL",
+              "RA1AFU",
+              "RN1AB",
+              "RN1AQ",
+              "RZ1A",
+              "R1BAN"
+            ]
+          }
+        ],
+        "Adjustments": [],
+        "BonusFromUtc": "2020-11-01",
+        "BonusUntilUtc": "2020-12-31",
+        "ActivatorRoster": false,
+        "ActivatorAreas": [
+          "SP",
+          "LO"
+        ]
+      }
+    },
+    "Note": "Для новых заявок после окончания работы RM65LP нужна хотя бы одна связь с сотрудником метрополитена. HAMLOG показывает только общий счёт, поэтому AutoCQ сверяет обязательную группу по зачтённым связям. Для Санкт-Петербурга и области действует отдельное условие активатора."
   },
   {
     "Url": "https://hamlog.online/club/arktika/d2528b7178e745bfa10d8d2a8c174524/",
@@ -3442,8 +3509,101 @@
     "Url": "https://hamlog.online/global/russia/r4c/bd448e04d95f3d09a9bba190eb2cc403/",
     "Title": "90 Years of the Pugachev House of Pioneers",
     "TextSha256": "9ac94dce39ce242744930d2d485a05ec58542df0fbe23b139bd1a448f2067054",
-    "Plan": null,
-    "Note": "Обязательна связь с районом SA-45. Общий порог 90 очков. Для связи с районом нужен точный RDA, отдельные станции дают повышенные очки."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-03-01",
+      "UntilUtc": "2026-12-31",
+      "Required": 90,
+      "MemberPoints": 1,
+      "ExtraPoints": 30,
+      "Calls": [
+        "R4DS"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 20,
+          "Targets": [
+            "R4DI",
+            "R4CR",
+            "R4CCM",
+            "RA4CFX",
+            "RA4CQW",
+            "RY4C",
+            "UA4CJA",
+            "UA4COA",
+            "UA4COC",
+            "UA4CQS"
+          ],
+          "Area": false
+        },
+        {
+          "Points": 10,
+          "Targets": [
+            "SA-45"
+          ],
+          "Area": true
+        },
+        {
+          "Points": 5,
+          "Targets": [
+            "SA"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [
+          {
+            "Kind": "county-contacts",
+            "Required": 1,
+            "ReportedByHamlog": true,
+            "CountyCodes": [
+              "SA-45"
+            ]
+          }
+        ],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "Bands": [
+              "160m",
+              "6m",
+              "4m",
+              "2m",
+              "1.25m",
+              "70cm",
+              "33cm",
+              "23cm",
+              "13cm",
+              "9cm",
+              "6cm",
+              "3cm",
+              "1.25cm",
+              "6mm",
+              "4mm",
+              "2.5mm",
+              "2mm",
+              "1mm",
+              "submm"
+            ]
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": false,
+        "ActivatorAreas": [
+          "SA"
+        ]
+      }
+    }
   },
   {
     "Url": "https://hamlog.online/club/arto/fe3a0fc7959eb1c6f3bf93e57f5d8eda/",
@@ -3505,8 +3665,66 @@
     "Url": "https://hamlog.online/global/russia/r4c/a8f87e372e2e2b5441d40d9f804c24db/",
     "Title": "In memory of Kabdulmazhit Azhinov, RA4CCB",
     "TextSha256": "0b65cde972aa6780e3e5ca9cb30d264fd1618a41b58c38a8b7cb61f14911c336",
-    "Plan": null,
-    "Note": "Четыре опубликованных позывных дают 25 очков, прочие станции Саратовской области 10. На 160 м обе ставки удваиваются."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2025-02-13",
+      "UntilUtc": "",
+      "Required": 100,
+      "MemberPoints": 1,
+      "ExtraPoints": 25,
+      "Calls": [
+        "R4CAB",
+        "RD4CAZ",
+        "R4CGS",
+        "R4CCC"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 10,
+          "Targets": [
+            "SA"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "",
+        "Bands": [
+          "160m",
+          "80m",
+          "60m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m"
+        ],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "Bands": [
+              "160m"
+            ]
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": false,
+        "ActivatorAreas": [
+          "SA"
+        ]
+      }
+    },
+    "Note": "Для соискателей обычные КВ-связи с Саратовской областью дают 10 очков, опубликованные позывные — 25. На 160 м обе ставки удваиваются. Для радиолюбителей Саратовской области предусмотрен диплом активатора."
   },
   {
     "Url": "https://hamlog.online/global/russia/r9c/acb198ce8587aded88fe2d7647601e80/",
@@ -3533,22 +3751,123 @@
     "Url": "https://hamlog.online/club/kazan/be5792cd277125309bc1216c86f36bba/",
     "Title": "Kazan",
     "TextSha256": "56e447f990e81e51150017a941283495ab2cfa007226e5d460c061c31198c884",
-    "Plan": null,
-    "Note": "Нужны 25 связей и пять разных районов из TA-01 — TA-07. Станции повторно засчитываются на другом диапазоне или другим видом."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-01-01",
+      "UntilUtc": "",
+      "Required": 25,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "",
+        "Bands": [],
+        "Modes": [
+          "SSB",
+          "CW",
+          "DIGI"
+        ],
+        "CountyPrefix": "TA",
+        "LastCounty": 7,
+        "Additional": [
+          {
+            "Kind": "counties",
+            "Required": 5,
+            "ReportedByHamlog": true
+          }
+        ],
+        "Adjustments": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": false,
+        "ActivatorAreas": []
+      }
+    },
+    "Note": "Для зачёта нужны 25 связей и 5 разных районов Казани из TA-01–TA-07. Район корреспондента определяется по совпадению позывного и локатора с основным журналом или зачётом HAMLOG. Поиск проверяет условия для соискателей. Для станций из Казани есть отдельный зачёт активаторов."
   },
   {
     "Url": "https://hamlog.online/club/seafarer/a4298ebc36366f479a6124dac8692092/",
     "Title": "Kola Arctic - the land of wild nature",
     "TextSha256": "4f3fb0229043911bf1858e980743fbcf6d5bc6c53f2f3cee6ce6448a65ab52b3",
-    "Plan": null,
-    "Note": "Две связи с Мурманской областью. В положении отдельно упомянуты разные диапазоны и виды, а открытая таблица показывает зачёт по связям. Нужно подтвердить, какие повторы допускают."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "",
+      "UntilUtc": "",
+      "Required": 2,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [
+        {
+          "Points": 1,
+          "Targets": [
+            "MU"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": false,
+        "ActivatorAreas": []
+      }
+    },
+    "Note": "Для электронного диплома нужны две зачтённые связи. Поиск использует официальные серии обычных позывных региона. Для отдельной плакетки действуют другие условия."
   },
   {
     "Url": "https://hamlog.online/club/seafarer/d38ca20a6e4a7fa53d6df48f0cd4f826/",
     "Title": "Karelia is the birthplace of shungite",
     "TextSha256": "26673ec657634a1bcc9a9433ecc6a30a9a94bcec1cb7824e0cfdef3d37c6a2f9",
-    "Plan": null,
-    "Note": "Для электронного диплома нужны две связи с Карелией. Уточняется, как HAMLOG применяет требование разных диапазонов и видов."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "",
+      "UntilUtc": "",
+      "Required": 2,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [
+        {
+          "Points": 1,
+          "Targets": [
+            "KL"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": false,
+        "ActivatorAreas": []
+      }
+    },
+    "Note": "Для электронного диплома нужны две зачтённые связи. Поиск использует официальные серии обычных позывных региона. Для отдельной плакетки действуют другие условия."
   },
   {
     "Url": "https://hamlog.online/club/seafarer/fe7410e394490b163a6f2ba5f59fd113/",
@@ -3582,8 +3901,41 @@
     "Url": "https://hamlog.online/club/seafarer/e05988296bf0a032b39ad035d7579bd5/",
     "Title": "Chukotka",
     "TextSha256": "a5fb1b015a0f43b3aed7f119fbbfbb1d89a11d4dba9b899b425c2f4cd7b8ea39",
-    "Plan": null,
-    "Note": "Для «Чукотки» нужны связи с радиолюбителями региона. Необходимо уточнить, входят ли в зачёт два QSO на одном диапазоне тем же видом с разными станциями."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "",
+      "UntilUtc": "",
+      "Required": 2,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Calls": [],
+      "BonusGroups": [
+        {
+          "Points": 1,
+          "Targets": [
+            "CK"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": false,
+        "ActivatorAreas": []
+      }
+    },
+    "Note": "Для электронного диплома нужны две зачтённые связи. Поиск использует официальные серии обычных позывных региона. Для отдельной плакетки действуют другие условия."
   },
   {
     "Url": "https://hamlog.online/club/seafarer/b45f65e07f485e1421a29427ecf750a6/",
@@ -3596,8 +3948,90 @@
     "Url": "https://hamlog.online/global/russia/r1a/a75954ec9180c819a1a6d4bb4e2fd522/",
     "Title": "St. Petersburg TV Tower: 60 years on the air",
     "TextSha256": "3447edef4cba3448957062b0821fd59c267a9002fbb05a233cfe96f96486651a",
-    "Plan": null,
-    "Note": "Кроме 60 очков требуется обязательная связь с RC1B или со станцией из списка сотрудников. У других филиалов своя ставка. Нужен отдельный счётчик обязательной группы."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2023-02-20",
+      "UntilUtc": "",
+      "Required": 60,
+      "MemberPoints": 1,
+      "ExtraPoints": 10,
+      "Calls": [
+        "RC1B"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 5,
+          "Targets": [
+            "UA1AFO",
+            "UA1AOS",
+            "UA1AV",
+            "UA1CLR",
+            "R1BEO",
+            "R1MA",
+            "RV1AG",
+            "RV1AQ",
+            "RW1CW",
+            "OH5ZZ",
+            "R5RT",
+            "RT3B",
+            "RT6A",
+            "UB1N",
+            "UF5D",
+            "UI3K"
+          ],
+          "Area": false
+        },
+        {
+          "Points": 1,
+          "Targets": [
+            "SP",
+            "LO"
+          ],
+          "Area": true
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [
+          {
+            "Kind": "stations",
+            "Required": 1,
+            "ReportedByHamlog": true,
+            "Calls": [
+              "RC1B",
+              "UA1AFO",
+              "UA1AOS",
+              "UA1AV",
+              "UA1CLR",
+              "R1BEO",
+              "R1MA",
+              "RV1AG",
+              "RV1AQ",
+              "RW1CW",
+              "OH5ZZ"
+            ]
+          }
+        ],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2023-02-20",
+            "UntilUtc": "2023-03-08"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": false,
+        "ActivatorAreas": []
+      }
+    }
   },
   {
     "Url": "https://hamlog.online/club/rcpw/c4529d23cec501996cdd4e80b006891b/",
@@ -3618,7 +4052,7 @@
     "Title": "Lake Baskunchak",
     "TextSha256": "11f7364e30ee563dcf798af241853c096a92a4ce2c50e4dd14aacb6bb61c40b0",
     "Plan": null,
-    "Note": "Диплом требует 106 очков. Коды районов AO дают разные ставки, на УКВ от 144 МГц очки выше. Нужен район кандидата."
+    "Note": "В положении перечислены районы Астраханской области и особые ставки. HAMLOG засчитал также связи без кода района и с кодом Волгоградской области. Для поиска нужно уточнить, по месту работы или регистрации засчитывается такая связь."
   },
   {
     "Url": "https://hamlog.online/club/comrade/d16fce1445dfabfc5b909f337ff6d063/",
@@ -3632,7 +4066,7 @@
     "Title": "Lake Elton",
     "TextSha256": "ca8db98acbcd44441e2b6fd02d56611f4efae04515e9ceee4d2432d9f896d5c1",
     "Plan": null,
-    "Note": "Порог 152, у районов VG разные ставки на КВ и УКВ. Без точного района нельзя определить стоимость связи."
+    "Note": "В положении каждому зачётному району Волгоградской области назначена ставка. HAMLOG засчитал также связи без района и с кодом Башкортостана. Нужна сверка принадлежности этих связей, прежде чем использовать их для выбора кандидатов."
   },
   {
     "Url": "https://hamlog.online/club/rcpw/f354a1d65975b0d75af9ecb4ae926375/",
@@ -3703,5 +4137,2463 @@
     "TextSha256": "b5850a7a920c8659d8e1e1cb3dac8c99b1272155079712fae275468e0ee6dc3e",
     "Plan": null,
     "Note": "В положении в зачёт входят также специальные позывные, оформленные на RCPW. Для корректного поиска нужен отдельный список таких позывных."
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/da629880f04bb3f826f7edfde59fcd83/",
+    "Title": "Artillery",
+    "TextSha256": "e11304698647c79b698b98266adcdebf62d7850e1c40a9d8974668f01d96ea39",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-11-18T21:00:00Z",
+      "UntilUtc": "2026-11-22T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RA5AD",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2026-11-18T21:00:00Z",
+            "UntilUtc": "2026-11-19T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/bbb94bd34de8a284f4e064657d7d8908/",
+    "Title": "Military Signalman Day",
+    "TextSha256": "725bfffee03926fab66fcf20b0122c704db72a341509099f6aa07d07d0c45237",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-10-19T21:00:00Z",
+      "UntilUtc": "2026-10-25T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RA5AD",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP",
+        "RA7L"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2026-10-19T21:00:00Z",
+            "UntilUtc": "2026-10-20T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/d9f2ffa8984ff1dfd5fa62541f13966a/",
+    "Title": "Ground forces",
+    "TextSha256": "f68f966217281f58acd7445d7e21ddc6e93f76c5208fa4706733eaf5c65ba888",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-09-30T21:00:00Z",
+      "UntilUtc": "2026-10-04T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RA5AD",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP",
+        "RA7L"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2026-09-30T21:00:00Z",
+            "UntilUtc": "2026-10-01T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/f85fee0bc2b28be8c2b915eb6c309442/",
+    "Title": "Tank troops",
+    "TextSha256": "3a3f2ef00ca12b06d8bc3bdf89201d06d720f17f82d69c661538b56ea0b7c153",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-09-11T21:00:00Z",
+      "UntilUtc": "2026-09-13T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RA5AD",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP",
+        "RA7L"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2026-09-12T21:00:00Z",
+            "UntilUtc": "2026-09-13T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/bffc3666f56eff5ce2ef8453344e5213/",
+    "Title": "Navy Day",
+    "TextSha256": "67c6c66b4b6cf52aaf9a21017145c9ae3a6bf3504e5a5a387ffd1f9f25332f5a",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-07-23T21:00:00Z",
+      "UntilUtc": "2026-07-26T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RA5AD",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP",
+        "RA7L"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2026-07-25T21:00:00Z",
+            "UntilUtc": "2026-07-26T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/cd2484763ef2c3739855efae27d3ad79/",
+    "Title": "Defender's Day",
+    "TextSha256": "22d6d45f9148fba7ade571b70776dd6607c611675de73dff72d59d825c0b2b36",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-02-19T21:00:00Z",
+      "UntilUtc": "2026-02-23T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "R1LK",
+        "RZ1AWD",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RA5AD",
+        "RO3H",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2026-02-22T21:00:00Z",
+            "UntilUtc": "2026-02-23T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/e1058f1e7823459160b759fe6054eb45/",
+    "Title": "Engineers corps",
+    "TextSha256": "03ec634847fe887df9da1621091d29f5579c9027e717c4e78d78b6398b12934d",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-01-16T21:00:00Z",
+      "UntilUtc": "2026-01-21T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "R1LK",
+        "RZ1AWD",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RA5AD",
+        "RO3H",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2026-01-20T21:00:00Z",
+            "UntilUtc": "2026-01-21T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/c0acc9d60b81505503bc3924936b47e9/",
+    "Title": "Artillery",
+    "TextSha256": "c05b56cd02e1aa46a92c228775956a3fb7dbcf787cbdd98f232184f79f93be66",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2025-11-14T21:00:00Z",
+      "UntilUtc": "2025-11-19T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RA5AD",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2025-11-18T21:00:00Z",
+            "UntilUtc": "2025-11-19T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/ce99e770190eabe7dab43a4555604fe1/",
+    "Title": "Military Signalman Day",
+    "TextSha256": "f968eed6436da984f83f76636a526300a32bdbe1b99d846cf452aa94527af21f",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2025-10-17T21:00:00Z",
+      "UntilUtc": "2025-10-20T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2025-10-19T21:00:00Z",
+            "UntilUtc": "2025-10-20T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/a423788b4e5aed02b9b44d0ea54f16ba/",
+    "Title": "Ground forces",
+    "TextSha256": "78d567df7f6f16f7b5f5fde8e6c1321569d197ae19e67465c40ce3981215aa54",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2025-09-26T21:00:00Z",
+      "UntilUtc": "2025-10-01T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RA5AD",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP",
+        "RA7L"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2025-09-30T21:00:00Z",
+            "UntilUtc": "2025-10-01T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/c27c229da77072c6dfaf68efeecb15e3/",
+    "Title": "Heroic Tankers",
+    "TextSha256": "4ccea9bf7cdac629e8d3fdd54bdc42927f62bdc9206e503b2c3fcda120fd52ed",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2025-09-11T21:00:00Z",
+      "UntilUtc": "2025-09-14T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RA5AD",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP",
+        "RA7L"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2025-09-13T21:00:00Z",
+            "UntilUtc": "2025-09-14T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/ebe4f6d4d227018032da0c0671db3ab0/",
+    "Title": "Defender's Day",
+    "TextSha256": "d10fe110e12ad46a6cf2815e865a122fe908e7b7f6769e780d9eea170a9b582d",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2025-02-20T21:00:00Z",
+      "UntilUtc": "2025-02-23T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RA5AD",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru-fifth-ocean",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2025-02-22T21:00:00Z",
+            "UntilUtc": "2025-02-23T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/d61a2fe806455a16b2eaaa53635c0f7e/",
+    "Title": "Engineers corps",
+    "TextSha256": "ebec2e93d5f4b78fdaf2679217c7e5d13ef120a873dd0500fe457cbf247476f1",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2025-01-17T21:00:00Z",
+      "UntilUtc": "2025-01-21T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RA5AD",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2025-01-20T21:00:00Z",
+            "UntilUtc": "2025-01-21T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/c3cae5d509f3b3db831d73d0ecd0a19c/",
+    "Title": "Artillery is the god of war",
+    "TextSha256": "841ed235ab2c4710ae07091b1ce3bef2dc50a3c9f56ab84317c801383f212388",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-11-15T21:00:00Z",
+      "UntilUtc": "2024-11-19T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RA5AD",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2024-11-18T21:00:00Z",
+            "UntilUtc": "2024-11-19T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/fac79fce728b3d68422411d60f417ba5/",
+    "Title": "Ural dragon",
+    "TextSha256": "019febf046eb5c484a0760f5ac14b08f9fa3f5e2e157df295fd58a1498eb7eca",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-10-24T21:00:00Z",
+      "UntilUtc": "2024-10-27T21:00:00Z",
+      "Required": 100,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RA5AD",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2024-10-24T21:00:00Z",
+            "UntilUtc": "2024-10-25T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    },
+    "Note": "В утверждённом положении последний день — 27 октября по Москве. В карточке каталога указан ноябрь. Для связей применяются даты положения."
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/d79e86def2434b9e1df4744c78017b06/",
+    "Title": "Military Signalman Day",
+    "TextSha256": "94fd2e344cbee4ae3bf186b6da3bfb59f79e2cf9d5f8952d1723f6559fa6cd9a",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-10-17T21:00:00Z",
+      "UntilUtc": "2024-10-20T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2024-10-19T21:00:00Z",
+            "UntilUtc": "2024-10-20T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/ae748ccb782d186a9e9d9f47a193b12a/",
+    "Title": "Ground forces",
+    "TextSha256": "205e0ed470c5fc6d26e674e5e1adfd711bb7764e31bd7e62c72463487fddfd2e",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-09-27T21:00:00Z",
+      "UntilUtc": "2024-10-01T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2024-09-30T21:00:00Z",
+            "UntilUtc": "2024-10-01T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/ee32eb490d71418faff08e24dfbc71b0/",
+    "Title": "Tank troops",
+    "TextSha256": "2b0db1f7e79b6d2cb6a86b31abaabe70f33dc4e3a923c22f1ca48a358d962279",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-09-06T21:00:00Z",
+      "UntilUtc": "2024-09-09T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2024-09-07T21:00:00Z",
+            "UntilUtc": "2024-09-08T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/cf947486eff071ba7d34e09bf3d69e33/",
+    "Title": "Air Force Day",
+    "TextSha256": "6114b858723c5c3d10b79ffee126a134bbc0684116d0a0c59f7d58fa8c3d555c",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-08-09T21:00:00Z",
+      "UntilUtc": "2024-08-12T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru-fifth-ocean",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2024-08-11T21:00:00Z",
+            "UntilUtc": "2024-08-12T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/ecc39fdd6fef3fc2196d48a7ad78ba81/",
+    "Title": "Navy Day",
+    "TextSha256": "c86088e14986207914caefe281cde87f8d3719480e5b6bc6e28456196319070d",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-07-25T21:00:00Z",
+      "UntilUtc": "2024-07-28T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2024-07-27T21:00:00Z",
+            "UntilUtc": "2024-07-28T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/f896f70baf851b353159f0ec24d268a0/",
+    "Title": "Defender's Day",
+    "TextSha256": "13071d09a83cb51ba576fbb45541e4deafcfb6c30c03aa185c8289afe85e7d04",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-02-22T21:00:00Z",
+      "UntilUtc": "2024-02-25T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [
+          60,
+          80
+        ],
+        "Roster": "afaru-fifth-ocean",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2024-02-22T21:00:00Z",
+            "UntilUtc": "2024-02-23T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/d30407795dc242d71fd2a69fd0d3d342/",
+    "Title": "Engineers corps",
+    "TextSha256": "2c57a4fd8cac20e78d65a0f9a53ffb0575fa15819def757fc9f1677917140523",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-01-18T21:00:00Z",
+      "UntilUtc": "2024-01-21T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2024-01-20T21:00:00Z",
+            "UntilUtc": "2024-01-21T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/d6f2238eac73ed6a5c7b18c4a33d2c07/",
+    "Title": "Day of the signalman",
+    "TextSha256": "61343dd4836926d27a57fec4437f77b77cae9e3f6d9d437c6656f09379c6e3b5",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2023-10-19T21:00:00Z",
+      "UntilUtc": "2023-10-22T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "RV4D",
+        "RC4P",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2023-10-19T21:00:00Z",
+            "UntilUtc": "2023-10-20T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/d80ab49bce32bd178ba2155e338837b8/",
+    "Title": "Army Day",
+    "TextSha256": "aa9574e5db21a68e78337d7f9c0c364ef01004ee62971c463b26361d1db56d5d",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2023-09-28T21:00:00Z",
+      "UntilUtc": "2023-10-01T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "RV4D",
+        "RC4P",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2023-09-30T21:00:00Z",
+            "UntilUtc": "2023-10-01T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/a7519a940da7f42f0ed62625230fbf61/",
+    "Title": "Day of tankers",
+    "TextSha256": "edcebc39216accf86bec7d93ba32826399e1f62d021dd6080d06f6acdc6fcae0",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2023-09-07T21:00:00Z",
+      "UntilUtc": "2023-09-10T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "RV4D",
+        "RC4P",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2023-09-09T21:00:00Z",
+            "UntilUtc": "2023-09-10T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/baf409c63567d1e414de518196b30c93/",
+    "Title": "Day of Navy",
+    "TextSha256": "fdfe6e3e70d376d49f2d4e0042de6695a87eb51a551b3912a933d03ec6a47fc4",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2023-07-27T21:00:00Z",
+      "UntilUtc": "2023-07-30T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "RV4D",
+        "RC4P",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru-fifth-ocean",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2023-07-29T21:00:00Z",
+            "UntilUtc": "2023-07-30T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/a56360e2e8cb0bfb3d4d89c401924bc1/",
+    "Title": "Guarding the sky 2023",
+    "TextSha256": "2fc5d2956299a1539fc8ce3ee2c9f62c6e28dac175b0dadaac816a169c28f53a",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2023-04-06T21:00:00Z",
+      "UntilUtc": "2023-04-09T21:00:00Z",
+      "Required": 100,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "R1961GP",
+        "R1961AG",
+        "RF1A",
+        "R1LK",
+        "RT3E",
+        "RZ3QWE",
+        "RK4CYW",
+        "RV4D",
+        "RC4P",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RC6HO",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru-fifth-ocean",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2023-04-08T21:00:00Z",
+            "UntilUtc": "2023-04-09T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/db70491c2cb52b2a683ee2d90669e8a8/",
+    "Title": "Day of the military signalman",
+    "TextSha256": "a52d0892bbec70c01c75f2f8dec3fce2c4149da39b0dbc98166e9eaf5bab24c7",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2022-10-19T21:00:00Z",
+      "UntilUtc": "2022-10-23T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RZ3QWE",
+        "RK4CYW",
+        "RC4P",
+        "RV4D",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2022-10-19T21:00:00Z",
+            "UntilUtc": "2022-10-20T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/ef216d54b9a44ba984302cf8e34e545e/",
+    "Title": "Army Day",
+    "TextSha256": "31bbf9f52fbe23b3b816ada93e128f6bf91477660dc03f726237db44c94373b3",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2022-09-29T21:00:00Z",
+      "UntilUtc": "2022-10-02T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RZ3QWE",
+        "RK4CYW",
+        "RC4P",
+        "RV4D",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2022-09-30T21:00:00Z",
+            "UntilUtc": "2022-10-01T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/c17a49d57dc9b9c2cc441a9cd364c4b9/",
+    "Title": "Day of WWS",
+    "TextSha256": "ea8046877ee056796f6065a0f25036b8cdd5b501238fe7384f3777f77a4ab49a",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2022-08-10T21:00:00Z",
+      "UntilUtc": "2022-08-14T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "R110WWS",
+        "RF1A",
+        "R1LK",
+        "RZ3QWE",
+        "RK4CYW",
+        "RC4P",
+        "RV4D",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru-fifth-ocean",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2022-08-11T21:00:00Z",
+            "UntilUtc": "2022-08-12T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/e09b6d1e03023a2e772fa3aba0fffba1/",
+    "Title": "Day of Navy",
+    "TextSha256": "820956dd4422ed37003c4768683dd19360a925e30e5aab6f94c1def382bfbb03",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2022-07-28T21:00:00Z",
+      "UntilUtc": "2022-07-31T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RZ3QWE",
+        "RK4CYW",
+        "RC4P",
+        "RV4D",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2022-07-30T21:00:00Z",
+            "UntilUtc": "2022-07-31T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/c5d33391fe5e2cb41d343d557d5974d4/",
+    "Title": "Enduring and legendary 2022",
+    "TextSha256": "cf120b6112141c7f8fde1b8cb83d6000f98b498cb828efd2c882ba07892140fd",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2022-02-22T21:00:00Z",
+      "UntilUtc": "2022-02-27T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RZ3QWE",
+        "RK4CYW",
+        "RC4P",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2022-02-22T21:00:00Z",
+            "UntilUtc": "2022-02-23T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/f3b59249e0daab094239485106cfa445/",
+    "Title": "Day of missile forces and artillery",
+    "TextSha256": "f1e537be12e6dbf81ce23c960bff7cba29299947d5147fa388babaad4fd7138c",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2021-11-18T21:00:00Z",
+      "UntilUtc": "2021-11-21T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RZ3QWE",
+        "RK4CYW",
+        "RC4P",
+        "RV4D",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2021-11-18T21:00:00Z",
+            "UntilUtc": "2021-11-19T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/cc61e5558531b149c657edbc493e122c/",
+    "Title": "Ground Forces Day",
+    "TextSha256": "25b95f11b14a199ad233cf637f9efa98774684206e9ca07b02aba10e8feec861",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2021-09-30T21:00:00Z",
+      "UntilUtc": "2021-10-03T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RZ3QWE",
+        "RK4CYW",
+        "RC4P",
+        "RV4D",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2021-09-30T21:00:00Z",
+            "UntilUtc": "2021-10-01T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/a1941c77ae97188e3c1f6fbad9665d49/",
+    "Title": "Day of WWS",
+    "TextSha256": "2262d6c8710bc8c2e0b0dd0a727666467da054a83ea12b45cab79941b4433047",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2021-08-11T21:00:00Z",
+      "UntilUtc": "2021-08-15T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "R109WWS",
+        "R88WWS",
+        "RF1A",
+        "R1LK",
+        "RZ3QWE",
+        "RK4CYW",
+        "RC4P",
+        "RV4D",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru-fifth-ocean",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2021-08-11T21:00:00Z",
+            "UntilUtc": "2021-08-12T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/a6e6da1d19261e0e4a96d21607b2b0f9/",
+    "Title": "Great victories of the Russian fleet",
+    "TextSha256": "8ce7373a481be18287837c327f437198c67df41413007244b7c1894a29a28e05",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2021-07-22T21:00:00Z",
+      "UntilUtc": "2021-07-25T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RZ3QWE",
+        "RK4CYW",
+        "RC4P",
+        "RV4D",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru-fifth-ocean",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2021-07-24T21:00:00Z",
+            "UntilUtc": "2021-07-25T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/ad742a2cb167810c78f30dca1023d782/",
+    "Title": "Guarding the sky 2021",
+    "TextSha256": "73290c23c216f10833813774e483345bfc5efd0ffc711c97154633cc382f4300",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2021-04-08T21:00:00Z",
+      "UntilUtc": "2021-04-11T21:00:00Z",
+      "Required": 100,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "R1961GP",
+        "R1961AG",
+        "RF1A",
+        "R1LK",
+        "RZ3QWE",
+        "RK4CYW",
+        "RC4P",
+        "RV4D",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru-fifth-ocean",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2021-04-10T21:00:00Z",
+            "UntilUtc": "2021-04-11T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/ed4e452cc0d625c46123b1c5c4dbd0f1/",
+    "Title": "Enduring and legendary 2021",
+    "TextSha256": "a23fe41bebe0fda785b5972574cedae760971d2e84c168c42b8d6883692f4bb0",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2021-02-19T21:00:00Z",
+      "UntilUtc": "2021-02-23T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RZ3QWE",
+        "RK4CYW",
+        "RZ4PXO",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2021-02-22T21:00:00Z",
+            "UntilUtc": "2021-02-23T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/fe7ed23ef9eed8046a1998a6dd4f1841/",
+    "Title": "Day of the military signalman 2020",
+    "TextSha256": "5f7dae4451a4fa826df1ef109f3c3013e3db76393e5c5ae4100df5a32b8a3900",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2020-10-16T21:00:00Z",
+      "UntilUtc": "2020-10-20T21:00:00Z",
+      "Required": 80,
+      "MemberPoints": 8,
+      "ExtraPoints": 12,
+      "Calls": [
+        "RF1A",
+        "R1LK",
+        "RZ3QWW",
+        "RK4CYW",
+        "RZ4PXO",
+        "R5AP",
+        "RO5F",
+        "RD5A",
+        "R6CF",
+        "RY6AAC",
+        "RV6AWL",
+        "RK6HWP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "Levels": [],
+        "Roster": "afaru",
+        "Bands": [],
+        "Modes": [],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "FromUtc": "2020-10-19T21:00:00Z",
+            "UntilUtc": "2020-10-20T21:00:00Z"
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/5ocean/d92563341df8b1ac2eddebd208f17b03/",
+    "Title": "Joseph Migadis",
+    "TextSha256": "dfafa9487adfc876cde55e7cb893aedd7f876796aeb2f79f801a33a3f1e38887",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-09-01",
+      "UntilUtc": "2026-09-30",
+      "Required": 48,
+      "MemberPoints": 3,
+      "ExtraPoints": 8,
+      "Calls": [
+        "SX48JM"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "fifth-ocean",
+        "Bands": [
+          "160m",
+          "80m",
+          "60m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m",
+          "6m",
+          "2m",
+          "70cm"
+        ],
+        "Modes": [
+          "SSB",
+          "CW",
+          "DIGI"
+        ],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Add": 3,
+            "Bands": [
+              "160m",
+              "6m",
+              "2m"
+            ]
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/5ocean/d0930021c63bcebd84d6782ba9799f9c/",
+    "Title": "Montgolfier First Flight Anniversary Award",
+    "TextSha256": "5a8f8eab166b08e091c06d26ec4e702e30c1ce1342da1b843fc89550f6e99223",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-05-01",
+      "UntilUtc": "2026-05-31",
+      "Required": 30,
+      "MemberPoints": 1,
+      "ExtraPoints": 2,
+      "Calls": [
+        "SX1FLY"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [
+          10,
+          20,
+          30
+        ],
+        "Roster": "fifth-ocean",
+        "Bands": [
+          "160m",
+          "80m",
+          "60m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m",
+          "6m",
+          "2m",
+          "70cm"
+        ],
+        "Modes": [
+          "SSB",
+          "CW",
+          "DIGI"
+        ],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/5ocean/ecc657c74d206f483ace85f073caf4df/",
+    "Title": "Six years of participation by the Greek section in the international 5th Ocean Club SX6FOC",
+    "TextSha256": "ce97404eece0d25bec584f4de01e110fc8dbf8c3561ab1ed2cc71992bdeb99c9",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-01-02",
+      "UntilUtc": "2026-01-23T00:00:00Z",
+      "Required": 60,
+      "MemberPoints": 5,
+      "ExtraPoints": 10,
+      "Calls": [
+        "SX6FOC",
+        "SV1AHH",
+        "SV1GGF",
+        "SV1JFL"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "fifth-ocean",
+        "Bands": [
+          "160m",
+          "80m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m",
+          "6m",
+          "2m",
+          "70cm"
+        ],
+        "Modes": [
+          "SSB",
+          "CW",
+          "DIGI"
+        ],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Add": 2,
+            "Bands": [
+              "160m",
+              "6m",
+              "2m",
+              "70cm"
+            ]
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/5ocean/e5aba421ed21cbcb6422675eb80e743a/",
+    "Title": "A memorial to the Greek pilot Vladimir Kokkinakis - SX40VK",
+    "TextSha256": "28f2c83a11036288fb1cd7530610b10898cf0f341d6ef896cedc6bf315fad42b",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2025-10-01",
+      "UntilUtc": "2025-10-20T00:00:00Z",
+      "Required": 40,
+      "MemberPoints": 5,
+      "ExtraPoints": 8,
+      "Calls": [
+        "SX40VK"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "fifth-ocean",
+        "Bands": [
+          "160m",
+          "80m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m",
+          "6m",
+          "2m",
+          "70cm"
+        ],
+        "Modes": [
+          "SSB",
+          "CW",
+          "DIGI"
+        ],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Add": 5,
+            "Bands": [
+              "160m",
+              "6m",
+              "2m",
+              "70cm"
+            ]
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/5ocean/c87b56c9032a32c51c18630fbeec1ccc/",
+    "Title": "5 years participation of Greek section in the international 5th Ocean Club",
+    "TextSha256": "f6d0f8c9d3a7e7b168b0f1a8589c8645b2c6f32d2fcf064bc39641237c6da19f",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-09-01",
+      "UntilUtc": "2024-09-20T00:00:00Z",
+      "Required": 50,
+      "MemberPoints": 2,
+      "ExtraPoints": 5,
+      "Calls": [
+        "SX5FOC"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "fifth-ocean",
+        "Bands": [
+          "160m",
+          "80m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m",
+          "6m",
+          "2m",
+          "70cm"
+        ],
+        "Modes": [
+          "SSB",
+          "CW",
+          "DIGI"
+        ],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Add": 2,
+            "Bands": [
+              "160m",
+              "6m",
+              "2m",
+              "70cm"
+            ]
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    }
+  },
+  {
+    "Url": "https://hamlog.online/club/5ocean/ba79849c44ef02582177ea085b59e180/",
+    "Title": "Malaria Control Flight",
+    "TextSha256": "65c570f2869c558e9afd590748a239b1a438925278362922ac020619b8d82cff",
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2024-04-15",
+      "UntilUtc": "2024-04-30",
+      "Required": 46,
+      "MemberPoints": 3,
+      "ExtraPoints": 6,
+      "Calls": [
+        "SX46SAP"
+      ],
+      "BonusGroups": [],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Levels": [],
+        "Roster": "fifth-ocean",
+        "Bands": [
+          "160m",
+          "80m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m",
+          "6m",
+          "2m",
+          "70cm"
+        ],
+        "Modes": [
+          "SSB",
+          "CW",
+          "DIGI"
+        ],
+        "CountyPrefix": "",
+        "LastCounty": 0,
+        "Additional": [],
+        "Adjustments": [
+          {
+            "Add": 3,
+            "Bands": [
+              "160m",
+              "6m",
+              "2m",
+              "70cm"
+            ]
+          }
+        ],
+        "BonusFromUtc": "",
+        "BonusUntilUtc": "",
+        "ActivatorRoster": true,
+        "ActivatorAreas": []
+      }
+    },
+    "Note": "В русском положении даты 15–30 апреля 2024 подтверждены в описании и зачётных условиях. В англоязычном тексте опечатка в дате окончания."
+  },
+  {
+    "Url": "https://hamlog.online/club/5ocean/af09eb56fcf16ce51de749f8b5fc8ee0/",
+    "Title": "Serbian military pilot Nikola Krstic",
+    "TextSha256": "9fee68728cefc7bb27b83ea6360fd2fd5b0bd6f5d2336ded096bbfed0ab8f6f2",
+    "Plan": null,
+    "Note": "Положение требует отдельно набрать заданное число разных членов клуба из Сербии и из других стран. Общего порога очков для зачёта недостаточно."
+  },
+  {
+    "Url": "https://hamlog.online/club/5ocean/ee66144f50b7e19551c37c14c5f3c4bd/",
+    "Title": "Serbian hero Ljutovac",
+    "TextSha256": "5c3ad50180b377429e3cabd3a6c03d0413b8c578e130463bbd9bd35e3efcee26",
+    "Plan": null,
+    "Note": "Положение требует отдельно набрать заданное число разных членов клуба из Сербии и из других стран. Общего порога очков для зачёта недостаточно."
+  },
+  {
+    "Url": "https://hamlog.online/club/5ocean/b414af8d1fe019b7a6940f185f2b2fae/",
+    "Title": "Prva zena pilot u Kraljevini Jugoslaviji i Srbiji - Danica Tomic",
+    "TextSha256": "c827762901153e159609665d0e0d8140ef10fe23b14a01dd187da2899225d055",
+    "Plan": null,
+    "Note": "Положение требует отдельно набрать заданное число разных членов клуба из Сербии и из других стран. Общего порога очков для зачёта недостаточно."
+  },
+  {
+    "Url": "https://hamlog.online/club/5ocean/afec5b620526691ab528c9c36a33b20f/",
+    "Title": "112th Anniversary of the First Flight to Greece",
+    "TextSha256": "86f71c3b189b751dc153840e958c4cdfcdf60a11af8dc425f9eaf9639a0d56d0",
+    "Plan": null,
+    "Note": "Особая ставка для SX112MGF относится к КВ, а для обычных членов клуба на 160 м, УКВ и ДМВ действует надбавка. Нужно отделить диапазоны специального позывного."
+  },
+  {
+    "Url": "https://hamlog.online/club/5ocean/b5cf4c35fd250751ed36c373e51d0d20/",
+    "Title": "4 years of Greek section in the international 5th Ocean Club",
+    "TextSha256": "df77f58d2adc1fd2f6b27cb187773ea67f05a891af73b3458b4e189842bffa22",
+    "Plan": null,
+    "Note": "В русском тексте за SX4FOC даются 3 очка, в английском тексте — 5 с дополнительной ставкой на 160 м, УКВ и ДМВ. Нужно подтвердить действовавшие ставки по зачтённым связям."
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/b8bfe91083b63e54c3790092673e0abc/",
+    "Title": "RVSN",
+    "TextSha256": "809583768f1b4b3555fbcd0007e4f6fe627052df2e158c52bd2d7360166f3cb9",
+    "Plan": null,
+    "Note": "Принимаются как связи с членами СРВС, так и связи с радиолюбителями, служившими в РВСН. Для поиска второй группы нужен опубликованный список позывных организатора."
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/d9c9a116c7ad336c9e55b6b6db4f4591/",
+    "Title": "RVSN",
+    "TextSha256": "cfa9c52b5d839c1de0ebb45dadcd10f17fb339304e2ddf94ada9b9e59f3e9fb2",
+    "Plan": null,
+    "Note": "Принимаются как связи с членами СРВС, так и связи с радиолюбителями, служившими в РВСН. Для поиска второй группы нужен опубликованный список позывных организатора."
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/d6dbe1724814f1785843d7bb2bc0d00c/",
+    "Title": "Day of RVSN",
+    "TextSha256": "a679ff3669e6ed880b2ecfe414d9d3b129dfbc9e06c3c6435b9246a7095ead6a",
+    "Plan": null,
+    "Note": "Принимаются как связи с членами СРВС, так и связи с радиолюбителями, служившими в РВСН. Для поиска второй группы нужен опубликованный список позывных организатора."
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/c41eb06d571371fd42678c80b444a9ee/",
+    "Title": "Day of RVSN",
+    "TextSha256": "2f3ea8cd72819ca16a9f9c8a7b350182774dda71c23ae3f3cbcaf6d32b71664b",
+    "Plan": null,
+    "Note": "Принимаются как связи с членами СРВС, так и связи с радиолюбителями, служившими в РВСН. Для поиска второй группы нужен опубликованный список позывных организатора."
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/e3a313752d23ca68ff1f92c374c5d6f8/",
+    "Title": "Artillery",
+    "TextSha256": "ee966398201a06eb22ab0a942ccd214582925651630a35a0612e677841f2b4ad",
+    "Plan": null,
+    "Note": "Принимаются как связи с членами СРВС, так и связи с радиолюбителями, служившими в РВСН. Для поиска второй группы нужен опубликованный список позывных организатора."
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/e2ce08659b0b72eb6d795a52460811e4/",
+    "Title": "Strategic Missile Forces Day",
+    "TextSha256": "7a9772d8ae4379165f4fd819af7e4b8bd294cb56aca25dfa2bb6d1ab4d8374e8",
+    "Plan": null,
+    "Note": "Принимаются как связи с членами СРВС, так и связи с радиолюбителями, служившими в РВСН. Для поиска второй группы нужен опубликованный список позывных организатора."
+  },
+  {
+    "Url": "https://hamlog.online/club/afaru/bb4a7e7e8515226176b2cc6c9df9aa6a/",
+    "Title": "Day of RVSN 2020",
+    "TextSha256": "4d7beb325eb1836435aa1893a6bb7e7510d813b04c83645da84256616e63ebf5",
+    "Plan": null,
+    "Note": "Принимаются как связи с членами СРВС, так и связи с радиолюбителями, служившими в РВСН. Для поиска второй группы нужен опубликованный список позывных организатора."
   }
 ]
