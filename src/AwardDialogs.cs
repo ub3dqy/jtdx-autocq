@@ -21,6 +21,7 @@ namespace JtdxAutoCq
         readonly Func<string, string> dxcc;
         readonly bool demo;
         readonly HamlogRuleCache documents;
+        readonly Action<string> log;
         readonly TextBox filter = new TextBox();
         readonly ComboBox section = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "Раздел" };
         readonly ComboBox state = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "Состояние" };
@@ -41,11 +42,13 @@ namespace JtdxAutoCq
         CancellationTokenSource catalogDownload;
 
         internal AwardCatalog Catalog { get { return catalog; } }
-        internal AwardsDialog(AwardCatalog catalog, LogbookHistory history, string own, Func<string, string> dxcc, string cache = null, bool demo = false)
+        internal AwardsDialog(AwardCatalog catalog, LogbookHistory history, string own, Func<string, string> dxcc,
+            string cache = null, Action<string> log = null, bool demo = false)
             : base("Дипломы HAMLOG", 920, 594)
         {
             this.catalog = catalog.Copy(); this.history = history; this.own = own; this.dxcc = dxcc;
             this.demo = demo;
+            this.log = log;
             if (cache != null) documents = new HamlogRuleCache(cache);
             this.catalog.IncludeBuiltInPrograms();
             LabelAt("Название или клуб", 20, 54, 345, 23);
@@ -303,7 +306,8 @@ namespace JtdxAutoCq
             editTargets.Enabled = edit.Enabled && HamlogAward.Find(program.Url) == null;
             open.Enabled = rules.Enabled = program != null && !String.IsNullOrEmpty(program.Url);
             updateCatalog.Enabled = !synchronizing || catalogDownload != null;
-            updateCatalog.Text = catalogDownload == null ? "Обновить каталог" : "Остановить загрузку";
+            updateCatalog.Text = catalogDownload != null ? "Остановить загрузку"
+                : documents != null && HamlogRuleCache.CanResume(catalog, now) ? "Продолжить загрузку" : "Обновить каталог";
             sync.Enabled = !synchronizing && program != null && program.UsesTemplate && Callsign.Parse(own) != null;
             int selectedCount = catalog.Programs.Count(item => item.Selected && Progress(item).CanSelectForSearch(now));
             AwardProgress value = program == null ? null : Progress(program);
@@ -360,31 +364,34 @@ namespace JtdxAutoCq
                 return;
             }
             if (synchronizing) return;
+            bool resume = documents != null && HamlogRuleCache.CanResume(catalog, DateTime.UtcNow);
             var abort = new CancellationTokenSource();
             catalogDownload = abort;
             synchronizing = true;
             preserved.Visible = false;
             UpdateDetails();
-            overview.Text = "Загружаю общий каталог HAMLOG…";
+            overview.Text = resume ? "Продолжаю загрузку положений HAMLOG…" : "Загружаю общий каталог HAMLOG…";
             IProgress<string> progressText = new Progress<string>(message => {
                 if (!IsDisposed && catalogDownload == abort) overview.Text = message;
             });
             try
             {
-                HamlogCatalogSnapshot snapshot = await Task.Run(() => HamlogCatalogClient.Download(abort.Token,
-                    (loaded, total) => progressText.Report("Загружено " + loaded + " из " + total + " клубных и региональных программ.")));
-                if (!IsDisposed && !abort.IsCancellationRequested)
+                if (!resume)
                 {
+                    HamlogCatalogSnapshot snapshot = await Task.Run(() => HamlogCatalogClient.Download(abort.Token,
+                        (loaded, total) => progressText.Report("Загружено " + loaded + " из " + total + " клубных и региональных программ.")));
+                    if (IsDisposed || abort.IsCancellationRequested) return;
                     catalog.ApplyPublicCatalog(snapshot, DateTime.UtcNow);
                     progress.Clear();
                     ShowPreservedEdits();
                     RefreshList();
-                    if (documents != null) await DownloadRules(abort);
                 }
+                if (documents != null) await DownloadRules(abort);
             }
             catch (OperationCanceledException) { }
             catch (Exception error)
             {
+                if (log != null) log("HAMLOG. " + error.Message);
                 if (!IsDisposed) MessageBox.Show(this, error.Message, "Каталог HAMLOG", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             finally
@@ -417,6 +424,8 @@ namespace JtdxAutoCq
                 if (IsDisposed || catalogDownload != abort) return;
                 AwardProgram program = byId[result.Id];
                 program.ApplyDocument(result);
+                if (result.Error != null && log != null)
+                    log("HAMLOG. " + program.Title + " (" + program.Url + "). " + result.Error);
                 progress.Remove(program);
                 if (result.Plan != null) created++;
                 overview.Text = "Положения проверены " + ++visited + " из " + pending.Length + " · правил создано " + created;

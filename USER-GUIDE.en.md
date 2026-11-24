@@ -171,13 +171,15 @@ Select a callsign in **«Станции из левого окна JTDX»** and 
 
 ### Search for HAMLOG award contacts
 
-1. Open **«Журнал и дипломы → Дипломы HAMLOG»** (Logbook and awards → HAMLOG awards) and click **«Обновить каталог»** (Update catalog). AutoCQ loads the list and then the published documents. It prepares search rules for documents it can interpret. Ready awards appear as the download progresses. Another update continues with the saved documents.
+1. Open **«Журнал и дипломы → Дипломы HAMLOG»** (Logbook and awards → HAMLOG awards) and click **«Обновить каталог»** (Update catalog). AutoCQ loads the list and then the published documents. It prepares search rules for documents it can interpret. Ready awards appear as the download progresses.
 2. To hide issued awards, click **«Выполненные из кабинета…»** (Completed awards from my account). In your browser, sign in to HAMLOG, open **My received awards** and save it with **Ctrl+S** as **Webpage, HTML only**. Select the saved file in AutoCQ. [Open HAMLOG Awards](https://hamlog.online/account/awards.php)
 3. Choose **«Состояние → Доступны для поиска»** (Status → Available for search) and tick the awards you want in the **«Поиск»** (Search) column. Close the window to save your choices. While JTDX is receiving, choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring). AutoCQ checks available HAMLOG credit and listens on the current band.
 
-![Catalog filters and the column for selecting awards to search for](docs/awards-demo.png)
+![Catalog filters and the button to resume downloading conditions](docs/awards-demo.png)
 
 ![Importing a saved page from your HAMLOG account](docs/hamlog-account-demo.png)
+
+AutoCQ retries a temporary request failure. If the download is interrupted, click **«Продолжить загрузку»** (Resume download) to reuse files already downloaded. If HAMLOG asks you to wait and provides a delay, AutoCQ shows it. The AutoCQ log records the error details.
 
 The catalog opens to **«Действующие»** (Active). In **«Состояние»** (Status), you can also view **«Выполненные и выданные»** (Completed and issued), **«Срок истёк»** (Expired) or **«Все дипломы»** (All awards). A dash in the search column means the award is unavailable for monitoring. If an award expires during a session, AutoCQ skips it when choosing new targets. Changing the filters keeps eligible awards selected. The number above the table includes all selected awards.
 

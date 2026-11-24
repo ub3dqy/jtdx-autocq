@@ -69,7 +69,9 @@ Open **«Журнал и дипломы»** (Logbook and awards) to select your 
 
 In **«Дипломы HAMLOG»** (HAMLOG awards), click **«Обновить каталог»** (Update catalog). AutoCQ downloads published conditions and prepares rules when it recognizes them. Tick the awards you want, close the window, and choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring). Double-click an award to view or edit its search rules. [How to prepare awards and start monitoring](USER-GUIDE.en.md#search-for-hamlog-award-contacts)
 
-![Award filters and availability for monitoring](docs/awards-demo.png)
+After an interruption, **«Продолжить загрузку»** (Resume download) uses documents already downloaded. The AutoCQ log shows the reason for the interruption.
+
+![Award catalog filters and the resume download button](docs/awards-demo.png)
 
 The same menu lets you save settings under a name and check **«Итоги сеанса»** (Session results). The results show final confirmations and which records were found in your main logbook. If a callsign remains in the left list, select it and click **«Почему пропущена?»** (Why was this station skipped?).
 

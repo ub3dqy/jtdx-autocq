@@ -396,6 +396,74 @@ static class OperatorToolsTests
             }
         });
 
+        run("HAMLOG rules retry a timeout, record the rate limit and resume from saved documents", () => {
+            DateTime now = DateTime.UtcNow;
+            var catalog = new AwardCatalog { PublicCatalogUtc = now.AddMinutes(-15) };
+            foreach (string id in new[] { "1", "2", "3", "4" })
+            {
+                var program = new AwardProgram { Id = id, Title = "Document " + id,
+                    Url = "https://hamlog.online/club/demo/" + id + "/", PublicEntry = true };
+                program.Validate();
+                catalog.Programs.Add(program);
+            }
+            string folder = TestWorkspace.Create();
+            var attempts = new Dictionary<string, int>();
+            var delays = new List<int>();
+            var reports = new List<HamlogRuleResult>();
+            bool limited = true;
+            var cache = new HamlogRuleCache(folder, (url, cancel) => {
+                string id = new Uri(url).Segments.Last().TrimEnd('/');
+                if (!attempts.ContainsKey(id)) attempts[id] = 0;
+                if (++attempts[id] == 1 && id == "1")
+                    throw new HamlogRequestError("Timeout", true);
+                if (limited && id == "2")
+                    throw new HamlogRequestError("HTTP 429", true, 429, TimeSpan.FromSeconds(60));
+                return new HamlogRules(url + "rules/", "A saved public document.", null);
+            }, (delay, cancel) => delays.Add(delay));
+            Action<HamlogRuleResult> record = result => {
+                reports.Add(result);
+                catalog.Programs.Single(program => program.Id == result.Id).ApplyDocument(result);
+            };
+            try
+            {
+                cache.Scan(catalog.Programs, System.Threading.CancellationToken.None, record);
+                throw new Exception("The service pause was ignored.");
+            }
+            catch (IOException error)
+            {
+                Check(error.Message.Contains("HTTP 429"), "Unexpected stopped-download error: " + error.Message);
+            }
+            Check(attempts["1"] == 2 && delays.Contains(2000) && attempts["2"] == 1 && !attempts.ContainsKey("3"),
+                "The scan did not retry the temporary failure or continued during the rate limit.");
+            Check(reports.Count == 2 && reports[0].Status == "downloaded" && reports[1].Error == "HTTP 429"
+                && HamlogRuleCache.CanResume(catalog, now), "Partial progress or the document-specific failure was lost.");
+            limited = false;
+            cache.Scan(catalog.Programs, System.Threading.CancellationToken.None, record);
+            Check(attempts["1"] == 2 && attempts["3"] == 1 && attempts["4"] == 1
+                && reports.Skip(2).All(report => report.Status == "downloaded") && !HamlogRuleCache.CanResume(catalog, now),
+                "Resuming redownloaded the cached file, skipped a document or left the whole scan pending.");
+        });
+
+        run("An unavailable HAMLOG document leaves later documents in the queue", () => {
+            var expired = new AwardProgram { Id = "old", Title = "Old", Url = "https://hamlog.online/club/demo/12/",
+                PublicEntry = true, PublishedUntilUtc = "2026-01-01" };
+            var next = new AwardProgram { Id = "next", Title = "Next", Url = "https://hamlog.online/club/demo/13/",
+                PublicEntry = true };
+            var reports = new List<HamlogRuleResult>();
+            int denied = 0;
+            var cache = new HamlogRuleCache(TestWorkspace.Create(), (url, cancel) => {
+                if (url == expired.Url)
+                {
+                    denied++;
+                    throw new HamlogRequestError("HTTP 403", false, 403);
+                }
+                return new HamlogRules(url + "rules/", "Published requirements.", null);
+            }, (delay, cancel) => { });
+            cache.Scan(new[] { expired, next }, System.Threading.CancellationToken.None, reports.Add);
+            Check(denied == 1 && reports.Count == 2 && reports[0].Error == "HTTP 403" && reports[1].Status == "downloaded",
+                "A permanently unavailable document was retried or stopped the remaining download.");
+        });
+
         run("Award monitoring chooses a station benefiting two programs and counts actual logged contacts", () => {
             DateTime at = new DateTime(2026, 1, 15, 12, 0, 0, DateTimeKind.Utc);
             var catalog = new AwardCatalog { Callsign = "K1AAA", Programs = new List<AwardProgram> {

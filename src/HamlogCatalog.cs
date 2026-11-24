@@ -102,8 +102,10 @@ namespace JtdxAutoCq
                         response.Close();
                         return target == null || target == address ? null : Read(target, accept, maximumBytes, cancel, null, publicRedirects - 1);
                     }
-                    if (response.StatusCode != HttpStatusCode.OK || response.ContentLength > maximumBytes)
-                        throw new IOException("HAMLOG не вернул ожидаемый файл.");
+                    if (response.StatusCode != HttpStatusCode.OK)
+                        throw ResponseError(response);
+                    if (response.ContentLength > maximumBytes)
+                        throw new InvalidDataException("Ответ HAMLOG слишком большой.");
                     using (Stream input = response.GetResponseStream())
                     using (var output = new MemoryStream())
                     {
@@ -124,18 +126,53 @@ namespace JtdxAutoCq
                 cancel.ThrowIfCancellationRequested();
                 using (var response = error.Response as HttpWebResponse)
                 {
-                    if (response != null && ((int)response.StatusCode == 429 || response.StatusCode == HttpStatusCode.Forbidden))
-                        throw new HamlogRequestLimited();
                     if (response != null && response.StatusCode == HttpStatusCode.NotFound) return null;
+                    if (response != null) throw ResponseError(response, error);
                 }
-                throw new IOException("Не удалось получить ответ от HAMLOG.", error);
+                bool retryable = error.Status != WebExceptionStatus.TrustFailure && error.Status != WebExceptionStatus.SecureChannelFailure;
+                throw new HamlogRequestError("Ошибка связи с HAMLOG (" + error.Status + ").", retryable, inner: error);
             }
+            catch (HamlogRequestError) { throw; }
+            catch (InvalidDataException) { throw; }
+            catch (IOException error)
+            {
+                cancel.ThrowIfCancellationRequested();
+                throw new HamlogRequestError("Ответ HAMLOG оборвался при чтении.", true, inner: error);
+            }
+        }
+
+        static HamlogRequestError ResponseError(HttpWebResponse response, Exception inner = null)
+        {
+            int status = (int)response.StatusCode;
+            string header = response.Headers["Retry-After"];
+            TimeSpan? wait = null;
+            int seconds;
+            DateTimeOffset retryAt;
+            if (Int32.TryParse(header, NumberStyles.None, CultureInfo.InvariantCulture, out seconds))
+                wait = TimeSpan.FromSeconds(seconds);
+            else if (DateTimeOffset.TryParse(header, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out retryAt))
+                wait = retryAt > DateTimeOffset.UtcNow ? retryAt - DateTimeOffset.UtcNow : TimeSpan.Zero;
+            string message = "HAMLOG вернул HTTP " + status + ".";
+            if (wait.HasValue) message += " Сайт просит подождать " + Math.Ceiling(wait.Value.TotalSeconds) + " с.";
+            return new HamlogRequestError(message, status == 408 || status == 429 || status >= 500 && status < 600,
+                status, wait, inner);
         }
     }
 
-    internal sealed class HamlogRequestLimited : IOException
+    internal sealed class HamlogRequestError : IOException
     {
-        internal HamlogRequestLimited() : base("HAMLOG ограничил запросы. Уже загруженные положения сохранены.") { }
+        internal readonly bool Retryable;
+        internal readonly int Status;
+        internal readonly TimeSpan? RetryAfter;
+        internal bool PauseRequested { get { return Status == 429 || Status == 503 && RetryAfter.HasValue; } }
+
+        internal HamlogRequestError(string message, bool retryable, int status = 0, TimeSpan? retryAfter = null, Exception inner = null)
+            : base(message, inner)
+        {
+            Retryable = retryable;
+            Status = status;
+            RetryAfter = retryAfter;
+        }
     }
 
     [DataContract]

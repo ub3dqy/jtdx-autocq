@@ -246,7 +246,7 @@ namespace JtdxAutoCq
             using (var dialog = new AwardsDialog(catalog, history, own, call => {
                 DxccCountry country = CountryTable().Find(call);
                 return country == null ? null : country.Prefix;
-            }, demo ? null : Path.Combine(settings.StateDirectory, "hamlog-rules")))
+            }, demo ? null : Path.Combine(settings.StateDirectory, "hamlog-rules"), Log))
             {
                 dialog.ShowDialog(this);
                 preferences.Awards = dialog.Catalog;
@@ -474,14 +474,14 @@ namespace JtdxAutoCq
                     new LogbookQso { Call = "R4CQ", Band = "160m", Mode = "FT8", StartedUtc = october.AddDays(13) },
                 }).ToList());
             var example = new AwardCatalog {
-                Callsign = "K1ABC", PublicCatalogUtc = october.AddDays(14),
+                Callsign = "K1ABC", PublicCatalogUtc = DateTime.UtcNow.AddMinutes(-20),
                 Programs = new List<AwardProgram> { russia, gunsmiths, arck, counties, diploma, stations, falcon, tula, angels, custom }
             };
             foreach (AwardProgram program in example.Programs) program.Validate();
             var awards = new AwardsDialog(example, awardHistory, "K1ABC", call => {
                 DxccCountry country = table.Find(call);
                 return country == null ? null : country.Prefix;
-            }, demo: true);
+            }, cache: Path.GetTempPath(), demo: true);
             awards.SelectDemoProgram(angels);
             return new Form[] {
                 new LogbookSourceDialog("", history.Path, "LogHX"),
