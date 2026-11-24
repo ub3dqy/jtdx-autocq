@@ -687,6 +687,7 @@ namespace JtdxAutoCq
         readonly NumericUpDown alternative = new NumericUpDown { Minimum = 1, Maximum = 10000 };
         readonly NumericUpDown rcpwSpecial = new NumericUpDown { Minimum = 0, Maximum = 1000 };
         readonly CheckBox rcpwDoubleDistrictZero = new CheckBox { Text = "Двойные очки для 0-го района России", AutoSize = true };
+        readonly CheckBox rcpwSpecialAfterActivity = new CheckBox { Text = "Оставить эти позывные в зачёте после дней активности", AutoSize = true };
         readonly TextBox bonusUntil = new TextBox { MaxLength = 32 };
         readonly TextBox groups = new TextBox { Multiline = true, ScrollBars = ScrollBars.Vertical, MaxLength = 4000 };
         readonly CheckBox hf = new CheckBox { Text = "Только КВ (160–10 м)", AutoSize = true };
@@ -809,6 +810,8 @@ namespace JtdxAutoCq
                 if (plan.RcpwOnlineAfterPoints > 0)
                     LabelAt("За поздние связи HAMLOG также начислял " + plan.RcpwOnlineAfterPoints + " очк. AutoCQ сверяет ставку по зачёту.",
                         20, 459, 698, 34);
+                Place(rcpwSpecialAfterActivity, 20, 492, 675, 24);
+                rcpwSpecialAfterActivity.Visible = plan.Calls.Length != 0;
             }
             else if (plan.Districts)
             {
@@ -828,7 +831,7 @@ namespace JtdxAutoCq
                 Place(required, 148, 267, 77, 27);
                 LabelAt("За позывной", 245, 270, 123, 24);
                 Place(special, 374, 267, 77, 27);
-                LabelAt(districtContacts ? "За связь в районе" : String.IsNullOrEmpty(plan.Contacts.Roster) ? "За станцию DXCC"
+                LabelAt(plan.AllStations ? "За каждую связь" : districtContacts ? "За связь в районе" : String.IsNullOrEmpty(plan.Contacts.Roster) ? "За станцию DXCC"
                     : "За члена клуба", 466, 270, 157, 24);
                 Place(member, 641, 267, 77, 27);
                 LabelAt("Страны DXCC", 20, 308, 184, 24);
@@ -836,7 +839,13 @@ namespace JtdxAutoCq
                 LabelAt("Диапазоны (пусто — все)", 20, 346, 190, 24);
                 Place(contactBands, 212, 342, 506, 27);
                 LabelAt("Сколько очков на степень", 20, 384, 190, 24);
-                Place(levels, 212, 380, 506, 27);
+                if (plan.AllStations)
+                {
+                    LabelAt("Ближайшая степень берётся из зачёта HAMLOG.", 212, 384, 506, 24);
+                    calls.ReadOnly = territories.ReadOnly = true;
+                    special.Enabled = repeats.Enabled = false;
+                }
+                else Place(levels, 212, 380, 506, 27);
                 LabelAt("Зачёт повторов", 20, 422, 190, 24);
                 string day = plan.Contacts.RepeatDayOffsetMinutes == 180 ? "по московскому времени" : "по UTC";
                 repeats.Items.AddRange(new[] { "На разных диапазонах или видах", "На разных диапазонах или видах за сутки " + day,
@@ -882,6 +891,7 @@ namespace JtdxAutoCq
             from.Text = plan.FromUtc;
             until.Text = plan.UntilUtc;
             searchRegion.Text = plan.SearchRegion;
+            required.Maximum = plan.MaxRequired;
             required.Value = plan.Required;
             hf.Checked = plan.HfOnly;
             vhfBonus.Checked = plan.VhfBonus;
@@ -897,6 +907,7 @@ namespace JtdxAutoCq
                 bonusUntil.Text = plan.BonusUntilUtc;
                 rcpwSpecial.Value = plan.RcpwSpecialPoints;
                 rcpwDoubleDistrictZero.Checked = plan.RcpwDoubleDistrictZero;
+                rcpwSpecialAfterActivity.Checked = plan.RcpwSpecialAfterActivity;
             }
             if (plan.ContactAward)
             {
@@ -945,6 +956,7 @@ namespace JtdxAutoCq
                         && bonusUntil.Text == previous.BonusUntilUtc ? previous.RcpwOnlineAfterPoints : 0,
                     RcpwSpecialPoints = previous.Rcpw ? (int)rcpwSpecial.Value : 0,
                     RcpwDoubleDistrictZero = previous.Rcpw && rcpwDoubleDistrictZero.Checked,
+                    RcpwSpecialAfterActivity = previous.Rcpw && rcpwSpecialAfterActivity.Checked,
                     BonusUntilUtc = previous.Rcpw ? bonusUntil.Text : "",
                     Calls = Tokens(calls.Text),
                     BonusGroups = previous.Club || HasContactGroups(program) ? groups.Lines.Where(line => !String.IsNullOrWhiteSpace(line)).Select(ReadGroup).ToArray()
@@ -959,6 +971,7 @@ namespace JtdxAutoCq
                             ? previous.Contacts.RepeatDayOffsetMinutes : 0,
                         ShortcutDay = shortcutDay, ShortcutContacts = shortcutContacts,
                         GroupModes = modeGroups.Checked,
+                        AllStations = previous.Contacts.AllStations,
                         PortableAliases = portableAliases.Checked,
                         PortableRegionalCalls = previous.Contacts.PortableRegionalCalls,
                         AcceptObserverCredit = previous.Contacts.AcceptObserverCredit,

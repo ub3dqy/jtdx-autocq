@@ -6,7 +6,7 @@ namespace JtdxAutoCq
 {
     public sealed class HamlogReviewedEntry
     {
-        public string Url, TextSha256, Title, Note;
+        public string Url, TextSha256, PdfSha256, Title, Note;
         public HamlogRulePlan Plan;
     }
 
@@ -23,7 +23,9 @@ namespace JtdxAutoCq
                 source.CopyTo(buffer);
                 foreach (HamlogReviewedEntry entry in UpdateClient.Json<HamlogReviewedEntry[]>(buffer.ToArray()))
                 {
-                    if (HamlogLinks.Award(entry.Url) != entry.Url || entry.TextSha256 == null || entry.TextSha256.Length != 64
+                    string fingerprint = entry.TextSha256 ?? entry.PdfSha256;
+                    if (HamlogLinks.Award(entry.Url) != entry.Url || fingerprint == null || fingerprint.Length != 64
+                        || entry.TextSha256 != null && entry.PdfSha256 != null
                         || entry.Plan == null && String.IsNullOrWhiteSpace(entry.Note))
                         throw new InvalidDataException("Неверная ссылка или контрольная сумма в каталоге условий дипломов.");
                     if (entry.Plan != null) entry.Plan.Validate();
@@ -36,7 +38,15 @@ namespace JtdxAutoCq
         internal static HamlogReviewedEntry Find(string url, string text)
         {
             HamlogReviewedEntry entry;
-            return Entries.TryGetValue(url, out entry) && HamlogCatalogClient.Hash(text) == entry.TextSha256 ? entry : null;
+            return Entries.TryGetValue(url, out entry) && entry.TextSha256 != null
+                && HamlogCatalogClient.Hash(text) == entry.TextSha256 ? entry : null;
+        }
+
+        internal static HamlogReviewedEntry FindPdf(string url, byte[] content)
+        {
+            HamlogReviewedEntry entry;
+            return content != null && Entries.TryGetValue(url, out entry) && entry.PdfSha256 != null
+                && HamlogCatalogClient.HashBytes(content) == entry.PdfSha256 ? entry : null;
         }
     }
 }

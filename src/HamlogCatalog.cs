@@ -321,9 +321,12 @@ namespace JtdxAutoCq
         }
 
         internal static string Hash(string value)
+        { return HashBytes(Encoding.UTF8.GetBytes(value)); }
+
+        internal static string HashBytes(byte[] value)
         {
             using (SHA256 hash = SHA256.Create())
-                return BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(value))).Replace("-", "").ToLowerInvariant();
+                return BitConverter.ToString(hash.ComputeHash(value)).Replace("-", "").ToLowerInvariant();
         }
     }
 }

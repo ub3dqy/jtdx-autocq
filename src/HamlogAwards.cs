@@ -159,6 +159,7 @@ namespace JtdxAutoCq
         static readonly Regex SquareButton = new Regex(@"<button\b[^>]*\bdata-locator=""([A-R]{2}\d{2})""[^>]*\bdata-status=""(cfm|both)""",
             RegexOptions.IgnoreCase);
         const int MaximumPageBytes = 2 * 1024 * 1024;
+        const int MaximumQsoSeriesPageBytes = 96 * 1024 * 1024;
 
         internal static HamlogStanding Read(HamlogAward award, string own)
         {
@@ -178,6 +179,7 @@ namespace JtdxAutoCq
             request.ContentLength = query.Length;
             using (Stream form = request.GetRequestStream()) form.Write(query, 0, query.Length);
             HamlogStanding standing;
+            int maximum = award.DocumentPlan != null && award.DocumentPlan.AllStations ? MaximumQsoSeriesPageBytes : MaximumPageBytes;
             using (var response = (HttpWebResponse)request.GetResponse())
             using (Stream input = response.GetResponseStream())
             using (var output = new MemoryStream())
@@ -188,11 +190,11 @@ namespace JtdxAutoCq
                 int count;
                 while ((count = input.Read(buffer, 0, buffer.Length)) != 0)
                 {
-                    if (output.Length + count > MaximumPageBytes)
+                    if (output.Length + count > maximum)
                         throw new InvalidDataException("Ответ HAMLOG слишком большой.");
                     output.Write(buffer, 0, count);
                 }
-                standing = Parse(Encoding.UTF8.GetString(output.ToArray()), award, own, DateTime.UtcNow);
+                standing = Parse(Encoding.UTF8.GetString(output.GetBuffer(), 0, (int)output.Length), award, own, DateTime.UtcNow);
             }
             if (award.DocumentPlan != null && award.DocumentPlan.UsesRcpwRoster)
             {
@@ -237,10 +239,14 @@ namespace JtdxAutoCq
                 throw new InvalidDataException("HAMLOG не вернул результат для " + own + ".");
             if (award.Rule == HamlogRule.Grid && award.DocumentPlan == null) return ParseSquares(html, award, own, checkedUtc);
             Match table = ResultsTable.Match(html);
-            Match body = Body.Match(table.Groups[1].Value);
+            Group content = table.Groups[1];
+            Match body = Body.Match(html, content.Index, content.Length);
             if (!body.Success) throw new InvalidDataException("На странице HAMLOG отсутствует таблица зачтённых связей.");
             var credits = new List<HamlogCredit>();
-            foreach (Match row in Row.Matches(body.Groups[1].Value))
+            HamlogRulePlan plan = award.DocumentPlan;
+            bool series = plan != null && plan.AllStations;
+            Group rows = body.Groups[1];
+            for (Match row = Row.Match(html, rows.Index, rows.Length); row.Success; row = row.NextMatch())
             {
                 Match[] cells = Cell.Matches(row.Groups[1].Value).Cast<Match>().ToArray();
                 if (cells.Length != 8) throw new InvalidDataException("Изменился формат строк HAMLOG.");
@@ -249,11 +255,13 @@ namespace JtdxAutoCq
                 if (!Regex.IsMatch(accepted, @"\bfa-check(?:-circle)?\b"))
                     throw new InvalidDataException("Не удалось определить, зачтена ли связь в HAMLOG.");
                 string[] values = cells.Select(cell => Text(cell.Groups[1].Value)).ToArray();
-                HamlogRulePlan plan = award.DocumentPlan;
                 if (values[6] == "-" && plan != null && (plan.RdaOnly || plan.Club && plan.NoMultipliers))
                     continue;
-                string call = Callsign.Parse(values[0]);
-                bool observation = call == null && plan != null && Observer.IsMatch(values[0])
+                // Some older logs use a backslash in a portable callsign or a district suffix in an SWL number.
+                string rawCall = series ? values[0].Replace('\\', '/') : values[0];
+                string call = Callsign.Parse(rawCall);
+                string observer = series && call == null ? Regex.Replace(rawCall, @"/[0-9]{1,2}\z", "") : rawCall;
+                bool observation = call == null && plan != null && Observer.IsMatch(observer)
                     && (plan.Club || plan.RdaOnly || plan.ContactAward && plan.Contacts.AcceptObserverCredit);
                 string band = values[2].ToLowerInvariant();
                 if (call == null && !observation || !JtdxAdif.BandNames.Contains(band) || String.IsNullOrEmpty(values[3]))
@@ -278,12 +286,18 @@ namespace JtdxAutoCq
             int required = total != null ? (int)Number(total.Groups[2].Value)
                 : provisional ? award.DocumentPlan.AlternativeRequired : award.Required;
             decimal points = total != null ? Number(total.Groups[1].Value) : 0;
-            if (award.DocumentPlan != null && award.DocumentPlan.MultiLevel)
+            if (plan != null && plan.MultiLevel && total == null && credits.Count == 0)
+                required = series ? plan.AlternativeRequired : plan.Contacts.Levels.First();
+            else if (plan != null && plan.MultiLevel)
             {
                 int[] levels = totals.Select(match => (int)Number(match.Groups[2].Value)).OrderBy(level => level).ToArray();
-                if (!levels.SequenceEqual(award.DocumentPlan.Contacts.Levels) || totals.Any(match => Number(match.Groups[1].Value) != points))
+                bool validLevels = series
+                    ? levels.Length > 0 && levels.Length <= 128 && levels.Distinct().Count() == levels.Length && levels.All(award.Requires)
+                    : levels.SequenceEqual(award.DocumentPlan.Contacts.Levels);
+                if (!validLevels || totals.Any(match => Number(match.Groups[1].Value) != points))
                     throw new InvalidDataException("Степени или итоги зачёта HAMLOG отличаются от положения.");
-                required = levels.Where(level => level > points).DefaultIfEmpty(award.Required).Min();
+                required = levels.FirstOrDefault(level => level > points);
+                if (required == 0) required = levels.Last();
             }
             else if (totals.Length > 1
                 || total == null && (award.HasOnlineRules || credits.Count != 0)
@@ -302,19 +316,13 @@ namespace JtdxAutoCq
             int rcpwAfterPoints = 0;
             if (award.Rule == HamlogRule.RcpwHunter)
             {
-                HamlogRulePlan plan = award.DocumentPlan;
-                DateTime bonusUntil = AwardCatalog.ReadTime(plan.BonusUntilUtc).Value;
+                DateTime? bonusUntil = AwardCatalog.ReadTime(plan.BonusUntilUtc);
                 int factor = plan.RcpwFactor(own);
                 var special = new HashSet<string>(plan.Calls, StringComparer.Ordinal);
-                // HAMLOG only exposes contact dates, so a boundary day can contain either rate.
-                if (credits.Any(credit => special.Contains(credit.Call)
-                    ? credit.DayUtc >= bonusUntil || credit.Points != plan.RcpwSpecialPoints * factor
-                    : !(credit.DayUtc < bonusUntil && credit.Points == plan.ExtraPoints * factor)
-                        && !(credit.DayUtc.AddDays(1) > bonusUntil
-                            && (credit.Points == plan.MemberPoints * factor || plan.RcpwOnlineAfterPoints > 0
-                                && credit.Points == plan.RcpwOnlineAfterPoints * factor))))
+                if (credits.Any(credit => !RcpwRateFits(credit, plan, bonusUntil, factor, special.Contains(credit.Call))))
                     throw new InvalidDataException("Очки за связи в HAMLOG отличаются от ставок в положении RCPW.");
-                HamlogCredit recent = credits.Where(credit => credit.DayUtc >= bonusUntil && !special.Contains(credit.Call))
+                HamlogCredit recent = credits.Where(credit => (!bonusUntil.HasValue || credit.DayUtc >= bonusUntil.Value)
+                    && !special.Contains(credit.Call))
                     .OrderByDescending(credit => credit.DayUtc).FirstOrDefault();
                 rcpwAfterPoints = recent == null ? plan.MemberPoints : (int)recent.Points / factor;
             }
@@ -343,6 +351,17 @@ namespace JtdxAutoCq
                 RcpwAfterPoints = rcpwAfterPoints };
         }
 
+        static bool RcpwRateFits(HamlogCredit credit, HamlogRulePlan plan, DateTime? until, int factor, bool special)
+        {
+            decimal rate = credit.Points / factor;
+            // HAMLOG reports the day of the contact. Both rates may be valid on the boundary day.
+            bool during = !until.HasValue || credit.DayUtc < until.Value;
+            bool after = !until.HasValue || credit.DayUtc.AddDays(1) > until.Value;
+            return during && rate == (special ? plan.RcpwSpecialPoints : plan.ExtraPoints)
+                || after && (!special || plan.RcpwSpecialAfterActivity)
+                    && (rate == plan.MemberPoints || plan.RcpwOnlineAfterPoints > 0 && rate == plan.RcpwOnlineAfterPoints);
+        }
+
         static void VerifyAdditional(HamlogContactRequirement[] requirements, Match[] reported, HamlogCredit[] credits)
         {
             var required = requirements.Where(condition => condition.ReportedByHamlog).ToArray();
@@ -368,6 +387,7 @@ namespace JtdxAutoCq
             DateTime? from = AwardCatalog.ReadTime(criteria.BonusFromUtc), until = AwardCatalog.ReadTime(criteria.BonusUntilUtc);
             return credits.All(credit => {
                 if (!criteria.AllowsBandMode(credit.Band, HamlogPointProgress.ModeGroup(credit.Mode))) return false;
+                if (criteria.AllStations) return credit.Points == plan.MemberPoints;
                 if (criteria.MultiplyByCountyCount)
                     return credit.Points == plan.MemberPoints && (String.IsNullOrEmpty(credit.County)
                         || criteria.DistrictCode(credit.Call, credit.County, allowRetired: true) != null);
@@ -669,9 +689,10 @@ namespace JtdxAutoCq
             }
             if (rcpw)
             {
-                if (bonus.Contains(call)) return time < bonusUntil.Value ? plan.RcpwSpecialPoints * rcpwFactor : 0;
-                if (!rcpwMembers.Contains(call)) return 0;
-                int rate = time < bonusUntil.Value ? plan.ExtraPoints
+                bool special = bonus.Contains(call);
+                bool activity = bonusUntil.HasValue && time < bonusUntil.Value;
+                if (special ? !activity && !plan.RcpwSpecialAfterActivity : !rcpwMembers.Contains(call)) return 0;
+                int rate = activity ? (special ? plan.RcpwSpecialPoints : plan.ExtraPoints)
                     : Standing.RcpwAfterPoints > 0 ? Standing.RcpwAfterPoints : plan.MemberPoints;
                 return rate * rcpwFactor;
             }
@@ -697,6 +718,7 @@ namespace JtdxAutoCq
 
         int ContactCredit(string call, DateTime time, string county)
         {
+            if (contacts.AllStations) return plan.MemberPoints;
             if (contacts.MultiplyByCountyCount && county != null)
                 return contacts.InCountyScope(county, false) ? plan.MemberPoints : 0;
             string baseCall = contacts.NamedCall(call);
@@ -743,7 +765,7 @@ namespace JtdxAutoCq
             if (!CanSearch || !Within(time) || !OnBand(band, ModeGroup(mode))) return false;
             if (contacts != null)
             {
-                if (contacts.RestrictsCounties || contacts.Countries.Length != 0 || areaBonuses.Count != 0) return true;
+                if (contacts.AllStations || contacts.RestrictsCounties || contacts.Countries.Length != 0 || areaBonuses.Count != 0) return true;
                 return bonus.Concat(namedBonuses.Keys).Concat(ContactRoster()).Any(call => CandidatePoints(call, band, mode, time) > 0);
             }
             if (areaBonuses.Count != 0) return true;

@@ -11,7 +11,7 @@ namespace JtdxAutoCq
     {
         public string Kind, FromUtc, UntilUtc, BonusUntilUtc, SearchRegion;
         public int Required, MemberPoints, ExtraPoints, AlternativeRequired, RcpwOnlineAfterPoints, RcpwSpecialPoints;
-        public bool HfOnly, VhfBonus, NoMultipliers, RcpwDoubleDistrictZero, ClubMembersMayHunt;
+        public bool HfOnly, VhfBonus, NoMultipliers, RcpwDoubleDistrictZero, RcpwSpecialAfterActivity, ClubMembersMayHunt;
         public bool ClubHamlogModeRates, ClubHamlogNo160mBonus;
         public string[] Calls = new string[0];
         public string[] ClubOnlyActivatorAreas = new string[0];
@@ -43,10 +43,13 @@ namespace JtdxAutoCq
         internal bool Locators { get { return ContactAward && Contacts.Repeat == HamlogContactCriteria.Locator; } }
         internal bool UsesRcpwRoster { get { return Rcpw || ContactAward && Contacts.Roster == "rcpw"; } }
         internal bool Points { get { return Club || Rcpw || ContactAward; } }
-        internal bool MultiLevel { get { return ContactAward && Contacts.Levels != null && Contacts.Levels.Length > 1; } }
+        internal bool AllStations { get { return ContactAward && Contacts.AllStations; } }
+        internal bool MultiLevel { get { return AllStations || ContactAward && Contacts.Levels != null && Contacts.Levels.Length > 1; } }
+        internal int MaxRequired { get { return AllStations ? 100000 : 10000; } }
         internal bool Requires(int value)
         {
             return value == Required || (Rcpw || ContactAward) && AlternativeRequired > 0 && value == AlternativeRequired
+                || AllStations && value >= AlternativeRequired && value <= Required
                 || ContactAward && Contacts.Levels != null && Contacts.Levels.Contains(value);
         }
 
@@ -55,7 +58,7 @@ namespace JtdxAutoCq
             if (other == null || Kind != other.Kind || Required != other.Required || MemberPoints != other.MemberPoints
                 || ExtraPoints != other.ExtraPoints || AlternativeRequired != other.AlternativeRequired
                 || RcpwOnlineAfterPoints != other.RcpwOnlineAfterPoints || RcpwSpecialPoints != other.RcpwSpecialPoints
-                || RcpwDoubleDistrictZero != other.RcpwDoubleDistrictZero
+                || RcpwDoubleDistrictZero != other.RcpwDoubleDistrictZero || RcpwSpecialAfterActivity != other.RcpwSpecialAfterActivity
                 || HfOnly != other.HfOnly || VhfBonus != other.VhfBonus || NoMultipliers != other.NoMultipliers
                 || ClubMembersMayHunt != other.ClubMembersMayHunt
                 || !ClubOnlyActivatorAreas.SequenceEqual(other.ClubOnlyActivatorAreas)
@@ -88,7 +91,7 @@ namespace JtdxAutoCq
             if (!Points && Kind != "single-station")
                 throw new InvalidDataException("Неизвестный способ зачёта диплома.");
             if (RcpwOnlineAfterPoints != 0 && (!Rcpw || RcpwOnlineAfterPoints < MemberPoints || RcpwOnlineAfterPoints > ExtraPoints)
-                || !Rcpw && (RcpwSpecialPoints != 0 || RcpwDoubleDistrictZero))
+                || !Rcpw && (RcpwSpecialPoints != 0 || RcpwDoubleDistrictZero || RcpwSpecialAfterActivity))
                 throw new InvalidDataException("Проверьте подтверждённую ставку HAMLOG после дней активности.");
             if (Calls == null || Calls.Length > 80
                 || Calls.Length == 0 && !Rcpw && !Club && !ContactAward)
@@ -100,7 +103,7 @@ namespace JtdxAutoCq
             if (!Club && (ClubOnlyActivatorAreas.Length != 0 || ClubMembersMayHunt || ClubHamlogModeRates || ClubHamlogNo160mBonus)
                 || ClubOnlyActivatorAreas.Any(area => !HamlogAwardAreas.Known(area)))
                 throw new InvalidDataException("Проверьте территории активаторов клуба.");
-            if (Points ? Required < 1 || Required > 10000 || MemberPoints < 1 || MemberPoints > 1000
+            if (Points ? Required < 1 || Required > MaxRequired || MemberPoints < 1 || MemberPoints > 1000
                 || ExtraPoints < 1 || ExtraPoints > 1000 || (HfOnly || NoMultipliers) && VhfBonus
                 : Required != 1 || Calls.Length != 1)
                 throw new InvalidDataException("Проверьте число очков или позывных в условиях диплома.");
@@ -111,7 +114,8 @@ namespace JtdxAutoCq
                 throw new InvalidDataException("Укажите бонусный позывной или территорию.");
             if (ContactAward)
             {
-                if (AlternativeRequired < 0 || AlternativeRequired > Required || MultiLevel && AlternativeRequired != 0)
+                if (AllStations ? AlternativeRequired < 1 || AlternativeRequired >= Required
+                    : AlternativeRequired < 0 || AlternativeRequired > Required || MultiLevel && AlternativeRequired != 0)
                     throw new InvalidDataException("Проверьте дополнительный порог зачёта.");
                 Contacts.Validate(Required, Calls, BonusGroups.Length != 0);
                 if ((Districts || Locators) && (MemberPoints != 1 || ExtraPoints != 1 || AlternativeRequired != 0))
@@ -130,11 +134,11 @@ namespace JtdxAutoCq
             {
                 BonusUntilUtc = (BonusUntilUtc ?? "").Trim();
                 DateTime? bonusUntil = AwardCatalog.ReadTime(BonusUntilUtc);
-                if (!from.HasValue || !bonusUntil.HasValue || bonusUntil < from
+                if (!from.HasValue || bonusUntil < from || !bonusUntil.HasValue && Calls.Length != 0
                     || bonusUntil == from && (ExtraPoints != MemberPoints || Calls.Length != 0)
                     || until.HasValue && bonusUntil > until
                     || AlternativeRequired < 1 || AlternativeRequired > Required || ExtraPoints < MemberPoints
-                    || (Calls.Length == 0 ? RcpwSpecialPoints != 0 : RcpwSpecialPoints < ExtraPoints || RcpwSpecialPoints > 1000)
+                    || (Calls.Length == 0 ? RcpwSpecialPoints != 0 || RcpwSpecialAfterActivity : RcpwSpecialPoints < ExtraPoints || RcpwSpecialPoints > 1000)
                     || HfOnly || VhfBonus)
                     throw new InvalidDataException("Проверьте границу дней активности и пороги зачёта RCPW.");
             }
@@ -156,7 +160,7 @@ namespace JtdxAutoCq
             Call = "call", Band = "band", Day = "day", District = "district", Locator = "locator";
         public string Repeat, BonusFromUtc, BonusUntilUtc, Roster, CountyPrefix, ShortcutDay;
         public int LastCounty, ShortcutContacts, RepeatDayOffsetMinutes;
-        public bool GroupModes, PortableAliases, PortableRegionalCalls, AcceptObserverCredit, ActivatorRoster, MultiplyByCountyCount, CreditBeforePublication;
+        public bool GroupModes, PortableAliases, PortableRegionalCalls, AcceptObserverCredit, ActivatorRoster, MultiplyByCountyCount, CreditBeforePublication, AllStations;
         public string[] ActivatorAreas = new string[0];
         public string[] Countries = new string[0];
         public string[] Bands = new string[0];
@@ -186,12 +190,16 @@ namespace JtdxAutoCq
             if (Countries.Any(country => !Regex.IsMatch(country ?? "", @"\A[A-Z0-9]{1,8}\z"))
                 || Bands.Any(band => !JtdxAdif.BandNames.Contains(band))
                 || Modes.Any(mode => mode != "DIGI" && mode != "SSB" && mode != "CW")
-                || !RestrictsCounties && Countries.Length == 0 && calls.Length == 0 && String.IsNullOrEmpty(Roster) && !areaGroups
+                || !AllStations && !RestrictsCounties && Countries.Length == 0 && calls.Length == 0 && String.IsNullOrEmpty(Roster) && !areaGroups
                 || !String.IsNullOrEmpty(Roster) && Roster != "rcpw" && HamlogAwardRosters.For(Roster) == null
                 || ActivatorRoster && String.IsNullOrEmpty(Roster) || ActivatorAreas.Any(area => !HamlogAwardAreas.Known(area))
                 || PortableAliases && (calls.Length == 0 && String.IsNullOrEmpty(Roster) || calls.Any(call => call.Contains("/")))
                 || Levels.Length != 0 && (Levels.First() < 1 || Levels.Last() != required))
                 throw new InvalidDataException("Проверьте территории, диапазоны и степени диплома.");
+            if (AllStations && (Repeat != BandMode || RestrictsCounties || Countries.Length != 0 || calls.Length != 0 || areaGroups
+                || !String.IsNullOrEmpty(Roster) || ActivatorAreas.Length != 0 || Levels.Length != 0 || Additional.Length != 0
+                || Adjustments.Length != 0 || ShortcutContacts != 0))
+                throw new InvalidDataException("Для серии QSO подходят станции всех стран. Пороги берутся из HAMLOG.");
             if (RestrictsCounties && (!Regex.IsMatch(CountyPrefix, @"\A[A-Z]{2}\z") || LastCounty < 1 || LastCounty > 99
                 || RetiredCounties.Concat(EligibleCounties).Any(code => code < 1 || code > LastCounty))
                 || !RestrictsCounties && (LastCounty != 0 || RetiredCounties.Length != 0 || EligibleCounties.Length != 0)
@@ -231,7 +239,7 @@ namespace JtdxAutoCq
                 && AcceptObserverCredit == other.AcceptObserverCredit
                 && ActivatorRoster == other.ActivatorRoster && ActivatorAreas.SequenceEqual(other.ActivatorAreas)
                 && MultiplyByCountyCount == other.MultiplyByCountyCount && EligibleCounties.SequenceEqual(other.EligibleCounties)
-                && CreditBeforePublication == other.CreditBeforePublication
+                && CreditBeforePublication == other.CreditBeforePublication && AllStations == other.AllStations
                 && (Roster ?? "") == (other.Roster ?? "")
                 && (CountyPrefix ?? "") == (other.CountyPrefix ?? "") && LastCounty == other.LastCounty
                 && RetiredCounties.SequenceEqual(other.RetiredCounties)
@@ -298,7 +306,7 @@ namespace JtdxAutoCq
 
     internal static class HamlogPlanCompiler
     {
-        internal const int Version = 8;
+        internal const int Version = 9;
         const string Day = @"\d{1,2} [а-яё]+ \d{4}";
         const string Points = @"\s*(?:[-–—]\s*)?(?<count>\d{1,4})\s*оч(?:ков|ка|ко)\.?";
         static readonly Regex Sky = Pattern(

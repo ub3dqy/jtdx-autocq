@@ -45,7 +45,7 @@ The document parser recognizes more than one scoring group in the supported Knig
 
 Supported RCPW plans read the member callsigns from the club website. Each plan follows its own repeat rule. An award may count each member once or accept another contact on a different band or mode. The public HAMLOG results supply the credited contacts and the applicable threshold. AutoCQ compares the credited points with the published rates before looking for a new contact. [RCPW rules example](https://hamlog.online/club/rcpw/bbfc8b0d8f75b77c547a8cd342e70de3/rules/) · [RCPW member roster](https://rcpw.ru/members.html)
 
-Individual reviews live in [HamlogReviewedAwards.json](../src/HamlogReviewedAwards.json). Each entry identifies one public HAMLOG page and the SHA-256 of its normalized rule text. An entry can contain a validated search plan or an explanation shown under the award list. If the text changes, AutoCQ evaluates the new document again. An independently saved edit still takes precedence over the downloaded plan.
+Each individual review identifies a public HAMLOG page and the SHA-256 of its normalized rule text. For an image-only rule document, the fingerprint can identify the exact PDF. A review includes a validated search plan or an explanation shown under the award list. If the document changes, AutoCQ evaluates it again. An independently saved edit takes precedence over the downloaded plan. [Reviewed award records](../src/HamlogReviewedAwards.json)
 
 For a district-count award, HAMLOG supplies the credited codes and the current thresholds. An award with a single region searches the stations in that region. HAMLOG decides which district each contact adds to credit. [RDA district reference](https://rdaward.org/rda_rus.txt)
 

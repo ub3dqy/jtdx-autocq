@@ -465,6 +465,70 @@ static class OperatorToolsTests
             Check(!award.ClosedByIssuance, "Receiving the first degree excluded the other degrees.");
         });
 
+        run("ARCK QSO series read HAMLOG tiers and group repeat digital contacts across the full date range", () => {
+            const string own = "K1ABC", worked = "JA1AAA", newCall = "EA5ABC";
+            DateTime day = new DateTime(2026, 11, 24, 13, 0, 0, DateTimeKind.Utc);
+            var plan = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2000-01-01", Required = 100000, AlternativeRequired = 15000,
+                MemberPoints = 1, ExtraPoints = 1, Contacts = new HamlogContactCriteria {
+                    Repeat = HamlogContactCriteria.BandMode, GroupModes = true, AllStations = true, CreditBeforePublication = true,
+                    AcceptObserverCredit = true
+                }
+            };
+            plan.Validate();
+            var award = new AwardProgram { Title = "ARCK QSO", Url = "https://hamlog.online/club/demo/24/",
+                DownloadedRules = plan, PublishedFromUtc = "2022-01-15", HasIssued = true };
+            award.Validate();
+            const string totals = "<span class='award-dashboard-value'>3 / 15000</span><span class='award-dashboard-value'>3 / 25000</span>";
+            string credit = HamlogRow(worked, "2 Jan 2000", "20m", "FT8", "1")
+                + HamlogRow(@"EA5AAA\P", "2 Jan 2000", "20m", "SSB", "1")
+                + HamlogRow("R3A-001/3", "2 Jan 2000", "20m", "CW", "1");
+            HamlogStanding empty = HamlogStandingClient.Parse(HamlogPage(own, ""), award.Template, own, day);
+            award.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, totals, credit), award.Template, own, day);
+            var history = new LogbookHistory("example.adi", new List<LogbookQso>());
+            var score = new AwardProgress(award, history, own, call => null);
+            Check(!award.ClosedByIssuance && score.Points.Required == 15000 && empty.ProvisionalRequired && empty.Required == 15000
+                && score.Points.Standing.Points == 3 && award.Hamlog.Credits[1].Call == "EA5AAA/P" && award.Hamlog.Credits[2].Observation
+                && !score.Needs(worked, "20m", "FT4", day) && score.Needs(worked, "40m", "FT4", day)
+                && score.Needs(newCall, "20m", "FT8", day), "An eligible QSO was missed or issued degrees ended the whole series.");
+            foreach (string invalid in new[] { totals.Replace("25000", "15000"), totals.Replace("25000", "100001"),
+                totals.Replace("3 / 25000", "2 / 25000") })
+            {
+                bool rejected = false;
+                try { HamlogStandingClient.Parse(HamlogPage(own, invalid, credit), award.Template, own, day); }
+                catch (InvalidDataException) { rejected = true; }
+                Check(rejected, "HAMLOG returned inconsistent or out-of-range degree totals.");
+            }
+        });
+
+        run("South Kazakhstan awards match the first suffix letter and give precedence to published special calls", () => {
+            const string url = "https://hamlog.online/club/arto/fe3a0fc7959eb1c6f3bf93e57f5d8eda/";
+            var plan = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2026-03-01", UntilUtc = "2026-12-31",
+                Required = 1600, MemberPoints = 100, ExtraPoints = 500, Calls = new[] { "UN7N" },
+                BonusGroups = new[] { new HamlogBonusGroup { Points = 400, Targets = new[] { "UN2NC" } },
+                    new HamlogBonusGroup { Points = 200, Area = true, Targets = new[] { "UN GQ" } },
+                    new HamlogBonusGroup { Points = 100, Area = true, Targets = new[] { "UN NT" } } },
+                Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.BandMode, GroupModes = true,
+                    Adjustments = new[] { new HamlogPointAdjustment { Factor = 2, Bands = new[] { "160m", "2m" } } } }
+            };
+            plan.Validate();
+            DateTime day = new DateTime(2026, 11, 24, 13, 0, 0, DateTimeKind.Utc);
+            var award = new AwardProgram { Title = "South Kazakhstan", Url = url, DownloadedRules = plan,
+                Hamlog = new HamlogStanding { Callsign = "K1ABC", Required = 1600, CheckedUtc = day } };
+            award.Validate();
+            var history = new LogbookHistory("example.adi", new List<LogbookQso>());
+            var progress = new HamlogPointProgress(award, history, "K1ABC", call => call.StartsWith("UN") ? "UN" : "K");
+            Check(progress.CandidatePoints("UN8GAA", "160m", "FT8", day) == 400
+                && progress.CandidatePoints("UN8QAA", "20m", "FT8", day) == 200
+                && progress.CandidatePoints("UN8NAA", "2m", "FT4", day) == 200
+                && progress.CandidatePoints("UN8TAA", "20m", "FT8", day) == 100
+                && progress.CandidatePoints("UN7N", "2m", "FT8", day) == 1000
+                && progress.CandidatePoints("UN2NC", "20m", "FT8", day) == 400
+                && progress.CandidatePoints("UN8AG", "20m", "FT8", day) == 0
+                && progress.CandidatePoints("K1GAA", "20m", "FT8", day) == 0
+                && progress.CandidatePoints("UN8GAA", "20m", "FT8", day.AddMonths(2)) == 0,
+                "The Kazakhstan regional or activity bonus was incorrect.");
+        });
+
         run("Reviewed country rules apply an exact special-event window and group FT4 with FT8 where required", () => {
             const string own = "DL1ABC";
             DateTime day = new DateTime(2026, 7, 1, 13, 0, 0, DateTimeKind.Utc);

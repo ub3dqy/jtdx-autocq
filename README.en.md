@@ -75,6 +75,8 @@ Select a reviewed award whose search is unavailable to see the reason below the 
 
 Nationwide RDA searches cover European Russia, Asiatic Russia and Kaliningrad. For regional awards, AutoCQ selects callsigns in the relevant region. HAMLOG checks contacts, calculates credit and issues awards.
 
+The South Kazakhstan award uses the first letter after the digit in the callsign to identify the region. The **ARCK QSO** series accept stations from any country and show the next tier reported by HAMLOG. For **RCPW** awards, AutoCQ uses the club's callsign roster.
+
 Some awards give extra points on particular dates or for certain callsigns. For the Yesenin award, contacts score more points from October 1 to 7, and three contacts on October 3 are enough to qualify. Double-click the award and open **«Зачёт и надбавки»** (Required contacts and bonuses) to see those conditions.
 
 After an interruption, **«Продолжить загрузку»** (Resume download) uses documents already downloaded. The AutoCQ log shows the reason for the interruption.

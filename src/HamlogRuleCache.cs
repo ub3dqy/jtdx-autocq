@@ -164,9 +164,18 @@ namespace JtdxAutoCq
                         result.Status = document.Pdf == null && String.IsNullOrWhiteSpace(document.Text) ? "missing" : "downloaded";
                         if (HamlogAward.Find(program.Url) == null && result.Status == "downloaded")
                         {
-                            string text = document.Pdf == null ? document.Text : pdf.Read(document.Pdf, cancel);
-                            if (String.IsNullOrWhiteSpace(text)) result.Status = "unreadable";
-                            else result.Plan = HamlogPlanCompiler.CompileWithReview(program.Url, text, out result.Note);
+                            HamlogReviewedEntry reviewed = HamlogReviewedPlans.FindPdf(program.Url, document.Pdf);
+                            if (reviewed != null)
+                            {
+                                result.Plan = reviewed.Plan;
+                                result.Note = reviewed.Note;
+                            }
+                            else
+                            {
+                                string text = document.Pdf == null ? document.Text : pdf.Read(document.Pdf, cancel);
+                                if (String.IsNullOrWhiteSpace(text)) result.Status = "unreadable";
+                                else result.Plan = HamlogPlanCompiler.CompileWithReview(program.Url, text, out result.Note);
+                            }
                         }
                     }
                     catch (HamlogRequestError error)

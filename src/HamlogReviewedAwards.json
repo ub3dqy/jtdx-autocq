@@ -1549,7 +1549,7 @@
     "Title": "ARCK SWL 30",
     "TextSha256": "e9a564e7917572dd1a166e06d28292ddadad93a9e1bb302cfe064aca93c928ef",
     "Plan": null,
-    "Note": "Нужно два наблюдения SWL. Засчитывается один наблюдатель на разных диапазонах или два разных. Обычный исходящий QSO такого наблюдения не подтверждает."
+    "Note": "Диплом выдаётся наблюдателям за принятые связи. Установить такую связь автоматически для этого диплома нельзя."
   },
   {
     "Url": "https://hamlog.online/club/hcdx/da3efcfb45955b4a8fe4eab1f10d5220/",
@@ -1915,7 +1915,7 @@
     "Title": "W-SWL-ARCK-2026",
     "TextSha256": "22f543b0ace35caa6faada342a97727b544660fb91d4f430fd6fcacb2f6fe66a",
     "Plan": null,
-    "Note": "Требуются два наблюдения за вашей станцией от членов ARCK. Двусторонний вызов сам по себе наблюдение SWL не подтверждает."
+    "Note": "Диплом выдаётся наблюдателям за принятые связи. Установить такую связь автоматически для этого диплома нельзя."
   },
   {
     "Url": "https://hamlog.online/club/arck/a8f0512080975199c4960bd895f0cec8/",
@@ -2104,7 +2104,7 @@
     "Title": "FIRAC OE Diplom - SSB, CW",
     "TextSha256": "151ed0a55d9d0e93847565fb4d6a856534028604634cc5df8b9813e804fe5b41",
     "Plan": null,
-    "Note": "Каждая степень FIRAC требует трёх членов из Австрии. Для КВ указаны SSB и CW. AutoCQ передаёт только FT8 и FT4."
+    "Note": "Засчитываются голосовые связи и телеграф. Для цифровых связей у FIRAC OE есть отдельный диплом."
   },
   {
     "Url": "https://hamlog.online/krv/hunter2025/",
@@ -2349,28 +2349,56 @@
     "Title": "W-ARCK-SSB",
     "TextSha256": "8fcc2f2656bea201b972c900545eb01107dd1c3c8bb273d68e40a24e26285c16",
     "Plan": null,
-    "Note": "Требуются 50 связей телефоном с членами ARCK, с повторами на разных диапазонах. AutoCQ передаёт только FT8 и FT4."
+    "Note": "Для этой карточки ARCK нужны связи голосом в SSB. Мониторинг AutoCQ работает с FT8 и FT4."
   },
   {
     "Url": "https://hamlog.online/club/arck/f0ba36a37ebd3d2aea14e6fd890acd94/",
     "Title": "W-ARCK-CW",
     "TextSha256": "8fcc2f2656bea201b972c900545eb01107dd1c3c8bb273d68e40a24e26285c16",
     "Plan": null,
-    "Note": "Требуются 50 связей телеграфом с членами ARCK, с повторами на разных диапазонах. AutoCQ передаёт только FT8 и FT4."
+    "Note": "Для этой карточки ARCK нужны телеграфные связи в CW. Мониторинг AutoCQ работает с FT8 и FT4."
   },
   {
     "Url": "https://hamlog.online/club/arck/d27673fbf2672ec1e3324dc9db953600/",
     "Title": "ARCK QSO 15000-100000",
     "TextSha256": "7941a225f3c30d4f9f42e524d6676b4c8c1c4b6b3208b1856bcac1b25e18cf21",
-    "Plan": null,
-    "Note": "Текст объединяет зачёт от 15 000 связей. У проверенной карточки HAMLOG видны степени до 50 000, при этом в названии указано до 100 000. Зачёт использует отдельные крупные таблицы связей."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2000-01-01",
+      "Required": 100000,
+      "AlternativeRequired": 15000,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Contacts": {
+        "AllStations": true,
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "CreditBeforePublication": true,
+        "AcceptObserverCredit": true
+      }
+    },
+    "Note": "Подходят связи с любыми станциями с 1 января 2000 года. Повтор засчитывается на другом диапазоне или другим видом работы. FT8 и FT4 считаются одним видом. AutoCQ берёт ближайшую степень из результата HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/arck/ba6b46ba979fdcd8866af85def55097d/",
     "Title": "ARCK QSO 10-10000",
     "TextSha256": "7941a225f3c30d4f9f42e524d6676b4c8c1c4b6b3208b1856bcac1b25e18cf21",
-    "Plan": null,
-    "Note": "Для каждой степени нужно своё число связей, повторы считаются по диапазону и группе видов. Требуется загружать большие таблицы официального зачёта и сверять все опубликованные степени."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2022-01-15",
+      "Required": 10000,
+      "AlternativeRequired": 10,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Contacts": {
+        "AllStations": true,
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "CreditBeforePublication": false,
+        "AcceptObserverCredit": true
+      }
+    },
+    "Note": "Подходят связи с любыми станциями с 15 января 2022 года. Повтор засчитывается на другом диапазоне или другим видом работы. FT8 и FT4 считаются одним видом. AutoCQ берёт ближайшую степень из результата HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/arck/eac41642e9c3371d9deffced11f30115/",
@@ -3813,8 +3841,20 @@
     "Url": "https://hamlog.online/club/rcpw/db3781a8aaf30a657aecab0e69e03b5d/",
     "Title": "Border outpost named after Andrey Korobitsyn",
     "TextSha256": "7eaae7d64f1144640dd22139d8b49759f404b56540fc529445192eefdc43fd26",
-    "Plan": null,
-    "Note": "В доступном тексте указаны 5 очков в дни активности и 3 после. Дата окончания дней активности в положении этой карточки отсутствует."
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2020-11-27",
+      "BonusUntilUtc": "",
+      "Required": 100,
+      "AlternativeRequired": 100,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [],
+      "RcpwSpecialPoints": 0,
+      "RcpwSpecialAfterActivity": false
+    },
+    "Note": "100 очков за связи с членами RCPW с 27 ноября 2020 года. В положении есть ставки 5 и 3 очка. AutoCQ сверяет действующую ставку по зачёту HAMLOG."
   },
   {
     "Url": "https://hamlog.online/global/russia/r1a/d74cdd8512de59887e0d4cae34c704b7/",
@@ -4262,8 +4302,112 @@
     "Url": "https://hamlog.online/club/arto/fe3a0fc7959eb1c6f3bf93e57f5d8eda/",
     "Title": "Southern Kazakhstan, Great Silk Road",
     "TextSha256": "8066ef1c70cc7922a6740f7c8b156e15bf6d350b7a1ef606049bf738d59ba56e",
-    "Plan": null,
-    "Note": "Положение разделяет города, спецпозывные и участников региональной программы. Требуется связать каждый зачётный позывной с нужной категорией."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2026-03-01",
+      "UntilUtc": "2026-12-31",
+      "Required": 1600,
+      "MemberPoints": 100,
+      "ExtraPoints": 500,
+      "Calls": [
+        "UN0NZZ",
+        "UN7N"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 400,
+          "Targets": [
+            "UN2NC",
+            "UN7NU",
+            "UN0NA",
+            "UN1NBA",
+            "UN7NAQ",
+            "UN7NAR",
+            "UN7NBT",
+            "UN7NCG",
+            "UN7NSA",
+            "UN7NVM",
+            "UN7NXF",
+            "UN8NGA"
+          ]
+        },
+        {
+          "Points": 200,
+          "Area": true,
+          "Targets": [
+            "UN GQ"
+          ]
+        },
+        {
+          "Points": 100,
+          "Area": true,
+          "Targets": [
+            "UN NT"
+          ]
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Bands": [
+          "160m",
+          "6m",
+          "4m",
+          "2m",
+          "1.25m",
+          "70cm",
+          "33cm",
+          "23cm",
+          "13cm",
+          "9cm",
+          "6cm",
+          "3cm",
+          "1.25cm",
+          "6mm",
+          "4mm",
+          "2.5mm",
+          "2mm",
+          "1mm",
+          "submm",
+          "80m",
+          "60m",
+          "40m",
+          "30m",
+          "20m",
+          "17m",
+          "15m",
+          "12m",
+          "10m"
+        ],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "Bands": [
+              "160m",
+              "6m",
+              "4m",
+              "2m",
+              "1.25m",
+              "70cm",
+              "33cm",
+              "23cm",
+              "13cm",
+              "9cm",
+              "6cm",
+              "3cm",
+              "1.25cm",
+              "6mm",
+              "4mm",
+              "2.5mm",
+              "2mm",
+              "1mm",
+              "submm"
+            ]
+          }
+        ]
+      }
+    },
+    "Note": "В зачёт идут станции с суффиксом на G или Q из Алматы и области, на N из Шымкента и Туркестанской области и на T из Тараза и Жамбылской области. У указанных в положении позывных свои ставки. Очки за 160 м и УКВ удваиваются. FT8 и FT4 относятся к одному виду."
   },
   {
     "Url": "https://hamlog.online/global/russia/r3q/de4028527a11e33132a2f81b2ee343aa/",
@@ -5053,8 +5197,20 @@
     "Url": "https://hamlog.online/club/rcpw/d5c1c02b43a5e1571bb334af98ed3657/",
     "Title": "Border outpost named after Pavel Zyranov I",
     "TextSha256": "3c9795a8c8602c1bbaea46668b799cc41bbba804aa9ccb6ef95e78b88ca97c30",
-    "Plan": null,
-    "Note": "Положение требует разных членов клуба для I степени, а HAMLOG подтверждает повторные связи с несколькими позывными. Условия и фактический зачёт расходятся."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2022-04-25",
+      "Required": 50,
+      "AlternativeRequired": 25,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Contacts": {
+        "Roster": "rcpw",
+        "Repeat": "call",
+        "GroupModes": true
+      }
+    },
+    "Note": "По одной связи с каждым членом RCPW. В положении указан порог 25 участников в дни активности и 50 после. Для пользователя AutoCQ берёт порог из зачёта HAMLOG."
   },
   {
     "Url": "https://hamlog.online/global/russia/r3q/c8473cf9f2fe2a1fa3a9e152410dd8c1/",
@@ -5264,15 +5420,45 @@
     "Url": "https://hamlog.online/club/rcpw/c69623174657fe04432541c094f8f9a4/",
     "Title": "Excellence in border troops",
     "TextSha256": "8097d9c4c21d93d9ac32387db6c4ead6a2ea2f72cc64427c04293b6335ec9848",
-    "Plan": null,
-    "Note": "В положении после дней активности требуются 30 и 40 разных членов, а карточка HAMLOG показывает 15 и 20. Требуется уточнить действующие пороги обеих степеней."
+    "Plan": {
+      "Kind": "contact-points",
+      "FromUtc": "2021-05-26",
+      "Required": 20,
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "Contacts": {
+        "Roster": "rcpw",
+        "Repeat": "call",
+        "GroupModes": true,
+        "Levels": [
+          15,
+          20
+        ]
+      }
+    },
+    "Note": "По одной связи с каждым членом RCPW. На HAMLOG показываются степени за 15 и 20 членов клуба. Положение клуба также описывает пороги 30 и 40 после дней активности."
   },
   {
     "Url": "https://hamlog.online/club/rcpw/ca80a7a72e6eecbba490e54809507f2f/",
     "Title": "Border guards",
     "TextSha256": "b5850a7a920c8659d8e1e1cb3dac8c99b1272155079712fae275468e0ee6dc3e",
-    "Plan": null,
-    "Note": "В положении в зачёт входят также специальные позывные, оформленные на RCPW. Для корректного поиска нужен отдельный список таких позывных."
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2021-05-26",
+      "BonusUntilUtc": "2021-06-07",
+      "Required": 100,
+      "AlternativeRequired": 100,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [
+        "R103PW",
+        "R103PS"
+      ],
+      "RcpwSpecialPoints": 5,
+      "RcpwSpecialAfterActivity": true
+    },
+    "Note": "Порог 100 очков. В поиске участвуют члены RCPW и R103PW, R103PS, указанные для дней активности. После 6 июня 2021 года официальная ставка 3 очка, в зачёте HAMLOG встречается ставка 5."
   },
   {
     "Url": "https://hamlog.online/club/afaru/da629880f04bb3f826f7edfde59fcd83/",
@@ -7731,5 +7917,24 @@
     "TextSha256": "4d7beb325eb1836435aa1893a6bb7e7510d813b04c83645da84256616e63ebf5",
     "Plan": null,
     "Note": "Принимаются как связи с членами СРВС, так и связи с радиолюбителями, служившими в РВСН. Для поиска второй группы нужен опубликованный список позывных организатора."
+  },
+  {
+    "Url": "https://hamlog.online/club/rcpw/ea226c66dad1b7981bdb541b4945a0d7/",
+    "Title": "Marine units of the border troops",
+    "PdfSha256": "070a4026a701aa6e8ca0dc64fdde81824c40ebc427df5730b9001777d7b0c5df",
+    "Plan": {
+      "Kind": "rcpw-hunter",
+      "FromUtc": "2022-07-31",
+      "BonusUntilUtc": "2022-08-07",
+      "Required": 100,
+      "AlternativeRequired": 100,
+      "MemberPoints": 3,
+      "ExtraPoints": 5,
+      "RcpwOnlineAfterPoints": 5,
+      "Calls": [],
+      "RcpwSpecialPoints": 0,
+      "RcpwSpecialAfterActivity": false
+    },
+    "Note": "Для «Морчастей ПВ» нужны 100 очков за связи с членами RCPW с 31 июля 2022 года. Положение клуба даёт 5 очков до 6 августа и 3 после. В текущем зачёте HAMLOG подтверждены и поздние связи по 5 очков."
   }
 ]

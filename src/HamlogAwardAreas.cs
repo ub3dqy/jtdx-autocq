@@ -35,6 +35,8 @@ namespace JtdxAutoCq
             { "VG", "4A 4B" }, { "VR", "2O 2Q 3K 3O 3Q 5K 5O 5Q" }, { "YA", "0Q" },
         };
         static readonly Regex Country = new Regex(@"\ADXCC [A-Z0-9]{1,8}\z", RegexOptions.CultureInvariant);
+        static readonly Regex KazakhstanSeries = new Regex(@"\AU[N-Q][0-9]([A-Z])[A-Z]{0,3}\z", RegexOptions.CultureInvariant);
+        static readonly HashSet<string> KazakhstanAreas = new HashSet<string> { "UN GQ", "UN NT" };
         static readonly HashSet<string> RussianDxcc = new HashSet<string> { "UA", "UA2", "UA9", "R1FJ" };
         static readonly Regex RegionCall = new Regex(@"\A(?:R[A-Z]?|U[A-I])([0-9][A-Z])[A-Z]{1,3}\z", RegexOptions.CultureInvariant);
 
@@ -67,12 +69,17 @@ namespace JtdxAutoCq
         }
 
         internal static bool Known(string area)
-        { return area != null && (Country.IsMatch(area) || Series.ContainsKey(area) || HamlogCountyIndex.IsCounty(area)); }
+        { return area != null && (Country.IsMatch(area) || Series.ContainsKey(area) || KazakhstanAreas.Contains(area) || HamlogCountyIndex.IsCounty(area)); }
 
         internal static bool Matches(string area, string call, string dxcc, string county = null, bool portable = false)
         {
             if (HamlogCountyIndex.IsCounty(area)) return area == county;
             if (String.IsNullOrEmpty(dxcc)) return false;
+            if (KazakhstanAreas.Contains(area))
+            {
+                Match suffix = KazakhstanSeries.Match(call ?? "");
+                return dxcc == "UN" && suffix.Success && area.IndexOf(suffix.Groups[1].Value[0], 3) >= 0;
+            }
             string series;
             if (!Series.TryGetValue(area, out series)) return area == "DXCC " + dxcc;
             return HamlogCountyIndex.IsCounty(county) ? county.StartsWith(area + "-", StringComparison.Ordinal)

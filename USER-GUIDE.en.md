@@ -175,7 +175,7 @@ Select a callsign in **«Станции из левого окна JTDX»** and 
 2. To hide issued awards, click **«Выполненные из кабинета…»** (Completed awards from my account). In your browser, sign in to HAMLOG, open **My received awards** and save it with **Ctrl+S** as **Webpage, HTML only**. Select the saved file in AutoCQ. [Open HAMLOG Awards](https://hamlog.online/account/awards.php)
 3. Choose **«Состояние → Доступны для поиска»** (Status → Available for search) and tick the awards you want in the **«Поиск»** (Search) column. Close the window to save your choices. While JTDX is receiving, choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring). AutoCQ checks available HAMLOG credit and listens on the current band.
 
-![Tula score and district multiplier in the HAMLOG award list](docs/awards-demo.png)
+![South Kazakhstan credit in the HAMLOG award list](docs/awards-demo.png)
 
 ![Importing a saved page from your HAMLOG account](docs/hamlog-account-demo.png)
 
@@ -193,7 +193,9 @@ Each prepared award follows its own repeat-contact rule. For the OE6XMF award, o
 
 Nationwide RDA searches cover European Russia, Asiatic Russia and Kaliningrad. For an award covering one region, such as Tula or Ryazan, AutoCQ selects callsigns from that region. Upload contacts from your main logbook to HAMLOG to update your credit.
 
-![Search area for the Lake Baskunchak award](docs/hamlog-plan-demo.png)
+For **South Kazakhstan**, the first letter after the digit identifies an eligible callsign. G or Q covers Almaty and its region, N covers Shymkent and Turkestan, and T covers Taraz and Zhambyl. For example, a contact with `UN8GAA` is worth 200 points, or 400 on 160 m. The separately listed callsigns have their own point values. [South Kazakhstan rules](https://hamlog.online/club/arto/1776/rules/)
+
+The **ARCK QSO** series accept contacts with any station. If a callsign has already counted on 20 m in FT8, another contact in FT4 on 20 m adds no credit. A contact on another band or in CW can count. Check HAMLOG credit to see the next tier. [ARCK QSO rules](https://hamlog.online/club/arck/355/rules/)
 
 **Saratov Land — the Left Bank** requires eight different districts on HF. Double-click the award to see the published list under **«Зачётные районы»** (Eligible districts). For **Tula**, each QSO is worth two points. If you have 18 credited contacts across four districts, the score is 36 × 4 = 144 points. A new district increases the multiplier. [Saratov Land rules](https://hamlog.online/global/russia/r4c/1025/rules/) · [Tula rules](https://hamlog.online/global/russia/r3p/485/rules/)
 
@@ -231,7 +233,7 @@ For Murom Falcon, **«Вне зачёта»** (Awaiting credit) shows possible p
 
 Double-click a row or choose **«Правила поиска…»** (Search rules) from its menu. For a recognized award, the editor shows the rules AutoCQ will use. Edit the fields and click **«Сохранить»** (Save). To go back to the original rules, click **«Вернуть исходные»** (Restore original), then **«Сохранить»**. A catalog update keeps your manual edits and lists the affected awards below the table.
 
-![Eligible districts in the Saratov Land — the Left Bank rules](docs/hamlog-plan-demo.png)
+![Named callsigns and suffix groups in the South Kazakhstan rules](docs/hamlog-plan-demo.png)
 
 If you know eligible stations for an award that uses other conditions, choose **«Задать свой список целей…»** (Set my targets) from its row menu. Enter callsigns, DXCC entities or patterns such as `JA*`. AutoCQ checks this list against your main logbook. The same menu can create a standalone list or open a prepared JSON file. [Import file format](docs/award-catalog.md)
 
