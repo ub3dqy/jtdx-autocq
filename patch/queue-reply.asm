@@ -112,6 +112,7 @@ entry qso_message_time
 entry qso_message_time_end
 entry prepare_received_report
 entry prepare_received_report_end
+entry restore_terminal_tx
 
 ; Mutable state begins after the two code pages, in a non-executable section.
 select_until equ 0x142d19000
@@ -128,6 +129,11 @@ reports equ report_epoch + 12
 %define report_rows 48
 %define report_size 64
 %define report_lifetime 300000
+repeat_frequency equ reports + report_rows * report_size
+repeat_length equ repeat_frequency + 8
+repeat_message equ repeat_length + 4
+repeat_mode equ repeat_message + 1
+repeat_call equ repeat_mode + 1
 
 %macro state_load 2
     db %1
@@ -507,7 +513,9 @@ valid_decode_line:
 control_packet:
     ; Validate this packet without affecting Qt's negotiated stream schema.
     cmp edx, 21
-    jne .end
+    jb .end
+    cmp edx, 55
+    ja .end
     cmp dword [rcx], 0xdacbbcAD
     jne .end
     cmp dword [rcx+4], 0x02000000
@@ -532,9 +540,48 @@ control_packet:
     test byte [rcx+20], 8
     jz .end
 .valid:
-    ; The builder supplies unwind metadata for the clock-calling helper.
+    cmp edx, 21
+    je .bare
+    cmp edx, 34                   ; 21-byte lease, type, mode, dial frequency, ASCII DX
+    jb .end
+    mov al, [rcx+20]
+    and al, 14
+    cmp al, 14                    ; managed and actively allowing a terminal repeat
+    jne .end
+    mov al, [rcx+21]
+    sub al, 4
+    cmp al, 1
+    ja .end
+    mov r8b, [rcx+22]
+    cmp r8b, '4'
+    je .store_repeat
+    cmp r8b, '8'
+    jne .end
+.store_repeat:
+    add al, 4
+    mov [rel repeat_message], al
+    mov [rel repeat_mode], r8b
+    mov rax, [rcx+23]
+    bswap rax
+    mov [rel repeat_frequency], rax
+    sub edx, 31
+    mov [rel repeat_length], edx
+    lea r9, [rel repeat_call]
+    xor eax, eax
+.copy_call:
+    mov r8b, [rcx+rax+31]
+    mov [r9+rax], r8b
+    inc eax
+    cmp eax, edx
+    jb .copy_call
+    jmp renew_lease
+.bare:
+    mov dword [rel repeat_length], 0
     jmp renew_lease
 .release:
+    cmp edx, 21
+    jne .end
+    mov dword [rel repeat_length], 0
     lea rax, [rel lease_expiry]
     mov qword [rax], 0
     mov byte [rel lease_flags], 0
@@ -1216,5 +1263,58 @@ kernel_dll: db 'kernel32.dll', 0
 clock_export: db 'GetTickCount64', 0
 auto_counter_reason: db 'AutoCQ, counter triggered ', 0
 s73_reason: db 'S73, none received ', 0
+; guiUpdate is about to pick the text for the keyed frame. Its AutoSeq
+; can switch back to a report after PTT starts. Use a standard sign-off
+; message for the exact DX and dial frequency authorized by AutoCQ.
+restore_terminal_tx:
+    cmp dword [rel repeat_length], 0
+    je .original
+    cmp byte [rbx+0x2e45], 0       ; Tune
+    jne .original
+    cmp byte [rbx+0x68b], 0       ; Hound/DXpedition
+    jne .original
+    call_tick
+    state_load {0x48,0x3b,0x05}, select_until
+    jae .original
+    mov rax, [rbx+0x340]
+    cmp [rel repeat_frequency], rax
+    jne .original
+    mov rax, [rbx+0x2ae8]
+    cmp dword [rax+4], 3
+    jne .original
+    add rax, [rax+16]
+    cmp dword [rax], 0x00540046     ; UTF-16 "FT"
+    jne .original
+    movzx edx, byte [rel repeat_mode]
+    cmp [rax+4], dx
+    jne .original
+    mov rax, [rbx+0x2a60]
+    mov edx, [rel repeat_length]
+    cmp [rax+4], edx
+    jne .original
+    add rax, [rax+16]
+    lea r8, [rel repeat_call]
+    xor ecx, ecx
+.match_dx:
+    movzx r9d, byte [r8+rcx]
+    cmp [rax+rcx*2], r9w
+    jne .original
+    inc ecx
+    cmp ecx, edx
+    jb .match_dx
+    mov edx, [rbx+0x4f4]
+    sub edx, 1
+    cmp edx, 2                    ; Tx1 through Tx3
+    jbe .restore
+    cmp edx, 6                    ; generated Tx7 from the second TX tab
+    jne .original
+.restore:
+    movzx eax, byte [rel repeat_message]
+    mov [rbx+0x4f4], eax
+.original:
+    cmp dword [rbx+0x4f4], 6
+    ja 0x14010d930
+    jmp 0x14010e9f2
+
 lease_expiry equ $$ + (select_until - 0x142d17000)
 text_section_end:

@@ -798,6 +798,11 @@ static class TestNativeQueue
             WriteJump(image, guiFixture + frame.Length, codeRva + BitConverter.ToInt32(code, 24 * 4));
             WriteCode(image, 0x10ee50, Decision(0)); // deferred
             WriteCode(image, 0x10eef7, Decision(1)); // start
+            const int choiceFixture = guiFixture + 0x40;
+            WriteCode(image, choiceFixture, frame);
+            WriteJump(image, choiceFixture + frame.Length, codeRva + BitConverter.ToInt32(code, 47 * 4));
+            WriteCode(image, 0x10e9f2, Decision(1)); // standard Tx1–Tx6
+            WriteCode(image, 0x10d930, Decision(2)); // generated or free-form text
 
             for (int n = 0; n < 7; n++)
             {
@@ -834,7 +839,7 @@ static class TestNativeQueue
             IntPtr kernel = LoadLibraryEx(Path.Combine(Environment.SystemDirectory, "kernel32.dll"), IntPtr.Zero, 0);
             Marshal.WriteIntPtr(image, stateRva + 8, Find(kernel, "GetTickCount64"));
             uint prior;
-            foreach (int page in new[] { codeRva, guiFixture, 0x10e000, 0x0ab000, 0x0a8000, 0x0a9000, 0x0aa000 })
+            foreach (int page in new[] { codeRva, codeRva + 0x1000, guiFixture, 0x10d000, 0x10e000, 0x0ab000, 0x0a8000, 0x0a9000, 0x0aa000 })
                 if (!VirtualProtect(IntPtr.Add(image, page), (UIntPtr)4096, 0x20, out prior))
                     throw new Exception("Cannot protect the sequencing fixture");
             NativeDecision ptt = Function<NativeDecision>(IntPtr.Add(image, guiFixture));
@@ -897,6 +902,49 @@ static class TestNativeQueue
             Check(keepRr73(mainWindow) == 6 && keepCounter(mainWindow) == 8 && keepFin(mainWindow) == 9
                 && keepS73(mainWindow) == 10 && ptt(mainWindow) == 1,
                 "Terminal hold and PTT inhibition expire with the AutoCQ lease");
+
+            NativeDecision chooseText = Function<NativeDecision>(IntPtr.Add(image, choiceFixture));
+            var radio = new JtdxAutoCq.RadioStatus { DxCall = "DL1AAA", Mode = "FT8", Frequency = 3573000 };
+            var nativeCall = radio.DxCall.ToCharArray();
+            Marshal.WriteInt64(dx, 16, 24);
+            Marshal.Copy(nativeCall, 0, IntPtr.Add(dx, 24), nativeCall.Length);
+            Marshal.WriteInt32(dx, 4, nativeCall.Length);
+            Marshal.WriteInt64(mainWindow, 0x340, (long)radio.Frequency);
+            Func<int, byte[]> request = stage => JtdxAutoCq.QtPacket.HoldNativeSelection(
+                "JTDX", 2, true, true, true, true, stage, radio);
+            Func<int, int> select = stage => {
+                Marshal.WriteInt32(mainWindow, 0x4f4, stage);
+                chooseText(mainWindow);
+                return Marshal.ReadInt32(mainWindow, 0x4f4);
+            };
+
+            Send(control, request(4));
+            Check(ptt(mainWindow) == 1 && select(2) == 4,
+                "A permitted RR73 repeat restores Tx4 if native AutoSeq reverted to a report after PTT");
+            Check(select(4) == 4 && select(5) == 5 && select(6) == 6,
+                "The sign-off correction preserves a selected terminal frame or CQ");
+            Marshal.WriteInt16(dx, 24, 'F');
+            Check(select(2) == 2, "A late authorization cannot change another station's message");
+            Marshal.WriteInt16(dx, 24, 'D');
+            Marshal.WriteInt64(mainWindow, 0x340, (long)radio.Frequency + 1);
+            Check(select(2) == 2, "A retune invalidates the authorized retry");
+            Marshal.WriteInt64(mainWindow, 0x340, (long)radio.Frequency);
+            Marshal.WriteInt16(mode, 28, '4');
+            Check(select(2) == 2, "The FT8 retry cannot affect FT4");
+            radio.Mode = "FT4";
+            Send(control, request(5));
+            Check(select(7) == 5, "A generated FT4 report reverts to the authorized Tx5");
+            Marshal.WriteByte(mainWindow, 0x2e45, 1);
+            Check(select(7) == 7, "Tune is untouched by the sign-off correction");
+            Marshal.WriteByte(mainWindow, 0x2e45, 0);
+            Marshal.WriteByte(mainWindow, 0x68b, 1);
+            Check(select(7) == 7, "DXpedition sequencing does not use the sign-off correction");
+            Marshal.WriteByte(mainWindow, 0x68b, 0);
+            Send(control, listening);
+            Check(select(7) == 7 && ptt(mainWindow) == 0, "The receive window clears the prior repeat request");
+            Send(control, request(5));
+            Marshal.WriteInt64(image, stateRva, 0);
+            Check(select(7) == 7, "A stale sign-off request cannot select a TX message");
         }
         finally { VirtualFree(image, UIntPtr.Zero, 0x8000); }
     }

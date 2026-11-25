@@ -97,13 +97,25 @@ namespace JtdxAutoCq
             }
         }
         public static byte[] HoldNativeSelection(string id, uint schema, bool hold, bool managedSession = false,
-            bool listenAfter73 = false, bool repeatFinal73 = false)
+            bool listenAfter73 = false, bool repeatFinal73 = false, int repeatMessage = 0, RadioStatus repeatStatus = null)
         {
             using (QtWriter w = new QtWriter(53, id, schema))
             {
                 int flags = (hold ? 1 : 0) | (managedSession ? 2 : 0);
                 if (managedSession && listenAfter73) flags |= 8 | (repeatFinal73 ? 4 : 0);
                 w.Byte((byte)flags);
+                if ((flags & 4) != 0 && (repeatMessage == 4 || repeatMessage == 5) && repeatStatus != null
+                    && (repeatStatus.Mode == "FT8" || repeatStatus.Mode == "FT4"))
+                {
+                    string call = Callsign.Parse(repeatStatus.DxCall);
+                    if (call != null && call.Length <= 24)
+                    {
+                        w.Byte((byte)repeatMessage);
+                        w.Byte((byte)repeatStatus.Mode[2]);
+                        w.U64(repeatStatus.Frequency);
+                        foreach (char letter in call) w.Byte((byte)letter);
+                    }
+                }
                 return w.Bytes();
             }
         }
@@ -196,6 +208,14 @@ namespace JtdxAutoCq
         bool CallerRulesActive { get { return CountryExclusionsActive || HasPriorityCountries || workedCallers.Count > 0; } }
         public bool RepeatFinal73 { get { return Armed && (reverseNeedsReply || terminalRepeatSlot.HasValue); } }
         public bool ListenAfterFinal73 { get { return Armed && lastTerminalSlot.HasValue; } }
+        internal int TerminalRepeatMessage
+        {
+            get
+            {
+                if (!RepeatFinal73 || !ListenAfterFinal73 || CleanCall(Status.DxCall) != waitingCall) return 0;
+                return sentTerminalAcknowledgement ? 4 : 5;
+            }
+        }
         public bool HoldNativeSelection
         {
             get

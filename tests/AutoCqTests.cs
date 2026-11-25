@@ -1490,6 +1490,22 @@ class AutoCqTests
                             "AutoCQ missed the next TX period after the unanswered retries");
                     }
                 });
+                Run("The repeat request preserves the terminal message for the selected DX at the next transmit slot", () => {
+                    DateTime firstTx = At.AddSeconds(30), endOfReply = At.AddSeconds(59.4);
+                    List<string> actions;
+                    AutoCqEngine engine = Active(out actions);
+                    engine.UseNativeSelection = true;
+                    engine.OnLine(Tx(firstTx, "W1AW", "RR73"), firstTx);
+                    engine.OnLine("QSO logged: W1AW", firstTx.AddMilliseconds(50));
+                    Assert(engine.TerminalRepeatMessage == 0, "The first RR73 already enabled a repeat");
+                    engine.OnLine(DecodeFinished(endOfReply), endOfReply);
+                    engine.Tick(endOfReply, true);
+                    Assert(engine.Armed && engine.Awaiting73 && engine.TerminalRepeatMessage == 4 && actions.Count == 0,
+                        "AutoCQ did not request the standard Tx4 message after the silent receive period");
+                    engine.OnLine(Tx(firstTx.AddSeconds(30), "W1AW", "RR73"), firstTx.AddSeconds(30));
+                    Assert(engine.Armed && engine.SilentTerminalRepeats == 1 && engine.TerminalRepeatMessage == 0,
+                        "The retry was not counted or the authorization outlived the frame");
+                });
                 Run("Repeated addressed RR73 permits another 73 until a quiet reply period", () => {
                     List<string> c; AutoCqEngine e = Active(out c);
                     e.UseNativeSelection = true;
@@ -1504,7 +1520,7 @@ class AutoCqTests
                     Assert(!e.RepeatFinal73,"Unrelated or old RR73 triggered a repeat");
                     e.OnDecode(D(repeatRx,"W1AW","RR73"),At.AddSeconds(43.9));
                     e.OnLine(DecodeFinished(At.AddSeconds(44.5)),At.AddSeconds(44.5)); e.Tick(At.AddSeconds(44.5),true);
-                    Assert(e.RepeatFinal73 && e.HoldNativeSelection && c.Count == 0,"Peer RR73 did not unlock the next 73");
+                    Assert(e.RepeatFinal73 && e.TerminalRepeatMessage == 5 && e.HoldNativeSelection && c.Count == 0,"Peer RR73 did not unlock the next 73");
                     DateTime secondTx = At.AddSeconds(45);
                     e.OnLine(Tx(secondTx,"W1AW","73"),secondTx);
                     Assert(e.ListenAfterFinal73 && !e.RepeatFinal73 && e.ConfirmedCount == 1,"Repeat left TX enabled for a silent period or logged twice");

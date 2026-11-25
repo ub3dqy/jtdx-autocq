@@ -16,8 +16,8 @@ using System.Xml;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.38.0")]
-[assembly: AssemblyFileVersion("0.9.38.0")]
+[assembly: AssemblyVersion("0.9.39.0")]
+[assembly: AssemblyFileVersion("0.9.39.0")]
 [assembly: AssemblyTitle(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyProduct(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyCompany(JtdxAutoCq.AppBrand.Author)]
@@ -202,7 +202,7 @@ namespace JtdxAutoCq
 
     public sealed partial class MainForm : Form
     {
-        const string ModuleVersion = "0.9.38";
+        const string ModuleVersion = "0.9.39";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = JtdxPatcher.PatchedHash;
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -233,6 +233,8 @@ namespace JtdxAutoCq
         DateTime nextSelectionPacket, nextReplayRequest;
         bool selectionHeld, managedSession, replayWanted;
         bool listenAfter73, repeatFinal73;
+        int repeatTerminalMessage;
+        string repeatTerminalCall;
         DateTime pendingReplayUntil;
         int demoStep;
         bool closeWhenDone, hadProcess;
@@ -1106,13 +1108,18 @@ namespace JtdxAutoCq
             bool active = engine.Armed;
             bool listen = engine.ListenAfterFinal73;
             bool repeat = engine.RepeatFinal73;
+            int repeatMessage = engine.TerminalRepeatMessage;
+            string repeatCall = repeatMessage == 0 ? null : engine.WaitingCall;
             if (hold == selectionHeld && active == managedSession && listen == listenAfter73 && repeat == repeatFinal73
+                && repeatTerminalMessage == repeatMessage && repeatTerminalCall == repeatCall
                 && (!active || now < nextSelectionPacket)) return;
-            Send(QtPacket.HoldNativeSelection(clientId, schema, hold, active, listen, repeat));
+            Send(QtPacket.HoldNativeSelection(clientId, schema, hold, active, listen, repeat, repeatMessage, engine.Status));
             selectionHeld = hold;
             managedSession = active;
             listenAfter73 = listen;
             repeatFinal73 = repeat;
+            repeatTerminalMessage = repeatMessage;
+            repeatTerminalCall = repeatCall;
             nextSelectionPacket = now.AddMilliseconds(750);
         }
         void HandlePacket(QtPacket packet)
@@ -1121,6 +1128,8 @@ namespace JtdxAutoCq
             {
                 engine.Waiting.Invalidate(); engine.Cqs.Invalidate();
                 replayRequested = nativeStatusSeen = selectionHeld = managedSession = listenAfter73 = repeatFinal73 = false;
+                repeatTerminalMessage = 0;
+                repeatTerminalCall = null;
                 replayWanted = true;
                 nextReplayRequest = DateTime.MinValue;
             }
