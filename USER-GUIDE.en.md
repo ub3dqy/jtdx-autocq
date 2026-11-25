@@ -175,7 +175,7 @@ Select a callsign in **«Станции из левого окна JTDX»** and 
 2. To hide issued awards, click **«Выполненные из кабинета…»** (Completed awards from my account). In your browser, sign in to HAMLOG, open **My received awards** and save it with **Ctrl+S** as **Webpage, HTML only**. Select the saved file in AutoCQ. [Open HAMLOG Awards](https://hamlog.online/account/awards.php)
 3. Choose **«Состояние → Доступны для поиска»** (Status → Available for search) and tick the awards you want in the **«Поиск»** (Search) column. Close the window to save your choices. While JTDX is receiving, choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring). AutoCQ checks available HAMLOG credit and listens on the current band.
 
-![South Kazakhstan credit in the HAMLOG award list](docs/awards-demo.png)
+![Digital QSO Long Distance credit in the HAMLOG award list](docs/awards-demo.png)
 
 ![Importing a saved page from your HAMLOG account](docs/hamlog-account-demo.png)
 
@@ -196,6 +196,10 @@ Nationwide RDA searches cover European Russia, Asiatic Russia and Kaliningrad. F
 For **South Kazakhstan**, the first letter after the digit identifies an eligible callsign. G or Q covers Almaty and its region, N covers Shymkent and Turkestan, and T covers Taraz and Zhambyl. For example, a contact with `UN8GAA` is worth 200 points, or 400 on 160 m. The separately listed callsigns have their own point values. [South Kazakhstan rules](https://hamlog.online/club/arto/1776/rules/)
 
 The **ARCK QSO** series accept contacts with any station. If a callsign has already counted on 20 m in FT8, another contact in FT4 on 20 m adds no credit. A contact on another band or in CW can count. Check HAMLOG credit to see the next tier. [ARCK QSO rules](https://hamlog.online/club/arck/355/rules/)
+
+For **Digital QSO Long Distance**, enter your own grid locator in JTDX. AutoCQ reads the other station's locator from a recent decode and selects it when the distance between the grids is clearly more than 10,000 km. FT8 and FT4 count as different modes for this award. A contact from your main logbook can appear under **«Вне зачёта»** (Awaiting credit) when the record contains both locators. [Long-distance award rules](https://hamlog.online/club/rdrc/cd6f36084a9ba476a5a937409c8cca5a/rules/)
+
+**Tambov Treasurer** requires 30 distinct callsigns from Tambov Oblast and the Kvant club. The R2REC contact is mandatory, and HAMLOG supplies the club count. The **Telyatnikov and Zamaraev** awards have a mandatory contact with RA8CP. For other contacts, AutoCQ uses the published emergency services rosters. [Tambov Treasurer rules](https://hamlog.online/club/kwant/d496695b55b9b09cc97a1eb7535d9650/rules/)
 
 **Saratov Land — the Left Bank** requires eight different districts on HF. Double-click the award to see the published list under **«Зачётные районы»** (Eligible districts). For **Tula**, each QSO is worth two points. If you have 18 credited contacts across four districts, the score is 36 × 4 = 144 points. A new district increases the multiplier. [Saratov Land rules](https://hamlog.online/global/russia/r4c/1025/rules/) · [Tula rules](https://hamlog.online/global/russia/r3p/485/rules/)
 
@@ -233,7 +237,7 @@ For Murom Falcon, **«Вне зачёта»** (Awaiting credit) shows possible p
 
 Double-click a row or choose **«Правила поиска…»** (Search rules) from its menu. For a recognized award, the editor shows the rules AutoCQ will use. Edit the fields and click **«Сохранить»** (Save). To go back to the original rules, click **«Вернуть исходные»** (Restore original), then **«Сохранить»**. A catalog update keeps your manual edits and lists the affected awards below the table.
 
-![Named callsigns and suffix groups in the South Kazakhstan rules](docs/hamlog-plan-demo.png)
+![Minimum distance in the Digital QSO Long Distance rules](docs/hamlog-plan-demo.png)
 
 If you know eligible stations for an award that uses other conditions, choose **«Задать свой список целей…»** (Set my targets) from its row menu. Enter callsigns, DXCC entities or patterns such as `JA*`. AutoCQ checks this list against your main logbook. The same menu can create a standalone list or open a prepared JSON file. [Import file format](docs/award-catalog.md)
 

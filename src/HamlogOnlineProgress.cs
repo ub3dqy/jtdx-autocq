@@ -11,8 +11,47 @@ namespace JtdxAutoCq
 
         internal static string Parse(string value)
         {
+            string grid = Full(value);
+            return grid == null ? null : grid.Substring(0, 4);
+        }
+
+        internal static string Full(string value)
+        {
             string grid = (value ?? "").Trim().ToUpperInvariant();
-            return grid != "RR73" && Pattern.IsMatch(grid) ? grid.Substring(0, 4) : null;
+            return grid != "RR73" && Pattern.IsMatch(grid) ? grid : null;
+        }
+
+        // A decoded grid describes an area. Subtract each area's maximum travel from its centre
+        // so a contact near the threshold is only selected when the grids establish the distance.
+        internal static bool FartherThan(string station, string remote, int kilometres)
+        {
+            station = Full(station);
+            remote = Full(remote);
+            if (station == null || remote == null) return false;
+            double latitudeA, longitudeA, radiusA, latitudeB, longitudeB, radiusB;
+            Centre(station, out latitudeA, out longitudeA, out radiusA);
+            Centre(remote, out latitudeB, out longitudeB, out radiusB);
+            double dy = Math.Sin((latitudeB - latitudeA) / 2), dx = Math.Sin((longitudeB - longitudeA) / 2);
+            double a = dy * dy + Math.Cos(latitudeA) * Math.Cos(latitudeB) * dx * dx;
+            const double earthRadiusKm = 6371.0088;
+            return earthRadiusKm * (2 * Math.Asin(Math.Sqrt(Math.Min(1, a))) - radiusA - radiusB) > kilometres;
+        }
+
+        static void Centre(string grid, out double latitude, out double longitude, out double radius)
+        {
+            double west = -180 + (grid[0] - 'A') * 20 + (grid[2] - '0') * 2;
+            double south = -90 + (grid[1] - 'A') * 10 + grid[3] - '0';
+            double width = 2, height = 1;
+            if (grid.Length == 6)
+            {
+                width /= 24; height /= 24;
+                west += (grid[4] - 'A') * width;
+                south += (grid[5] - 'A') * height;
+            }
+            const double radians = Math.PI / 180;
+            latitude = (south + height / 2) * radians;
+            longitude = (west + width / 2) * radians;
+            radius = (height + width) * radians / 2;
         }
     }
 
@@ -151,8 +190,8 @@ namespace JtdxAutoCq
         {
             if (Standing == null || IsActivator || Complete || !Within(time) || String.IsNullOrEmpty(band)) return false;
             if (award.Rule == HamlogRule.Bands) return award.Bands.Contains(band) && !worked.Contains(band);
-            if (districts != null && !districts.AllowsBandMode(band, HamlogPointProgress.ModeGroup(mode))) return false;
-            if (locators != null && !locators.AllowsBandMode(band, HamlogPointProgress.ModeGroup(mode))) return false;
+            if (districts != null && !districts.AllowsBandMode(band, mode)) return false;
+            if (locators != null && !locators.AllowsBandMode(band, mode)) return false;
             return Confirmed + pending < Required || NeedsCounties;
         }
 
@@ -227,7 +266,7 @@ namespace JtdxAutoCq
                 return;
             string group = HamlogPointProgress.ModeGroup(contact.Mode);
             HamlogContactCriteria rule = locators ?? districts;
-            if (rule != null ? !rule.AllowsBandMode(contact.Band, group)
+            if (rule != null ? !rule.AllowsBandMode(contact.Band, contact.Mode)
                 : group != "CW" && group != "SSB" && group != "DIGI" || award.Rule == HamlogRule.Bryansk && group != "DIGI") return;
             string grid = AwardLocator.Parse(contact.Locator);
             string county = AwardCounty(contact.Call, contact.County);

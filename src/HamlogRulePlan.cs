@@ -158,9 +158,12 @@ namespace JtdxAutoCq
     {
         internal const string BandMode = "band-mode", DayBandMode = "day-band-mode", EveryQso = "every-qso",
             Call = "call", Band = "band", Day = "day", District = "district", Locator = "locator";
+        static readonly Regex RdrcDigital = new Regex(@"\A(?:CONTESTIA?|DOMINO(?:EX|F)?|FT8|FT4|(?:FM|FSK|PSK)?HELL(?:80)?|HFSK|JT65|JT9|MFSK\d*|MT63|OLIVIA(?: [0-9]+/[0-9]+)?|(?:F|Q)?PSK(?:[A-Z]*\d+[A-Z]*\d*)?|ROS|RTTY(?:M)?|SIM(?:31)?|SSTV|T10|THOR|THROB)\z",
+            RegexOptions.CultureInvariant);
         public string Repeat, BonusFromUtc, BonusUntilUtc, Roster, CountyPrefix, ShortcutDay;
-        public int LastCounty, ShortcutContacts, RepeatDayOffsetMinutes;
+        public int LastCounty, ShortcutContacts, RepeatDayOffsetMinutes, MinimumDistanceKm;
         public bool GroupModes, PortableAliases, PortableRegionalCalls, AcceptObserverCredit, ActivatorRoster, MultiplyByCountyCount, CreditBeforePublication, AllStations;
+        public bool HamlogRosterCredit;
         public string[] ActivatorAreas = new string[0];
         public string[] Countries = new string[0];
         public string[] Bands = new string[0];
@@ -190,12 +193,19 @@ namespace JtdxAutoCq
             if (Countries.Any(country => !Regex.IsMatch(country ?? "", @"\A[A-Z0-9]{1,8}\z"))
                 || Bands.Any(band => !JtdxAdif.BandNames.Contains(band))
                 || Modes.Any(mode => mode != "DIGI" && mode != "SSB" && mode != "CW")
-                || !AllStations && !RestrictsCounties && Countries.Length == 0 && calls.Length == 0 && String.IsNullOrEmpty(Roster) && !areaGroups
+                || MinimumDistanceKm == 0 && !AllStations && !RestrictsCounties && Countries.Length == 0
+                    && calls.Length == 0 && String.IsNullOrEmpty(Roster) && !areaGroups
                 || !String.IsNullOrEmpty(Roster) && Roster != "rcpw" && HamlogAwardRosters.For(Roster) == null
                 || ActivatorRoster && String.IsNullOrEmpty(Roster) || ActivatorAreas.Any(area => !HamlogAwardAreas.Known(area))
                 || PortableAliases && (calls.Length == 0 && String.IsNullOrEmpty(Roster) || calls.Any(call => call.Contains("/")))
                 || Levels.Length != 0 && (Levels.First() < 1 || Levels.Last() != required))
                 throw new InvalidDataException("Проверьте территории, диапазоны и степени диплома.");
+            if (MinimumDistanceKm < 0 || MinimumDistanceKm > 20000
+                || MinimumDistanceKm > 0 && (AllStations || RestrictsCounties || Countries.Length != 0 || calls.Length != 0
+                    || !String.IsNullOrEmpty(Roster) || areaGroups || Repeat != BandMode || GroupModes))
+                throw new InvalidDataException("Проверьте расстояние и правила повторов. Для диплома дальних связей учитываются отдельные цифровые виды.");
+            if (HamlogRosterCredit && calls.Length == 0)
+                throw new InvalidDataException("Укажите опубликованные позывные для сверки клубного зачёта.");
             if (AllStations && (Repeat != BandMode || RestrictsCounties || Countries.Length != 0 || calls.Length != 0 || areaGroups
                 || !String.IsNullOrEmpty(Roster) || ActivatorAreas.Length != 0 || Levels.Length != 0 || Additional.Length != 0
                 || Adjustments.Length != 0 || ShortcutContacts != 0))
@@ -240,6 +250,8 @@ namespace JtdxAutoCq
                 && ActivatorRoster == other.ActivatorRoster && ActivatorAreas.SequenceEqual(other.ActivatorAreas)
                 && MultiplyByCountyCount == other.MultiplyByCountyCount && EligibleCounties.SequenceEqual(other.EligibleCounties)
                 && CreditBeforePublication == other.CreditBeforePublication && AllStations == other.AllStations
+                && MinimumDistanceKm == other.MinimumDistanceKm
+                && HamlogRosterCredit == other.HamlogRosterCredit
                 && (Roster ?? "") == (other.Roster ?? "")
                 && (CountyPrefix ?? "") == (other.CountyPrefix ?? "") && LastCounty == other.LastCounty
                 && RetiredCounties.SequenceEqual(other.RetiredCounties)
@@ -253,7 +265,8 @@ namespace JtdxAutoCq
         internal string NamedCall(string call) { return PortableAliases ? Callsign.BaseCall(call) : call; }
 
         internal string ContactKey(string call, string band, string mode)
-        { return call + "|" + band + "|" + (GroupModes ? HamlogPointProgress.ModeGroup(mode) : (mode ?? "").ToUpperInvariant()); }
+        { return call + "|" + band + "|" + (MinimumDistanceKm > 0 ? RdrcMode(mode)
+            : GroupModes ? HamlogPointProgress.ModeGroup(mode) : (mode ?? "").ToUpperInvariant()); }
 
         internal decimal Adjust(decimal points, string band, DateTime time, string call)
         {
@@ -269,10 +282,26 @@ namespace JtdxAutoCq
                 .Any(time => Adjust(points, credit.Band, time, credit.Call) == credit.Points);
         }
 
-        internal bool AllowsBandMode(string band, string group)
+        internal bool AllowsBandMode(string band, string mode)
         {
+            string group = HamlogPointProgress.ModeGroup(mode);
             return !String.IsNullOrEmpty(group) && JtdxAdif.BandNames.Contains(band)
-                && (Bands.Length == 0 || Bands.Contains(band)) && (Modes.Length == 0 || Modes.Contains(group));
+                && (Bands.Length == 0 || Bands.Contains(band)) && (Modes.Length == 0 || Modes.Contains(group))
+                && (MinimumDistanceKm == 0 || RdrcMode(mode) != null);
+        }
+
+        static string RdrcMode(string mode)
+        {
+            mode = (mode ?? "").Trim().ToUpperInvariant();
+            if (!RdrcDigital.IsMatch(mode)) return null;
+            if (mode == "FT4" || mode.StartsWith("MFSK", StringComparison.Ordinal)) return "MFSK";
+            if (mode.Contains("PSK")) return "PSK";
+            if (mode.StartsWith("DOMINO", StringComparison.Ordinal)) return "DOMINO";
+            if (mode.StartsWith("CONTESTI", StringComparison.Ordinal)) return "CONTESTIA";
+            if (mode.Contains("HELL") || mode == "HFSK") return "HELL";
+            if (mode.StartsWith("OLIVIA", StringComparison.Ordinal)) return "OLIVIA";
+            if (mode == "SIM31") return "SIM";
+            return mode == "RTTYM" ? "RTTY" : mode;
         }
 
         internal bool IsActivatorArea(string call, Func<string, string> dxcc)
@@ -306,7 +335,7 @@ namespace JtdxAutoCq
 
     internal static class HamlogPlanCompiler
     {
-        internal const int Version = 9;
+        internal const int Version = 10;
         const string Day = @"\d{1,2} [а-яё]+ \d{4}";
         const string Points = @"\s*(?:[-–—]\s*)?(?<count>\d{1,4})\s*оч(?:ков|ка|ко)\.?";
         static readonly Regex Sky = Pattern(

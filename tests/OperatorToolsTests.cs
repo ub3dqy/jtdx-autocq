@@ -435,6 +435,74 @@ static class OperatorToolsTests
             Check(results.SequenceEqual(new[] { cached.Id, missing.Id }), "The scan attempted new downloads before finishing the local cache.");
         });
 
+        run("Long-distance diploma uses both locators, their precision and the published digital mode families", () => {
+            const string own = "K1ABC";
+            DateTime day = new DateTime(2026, 11, 25, 5, 0, 0, DateTimeKind.Utc);
+            var plan = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2014-03-21", Required = 100,
+                MemberPoints = 1, ExtraPoints = 1,
+                Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.BandMode, MinimumDistanceKm = 10000 }
+            };
+            plan.Validate();
+            var award = new AwardProgram { Title = "Long distance", Url = "https://hamlog.online/club/demo/1100/", DownloadedRules = plan };
+            award.Validate();
+            award.Selected = true;
+            award.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, "<span class='award-dashboard-value'>0 / 100</span>"),
+                award.Template, own, day);
+            var history = new LogbookHistory("example.lhx2", LogbookHistory.ReadLogHxRows(
+                "VK2AAA\t20m\tMFSK\tK1ABC\t20261124\t051000\t20261124\t051030\tQF56AA\t\tKO85AA"));
+            var progress = new HamlogPointProgress(award, history, own, null, "KO85AA");
+            Check(progress.PendingPoints == 1 && progress.CandidatePoints("VK2AAA", "20m", "FT4", day, "QF56") == 0
+                && progress.CandidatePoints("VK2AAA", "20m", "FT8", day, "QF56") == 1
+                && progress.CandidatePoints("VK2AAA/P", "20m", "FT4", day, "QF56") == 1
+                && progress.CandidatePoints("VK2AAA", "40m", "FT4", day, "QF56") == 1
+                && progress.CandidatePoints("VK2BBB", "20m", "SSB", day, "QF56") == 0
+                && progress.CandidatePoints("VK2BBB", "20m", "FT8", day, "RR73") == 0
+                && progress.CandidatePoints("DL1AAA", "20m", "FT8", day, "JN58") == 0,
+                "The distance, mode family, portable callsign or logbook locators were handled incorrectly.");
+            Check(!AwardLocator.FartherThan("JJ00", "NJ60", 10000)
+                && AwardLocator.FartherThan("JJ00AA", "NJ60AA", 10000),
+                "A coarse grid was treated as an exact coordinate.");
+            var search = new AwardSearch(new AwardCatalog { Programs = new List<AwardProgram> { award } },
+                history, own, "20m", "FT8", null, "KO85AA");
+            Check(search.Score("VK2BBB", day, "QF56") == 1, "The monitor didn't use the fresh locator.");
+            search.SetOperatorLocator(null);
+            Check(search.Available(day) == 0 && search.NeedsOperatorLocator(day) && search.Score("VK2BBB", day, "QF56") == 0,
+                "A missing JTDX locator left distance-based TX eligible.");
+        });
+
+        run("A confirmed HAMLOG roster count and a named mandatory station remain separate", () => {
+            const string own = "K1ABC";
+            DateTime day = new DateTime(2026, 11, 25, 5, 0, 0, DateTimeKind.Utc);
+            var plan = new HamlogRulePlan { Kind = "contact-points", Required = 2, MemberPoints = 1, ExtraPoints = 1,
+                Calls = new[] { "R2REC" },
+                BonusGroups = new[] { new HamlogBonusGroup { Points = 1, Area = true, Targets = new[] { "TB" } } },
+                Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.Call, Roster = "kwant",
+                    Additional = new[] {
+                        new HamlogContactRequirement { Kind = "stations", Required = 2, DistinctStations = true,
+                            ReportedByHamlog = true, Roster = "kwant", Calls = new[] { "R2REC" } },
+                        new HamlogContactRequirement { Kind = "stations", Required = 1, Calls = new[] { "R2REC" } }
+                    }
+                }
+            };
+            plan.Validate();
+            var award = new AwardProgram { Title = "Tambov award", Url = "https://hamlog.online/club/demo/1102/", DownloadedRules = plan };
+            award.Validate();
+            string summary = "<li>Points: <span class='award-dashboard-value'>2 / 2</span></li>"
+                + "<li>Required station contacts: <span class='award-dashboard-value'>2 / 2</span></li>";
+            string[] rows = new[] { "RA3RPW", "R3RZZ" }.Select(call => HamlogRow(call, "24 Nov 2026", "20m", "FT8", "1")).ToArray();
+            award.Hamlog = HamlogStandingClient.Parse(HamlogPage(own, summary, rows), award.Template, own, day);
+            var progress = new HamlogPointProgress(award, new LogbookHistory("example.adi", new List<LogbookQso>()), own, call => "UA");
+            Check(progress.Additional[0].Confirmed == 2 && progress.Additional[1].Confirmed == 0 && !progress.ConfirmedComplete
+                && progress.CandidatePoints("R2REC", "20m", "FT8", day) == 1
+                && progress.CandidatePoints("R3RGG", "20m", "FT8", day) == 0,
+                "An older official roster credit was lost, or the named prerequisite closed incorrectly.");
+            bool rejected = false;
+            try { HamlogStandingClient.Parse(HamlogPage(own, summary.Replace("contacts: <span class='award-dashboard-value'>2 / 2",
+                "contacts: <span class='award-dashboard-value'>3 / 2"), rows), award.Template, own, day); }
+            catch (InvalidDataException) { rejected = true; }
+            Check(rejected, "A reported count exceeded the complete list of credited callsigns.");
+        });
+
         run("Reviewed contact rules choose the next tier and count distinct unrestricted QSOs", () => {
             const string own = "K1ABC";
             const string station = "VK5IPA";
@@ -1368,7 +1436,7 @@ static class OperatorToolsTests
             DateTime started = midnight.AddSeconds(-15), ended = midnight.AddSeconds(7);
             LogbookQso logged = QtPacket.Parse(LoggedQsoPacket("FT4", started, ended, 2, 3 * 3600)).LoggedContact;
             Check(logged != null && logged.Call == "R5AV" && logged.Station == "K1ABC" && logged.Band == "20m"
-                && logged.Mode == "FT4" && logged.StartedUtc == started && logged.EndedUtc == ended
+                && logged.Mode == "FT4" && logged.StartedUtc == started && logged.EndedUtc == ended && logged.StationLocator == "FN31"
                 && logged.StartedUtc.Value.Kind == DateTimeKind.Utc,
                 "The QSO Logged packet lost the station, band, mode or UTC dates");
             search.Record(logged);
@@ -1377,9 +1445,11 @@ static class OperatorToolsTests
             using (var packet = new QtWriter(12, "JTDX", 2))
             {
                 packet.Text("<CALL:4>R5AV<BAND:3>20m<MODE:4>MFSK<SUBMODE:3>FT4<STATION_CALLSIGN:5>K1ABC"
-                    + "<QSO_DATE:8>20261005<TIME_ON:6>235945<QSO_DATE_OFF:8>20261006<TIME_OFF:6>000007<EOR>");
+                    + "<QSO_DATE:8>20261005<TIME_ON:6>235945<QSO_DATE_OFF:8>20261006<TIME_OFF:6>000007"
+                    + "<MY_GRIDSQUARE:6>FN31aa<GRIDSQUARE:6>KO85ab<EOR>");
                 LogbookQso adif = QtPacket.Parse(packet.Bytes()).LoggedContact;
-                Check(adif != null && adif.Mode == "FT4" && adif.StartedUtc == started,
+                Check(adif != null && adif.Mode == "FT4" && adif.StartedUtc == started
+                    && adif.StationLocator == "FN31AA" && adif.Locator == "KO85AB",
                     "The native ADIF packet lost mode or QSO date");
             }
             foreach (uint type in new[] { 5u, 12u })

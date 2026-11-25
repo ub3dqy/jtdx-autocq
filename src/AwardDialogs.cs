@@ -685,6 +685,7 @@ namespace JtdxAutoCq
         readonly NumericUpDown member = new NumericUpDown { Minimum = 1, Maximum = 1000 };
         readonly NumericUpDown special = new NumericUpDown { Minimum = 1, Maximum = 1000 };
         readonly NumericUpDown alternative = new NumericUpDown { Minimum = 1, Maximum = 10000 };
+        readonly NumericUpDown minimumDistance = new NumericUpDown { Minimum = 1, Maximum = 20000, ThousandsSeparator = true };
         readonly NumericUpDown rcpwSpecial = new NumericUpDown { Minimum = 0, Maximum = 1000 };
         readonly CheckBox rcpwDoubleDistrictZero = new CheckBox { Text = "Двойные очки для 0-го района России", AutoSize = true };
         readonly CheckBox rcpwSpecialAfterActivity = new CheckBox { Text = "Оставить эти позывные в зачёте после дней активности", AutoSize = true };
@@ -729,6 +730,7 @@ namespace JtdxAutoCq
             this.program = program;
             HamlogRulePlan plan = program.EffectiveRules;
             int districtOffset = plan.Districts ? 38 : 0;
+            bool distance = plan.ContactAward && plan.Contacts.MinimumDistanceKm > 0;
             LabelAt(program.Title, 20, 58, 699, 28);
             edition = LabelAt("", 20, 88, 699, 24);
             if (plan.Districts)
@@ -755,6 +757,13 @@ namespace JtdxAutoCq
                 LabelAt("Код области", 20, 128, 188, 26);
                 Place(searchRegion, 212, 124, 78, 27);
                 LabelAt("Пустое поле означает всю Россию, включая Калининград.", 308, 128, 410, 45);
+            }
+            else if (distance)
+            {
+                LabelAt("Минимальная дальность, км", 20, 130, 218, 27);
+                Place(minimumDistance, 251, 126, 112, 27);
+                LabelAt("AutoCQ сравнивает ваш QTH-локатор из JTDX с локатором корреспондента в свежем сообщении.",
+                    20, 167, 690, 42);
             }
             else
             {
@@ -829,32 +838,43 @@ namespace JtdxAutoCq
                 bool districtContacts = plan.Contacts.RestrictsCounties && plan.Contacts.Additional.Any(condition => condition.ByCounty);
                 LabelAt(plan.MultiLevel ? "Высший порог" : districtContacts ? "Нужно связей" : "Нужно очков", 20, 270, 124, 24);
                 Place(required, 148, 267, 77, 27);
-                LabelAt("За позывной", 245, 270, 123, 24);
-                Place(special, 374, 267, 77, 27);
-                LabelAt(plan.AllStations ? "За каждую связь" : districtContacts ? "За связь в районе" : String.IsNullOrEmpty(plan.Contacts.Roster) ? "За станцию DXCC"
+                if (!distance)
+                {
+                    LabelAt("За позывной", 245, 270, 123, 24);
+                    Place(special, 374, 267, 77, 27);
+                    LabelAt("Страны DXCC", 20, 308, 184, 24);
+                    Place(territories, 212, 304, 506, 27);
+                }
+                LabelAt(plan.AllStations || distance ? "За каждую связь" : districtContacts ? "За связь в районе" : String.IsNullOrEmpty(plan.Contacts.Roster) ? "За станцию DXCC"
                     : "За члена клуба", 466, 270, 157, 24);
                 Place(member, 641, 267, 77, 27);
-                LabelAt("Страны DXCC", 20, 308, 184, 24);
-                Place(territories, 212, 304, 506, 27);
                 LabelAt("Диапазоны (пусто — все)", 20, 346, 190, 24);
                 Place(contactBands, 212, 342, 506, 27);
-                LabelAt("Сколько очков на степень", 20, 384, 190, 24);
+                if (!distance) LabelAt("Сколько очков на степень", 20, 384, 190, 24);
                 if (plan.AllStations)
                 {
                     LabelAt("Ближайшая степень берётся из зачёта HAMLOG.", 212, 384, 506, 24);
                     calls.ReadOnly = territories.ReadOnly = true;
                     special.Enabled = repeats.Enabled = false;
                 }
-                else Place(levels, 212, 380, 506, 27);
+                else if (!distance) Place(levels, 212, 380, 506, 27);
                 LabelAt("Зачёт повторов", 20, 422, 190, 24);
                 string day = plan.Contacts.RepeatDayOffsetMinutes == 180 ? "по московскому времени" : "по UTC";
                 repeats.Items.AddRange(new[] { "На разных диапазонах или видах", "На разных диапазонах или видах за сутки " + day,
                     "Каждая отдельная связь", "Одна связь на позывной", "На разных диапазонах", "Одна связь на позывной за сутки " + day,
                     "Одна связь на квадрат, повторы по диапазону и виду" });
                 Place(repeats, 212, 418, 506, 27);
-                Place(modeGroups, 20, 456, 300, 23);
-                Place(portableAliases, 363, 456, 355, 23);
-                LabelAt("Виды (пусто — все)", 20, 496, 190, 24);
+                if (distance)
+                {
+                    repeats.Enabled = false;
+                    LabelAt("Позывные с дробью учитываются отдельно. Для FT4 используется группа MFSK.", 20, 460, 690, 25);
+                }
+                else
+                {
+                    Place(modeGroups, 20, 456, 300, 23);
+                    Place(portableAliases, 363, 456, 355, 23);
+                }
+                LabelAt(distance ? "Группы видов (по желанию)" : "Виды (пусто — все)", 20, 496, 190, 24);
                 Place(contactModes, 212, 492, 506, 27);
                 if (!String.IsNullOrEmpty(plan.Contacts.BonusFromUtc))
                     LabelAt("Специальные позывные дают повышенные очки только в срок мероприятия.", 20, 530, 697, 24);
@@ -915,6 +935,7 @@ namespace JtdxAutoCq
                 adjustments = plan.Contacts.Adjustments;
                 shortcutDay = plan.Contacts.ShortcutDay;
                 shortcutContacts = plan.Contacts.ShortcutContacts;
+                if (plan.Contacts.MinimumDistanceKm > 0) minimumDistance.Value = plan.Contacts.MinimumDistanceKm;
                 additionalButton.Visible = obligations.Length != 0 || adjustments.Length != 0
                     || shortcutContacts != 0 || plan.Contacts.RestrictsCounties && !plan.Districts || plan.Contacts.ActivatorAreas.Length != 0;
                 territories.Text = String.Join(", ", plan.Contacts.Countries);
@@ -972,6 +993,8 @@ namespace JtdxAutoCq
                         ShortcutDay = shortcutDay, ShortcutContacts = shortcutContacts,
                         GroupModes = modeGroups.Checked,
                         AllStations = previous.Contacts.AllStations,
+                        MinimumDistanceKm = previous.Contacts.MinimumDistanceKm > 0 ? (int)minimumDistance.Value : 0,
+                        HamlogRosterCredit = previous.Contacts.HamlogRosterCredit,
                         PortableAliases = portableAliases.Checked,
                         PortableRegionalCalls = previous.Contacts.PortableRegionalCalls,
                         AcceptObserverCredit = previous.Contacts.AcceptObserverCredit,
@@ -1077,13 +1100,14 @@ namespace JtdxAutoCq
                 Place(count, 20, top + 25, 68, 26);
                 Place(values, 104, top + 25, 656, 26);
                 LabelAt(condition.Kind == HamlogContactRequirement.Counties ? "Пустое поле означает все районы зачётной территории."
-                    : counties ? "Укажите коды районов RDA через запятую." : "Позывные можно перечислить через запятую.",
+                    : counties ? "Укажите коды районов RDA через запятую." : condition.UsesRoster ? "К списку клуба можно добавить позывные через запятую."
+                    : "Позывные можно перечислить через запятую.",
                     106, top + 52, 650, 19);
                 readObligations.Add(() => {
                     string[] names = values.Text.ToUpperInvariant().Split(new[] { ',', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
                     var rule = new HamlogContactRequirement { Kind = condition.Kind, Required = (int)count.Value,
                         ReportedByHamlog = condition.ReportedByHamlog, DistinctStations = condition.DistinctStations,
-                        PortableStations = condition.PortableStations };
+                        PortableStations = condition.PortableStations, Roster = condition.Roster };
                     if (counties) rule.CountyCodes = names;
                     else rule.Calls = names;
                     rule.Validate(criteria);

@@ -29,29 +29,34 @@ namespace JtdxAutoCq
     public sealed class HamlogContactRequirement
     {
         internal const string Counties = "counties", CountyContacts = "county-contacts", Stations = "stations";
-        public string Kind;
+        public string Kind, Roster;
         public int Required;
         public bool ReportedByHamlog, DistinctStations, PortableStations;
         public string[] Calls = new string[0];
         public string[] CountyCodes = new string[0];
 
         internal bool ByCounty { get { return Kind == Counties || Kind == CountyContacts; } }
-        internal string Label { get { return Kind == Counties ? "районы RDA" : Kind == CountyContacts
+        internal bool UsesRoster { get { return !String.IsNullOrEmpty(Roster); } }
+        internal string Label { get { return UsesRoster ? "позывные из списка " + HamlogAwardRosters.Label(Roster)
+            : Kind == Counties ? "районы RDA" : Kind == CountyContacts
             ? "связи с обязательным районом" : DistinctStations ? "разные обязательные станции" : "связи с обязательными станциями"; } }
 
         internal void Validate(HamlogContactCriteria criteria)
         {
             Calls = (Calls ?? new string[0]).Select(Callsign.Parse).Distinct(StringComparer.Ordinal).ToArray();
             CountyCodes = (CountyCodes ?? new string[0]).Distinct(StringComparer.Ordinal).ToArray();
+            HashSet<string> roster = UsesRoster ? HamlogAwardRosters.For(Roster) : null;
             if (Required < 1 || Required > 1000
+                || UsesRoster && (Kind != Stations || !ReportedByHamlog || !DistinctStations || PortableStations || roster == null)
                 || (ByCounty ? Calls.Length != 0 || DistinctStations || PortableStations || CountyCodes.Length > 99
                     || CountyCodes.Length == 0 && (!criteria.RestrictsCounties || Kind == CountyContacts)
                     || CountyCodes.Any(code => !HamlogCountyIndex.IsCounty(code)
                         || criteria.RestrictsCounties && !criteria.InCountyScope(code, allowRetired: true))
                     || Kind == Counties && Required > (CountyCodes.Length != 0 ? CountyCodes.Length
                         : criteria.UsableCountyCount)
-                    : Kind != Stations || CountyCodes.Length != 0 || Calls.Length == 0 || Calls.Length > 240 || Calls.Any(call => call == null)
-                        || DistinctStations && Required > Calls.Length))
+                    : Kind != Stations || CountyCodes.Length != 0 || !UsesRoster && Calls.Length == 0
+                        || Calls.Length > 240 || Calls.Any(call => call == null)
+                        || DistinctStations && Required > (roster == null ? Calls.Length : roster.Union(Calls).Count())))
                 throw new InvalidDataException("Проверьте обязательные районы и позывные диплома.");
         }
 
@@ -59,7 +64,7 @@ namespace JtdxAutoCq
         {
             return other != null && Kind == other.Kind && Required == other.Required
                 && ReportedByHamlog == other.ReportedByHamlog && DistinctStations == other.DistinctStations
-                && PortableStations == other.PortableStations && Calls.SequenceEqual(other.Calls)
+                && PortableStations == other.PortableStations && (Roster ?? "") == (other.Roster ?? "") && Calls.SequenceEqual(other.Calls)
                 && CountyCodes.SequenceEqual(other.CountyCodes);
         }
 
@@ -70,7 +75,7 @@ namespace JtdxAutoCq
 
         internal string Station(string call)
         {
-            if (Calls.Contains(call)) return call;
+            if (Calls.Contains(call) || UsesRoster && HamlogAwardRosters.For(Roster).Contains(call)) return call;
             if (!PortableStations || String.IsNullOrEmpty(call)) return null;
             string original = Callsign.BaseCall(call);
             return Calls.Contains(original) ? original : null;
@@ -92,10 +97,11 @@ namespace JtdxAutoCq
         internal string Label { get { return rule.Label; } }
         internal bool Enough { get { return projected >= Required; } }
 
-        internal HamlogRequirementProgress(HamlogContactRequirement rule, IEnumerable<HamlogCredit> confirmed)
+        internal HamlogRequirementProgress(HamlogContactRequirement rule, IEnumerable<HamlogCredit> confirmed, int? fromHamlog = null)
         {
             this.rule = rule;
             foreach (HamlogCredit credit in confirmed) Record(credit);
+            if (fromHamlog.HasValue) projected = fromHamlog.Value;
             Confirmed = projected;
         }
 

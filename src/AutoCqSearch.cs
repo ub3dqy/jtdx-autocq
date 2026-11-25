@@ -77,7 +77,7 @@ namespace JtdxAutoCq
                 call = Callsign.Parse(words[1]);
             }
             if (call == null || call == own) return;
-            string locator = !decode.LowConfidence && sender + 1 < words.Length ? AwardLocator.Parse(words[sender + 1]) : null;
+            string locator = !decode.LowConfidence && sender + 1 < words.Length ? AwardLocator.Full(words[sender + 1]) : null;
             HeardLocator previous;
             if (locator != null && (!locators.TryGetValue(call, out previous) || time >= previous.HeardUtc))
             {

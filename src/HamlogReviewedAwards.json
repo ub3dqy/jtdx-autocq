@@ -1527,22 +1527,87 @@
     "Url": "https://hamlog.online/club/arck/be968b29fbef4cfa081dbf3930915d11/",
     "Title": "DX ARCK 30",
     "TextSha256": "e9a564e7917572dd1a166e06d28292ddadad93a9e1bb302cfe064aca93c928ef",
-    "Plan": null,
-    "Note": "Действуют отдельный список зарубежных членов ARCK и зачёт по диапазону и группе видов. Для поиска нужен именно указанный в положении список позывных."
+    "Plan": {
+      "Kind": "contact-points",
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "FromUtc": "2021-01-15",
+      "Required": 30,
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Roster": "arck-dx",
+        "CreditBeforePublication": true,
+        "AcceptObserverCredit": true
+      }
+    },
+    "Note": "Нужны 30 связей с членами ARCK, работающими за пределами России. Повторы разрешены на другом диапазоне или другим видом работы. Все цифровые виды считаются одним."
   },
   {
     "Url": "https://hamlog.online/club/arck/d257fdd461e0d99a3f9be84e865aad0c/",
     "Title": "YL-ARCK-30",
     "TextSha256": "e9a564e7917572dd1a166e06d28292ddadad93a9e1bb302cfe064aca93c928ef",
-    "Plan": null,
-    "Note": "Для зачёта нужны операторы YL клуба ARCK или RZ4PXO. HAMLOG засчитал несколько позывных за пределами списка, напечатанного в положении."
+    "Plan": {
+      "Kind": "contact-points",
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "FromUtc": "2021-01-15",
+      "Required": 6,
+      "AlternativeRequired": 3,
+      "Calls": [
+        "IZ1ORU",
+        "R0AFF",
+        "R4WG",
+        "R6FGD",
+        "R8AFD",
+        "R9SCH",
+        "R9SCI",
+        "RA1AGN",
+        "RA3RPW",
+        "RA4FMH",
+        "RA8CF",
+        "RK6JKO",
+        "RK9UK",
+        "RL9T",
+        "RQ4A",
+        "RU0SYL",
+        "RZ4PXO",
+        "RZ9UMA",
+        "S54ZO",
+        "UA0SVF",
+        "UA3GRO",
+        "Z33YL"
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "CreditBeforePublication": true,
+        "HamlogRosterCredit": true,
+        "AcceptObserverCredit": true
+      }
+    },
+    "Note": "AutoCQ использует список позывных именно этого диплома, включая клубную станцию RZ4PXO. В Европе и Азии нужны 6 связей, в других частях света 3 по зачёту HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/arck/a633010373a458bfda1092f0226dd402/",
     "Title": "ARCK-30",
     "TextSha256": "e9a564e7917572dd1a166e06d28292ddadad93a9e1bb302cfe064aca93c928ef",
-    "Plan": null,
-    "Note": "Положение задаёт порог 30 или 15 связей в зависимости от континента. Для автоматического выбора требуется подтвердить, какие именно повторы допускает эта карточка."
+    "Plan": {
+      "Kind": "contact-points",
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "FromUtc": "2021-01-15",
+      "Required": 30,
+      "AlternativeRequired": 15,
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "Roster": "arck",
+        "CreditBeforePublication": true,
+        "AcceptObserverCredit": true
+      }
+    },
+    "Note": "Подходят члены клуба ARCK. В Европе и Азии нужно 30 связей, в других частях света 15 по зачёту HAMLOG. Повторы засчитываются на другом диапазоне или другим видом работы."
   },
   {
     "Url": "https://hamlog.online/club/arck/efcb71a1d1b62c6b143e299cc0690f2a/",
@@ -1586,14 +1651,26 @@
     "Title": "RDRC HAMLOG members callsigns award",
     "TextSha256": "63e589a233e9fb2d41555790edaf3b7ef58c59d040f05e7b52af0bc9ec95c263",
     "Plan": null,
-    "Note": "HAMLOG принимает только позывные из отдельной группы РЦРК, зарегистрированной в HAMLOG. Общий список членов клуба шире. Для зачёта указан отдельный перечень цифровых видов."
+    "Note": "Нужен список позывных именно группы РЦРК HAMLOG. Файл, на который ссылается положение, сейчас недоступен. Общий список членов клуба содержит и позывные вне зачётной группы."
   },
   {
     "Url": "https://hamlog.online/club/rdrc/cd6f36084a9ba476a5a937409c8cca5a/",
     "Title": "Long distance digital QSO",
     "TextSha256": "c2149fd20c830c3a87d629cfa742911c3c54ef61472dcce2f8fcca6c6b601ddf",
-    "Plan": null,
-    "Note": "Карточка HAMLOG содержит старые условия цифрового диплома. Сейчас РЦРК ведёт выдачу в своём дипломном центре по новому положению. Сверить действующий зачёт по старой карточке не удалось."
+    "Plan": {
+      "Kind": "contact-points",
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "FromUtc": "2014-03-21",
+      "Required": 100,
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": false,
+        "MinimumDistanceKm": 10000,
+        "CreditBeforePublication": true
+      }
+    },
+    "Note": "Нужно 100 зачтённых цифровых связей на расстоянии свыше 10 000 км. AutoCQ берёт ваш QTH-локатор из JTDX, локатор корреспондента из свежего сообщения и учитывает размер квадратов. Повторы возможны на другом диапазоне или другим цифровым видом. Позывные с дробью считаются отдельно."
   },
   {
     "Url": "https://hamlog.online/neca/",
@@ -1754,7 +1831,7 @@
     "Title": "Hermoupolis 200",
     "TextSha256": "3341a47edb8e665e34be8a3d6d5aad83cd77f0e500d5f42dff43e391deec13f1",
     "Plan": null,
-    "Note": "В положении ограничено автоматическое проведение связей без участия оператора. Для зачёта отдельно учитываются страна соискателя и бонусы за три вида работы."
+    "Note": "Положение SX200H оставляет организатору право отклонить связи, проведённые автоматом без оператора. Карточка доступна для просмотра условий."
   },
   {
     "Url": "https://hamlog.online/club/safonovo/bb6b90b684e4b62641d2d08fe592c2e3/",
@@ -1819,7 +1896,7 @@
     "Title": "Bucharest 567",
     "TextSha256": "80740b7c69da8ea721c5dbbcc351add715b4be78daf0c8c38c517b2a402c0d1e",
     "Plan": null,
-    "Note": "Для зачёта нужны пять разных станций из Бухареста. Код позывного сам по себе не подтверждает нахождение станции в городской черте."
+    "Note": "Нужны пять разных допущенных организатором станций Бухареста. На странице результатов и в открытой статистике нет списка допущенных позывных. По одному префиксу допуск не определяется."
   },
   {
     "Url": "https://hamlog.online/club/romania/cb2f3abc7eb44216586c2ec43c7247f3/",
@@ -1922,14 +1999,14 @@
     "Title": "W-ARCK-YL-2026",
     "TextSha256": "22f543b0ace35caa6faada342a97727b544660fb91d4f430fd6fcacb2f6fe66a",
     "Plan": null,
-    "Note": "Нужны три связи с операторами YL из ARCK. Требуется отдельный список участниц этой программы."
+    "Note": "Нужен актуальный список клубных позывных для W-ARCK-YL-2026. Список из положения YL-ARCK-30 относится к другой карточке."
   },
   {
     "Url": "https://hamlog.online/club/arck/c89fe5b3b9fec1d28cad09e68b5b1d0d/",
     "Title": "ARCK sponsor 2026",
     "TextSha256": "22f543b0ace35caa6faada342a97727b544660fb91d4f430fd6fcacb2f6fe66a",
     "Plan": null,
-    "Note": "Нужны разные действующие спонсоры ARCK. Для поиска требуется их актуальный список от клуба."
+    "Note": "Для зачёта требуются позывные действующих спонсоров ARCK. Положение ссылается на регулярно меняющийся список клуба."
   },
   {
     "Url": "https://hamlog.online/club/firac/b812d6bceb7960416872fab3b7554f3e/",
@@ -2111,7 +2188,7 @@
     "Title": "Hunter",
     "TextSha256": "06b14e8174b6228aac5742dd8bba24f5397c6473ea521713547769e6e4c4c7df",
     "Plan": null,
-    "Note": "Нужно по 12 связей в каждый из четырёх сезонов. Позывной с дробью должен относиться к действующей активации клуба; повторы зависят от активации."
+    "Note": "Нужно по 12 зачтённых связей с клубными активаторами в каждом из четырёх сезонов. Для поиска нужны текущие активации и отдельный зачёт по сезонам."
   },
   {
     "Url": "https://hamlog.online/club/kazan/d11496c6b535e1991c23fff55906da45/",
@@ -2208,7 +2285,7 @@
     "Title": "Landing on the Pole",
     "TextSha256": "6438dd3620d8e0f0114dd0f728c908b8cf2613c61907e05042af1c87cab98f67",
     "Plan": null,
-    "Note": "Отдельные очки есть за связи с клубом «Арктика». Для поиска по этому положению нужен список членов клуба."
+    "Note": "Подходят «Рыцари неба» и «Арктика» по разным ставкам. Для полной проверки нужен официальный список позывных обоих клубов."
   },
   {
     "Url": "https://hamlog.online/club/seafarer/e0f00d6e883dd077c974e25044eb756b/",
@@ -2405,84 +2482,84 @@
     "Title": "Zodiac Signs - Gemini",
     "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
     "Plan": null,
-    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+    "Note": "Зачёт зависит от списка членов ARCK по этому знаку зодиака. В положении указан принцип, а списка позывных для этого знака в открытой карточке нет."
   },
   {
     "Url": "https://hamlog.online/club/arck/b3e3f719cdc3f3e1212b7a29de2890cb/",
     "Title": "Zodiac Signs - Taurus",
     "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
     "Plan": null,
-    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+    "Note": "Зачёт зависит от списка членов ARCK по этому знаку зодиака. В положении указан принцип, а списка позывных для этого знака в открытой карточке нет."
   },
   {
     "Url": "https://hamlog.online/club/arck/f48dd1850bf8cc3e7b63e97f03bdaf60/",
     "Title": "Zodiac Signs - Sagittarius",
     "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
     "Plan": null,
-    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+    "Note": "Зачёт зависит от списка членов ARCK по этому знаку зодиака. В положении указан принцип, а списка позывных для этого знака в открытой карточке нет."
   },
   {
     "Url": "https://hamlog.online/club/arck/b2e388e640f5a534955754c9ab73b271/",
     "Title": "Zodiac Signs - Scorpio",
     "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
     "Plan": null,
-    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+    "Note": "Зачёт зависит от списка членов ARCK по этому знаку зодиака. В положении указан принцип, а списка позывных для этого знака в открытой карточке нет."
   },
   {
     "Url": "https://hamlog.online/club/arck/dffeaf786ff44e7f3f21520793415dee/",
     "Title": "Zodiac Signs - Pisces",
     "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
     "Plan": null,
-    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+    "Note": "Зачёт зависит от списка членов ARCK по этому знаку зодиака. В положении указан принцип, а списка позывных для этого знака в открытой карточке нет."
   },
   {
     "Url": "https://hamlog.online/club/arck/eb86c9c2a9ac21265992db3fe866e980/",
     "Title": "Zodiac Signs - Cancer",
     "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
     "Plan": null,
-    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+    "Note": "Зачёт зависит от списка членов ARCK по этому знаку зодиака. В положении указан принцип, а списка позывных для этого знака в открытой карточке нет."
   },
   {
     "Url": "https://hamlog.online/club/arck/b526cf6d68bcf680607e41228b7f5445/",
     "Title": "Zodiac Signs - Aries",
     "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
     "Plan": null,
-    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+    "Note": "Зачёт зависит от списка членов ARCK по этому знаку зодиака. В положении указан принцип, а списка позывных для этого знака в открытой карточке нет."
   },
   {
     "Url": "https://hamlog.online/club/arck/c6edc752d945faf913667f03c615c153/",
     "Title": "Zodiac Signs - Leo",
     "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
     "Plan": null,
-    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+    "Note": "Зачёт зависит от списка членов ARCK по этому знаку зодиака. В положении указан принцип, а списка позывных для этого знака в открытой карточке нет."
   },
   {
     "Url": "https://hamlog.online/club/arck/f580edeca020f1afc4a509ec35db27fc/",
     "Title": "Zodiac Signs - Capricorn",
     "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
     "Plan": null,
-    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+    "Note": "Зачёт зависит от списка членов ARCK по этому знаку зодиака. В положении указан принцип, а списка позывных для этого знака в открытой карточке нет."
   },
   {
     "Url": "https://hamlog.online/club/arck/c57193e70840aa35162789ca12b3a85c/",
     "Title": "Zodiac Signs - Virgo",
     "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
     "Plan": null,
-    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+    "Note": "Зачёт зависит от списка членов ARCK по этому знаку зодиака. В положении указан принцип, а списка позывных для этого знака в открытой карточке нет."
   },
   {
     "Url": "https://hamlog.online/club/arck/ee1612e0e3d02b70c168a1b4c48663b9/",
     "Title": "Zodiac Signs - Aquarius",
     "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
     "Plan": null,
-    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+    "Note": "Зачёт зависит от списка членов ARCK по этому знаку зодиака. В положении указан принцип, а списка позывных для этого знака в открытой карточке нет."
   },
   {
     "Url": "https://hamlog.online/club/arck/cb897934bdb781503274360c9ba613ac/",
     "Title": "Zodiac Signs - Libra",
     "TextSha256": "8e8f3fad7544d453d12c26278fd5e28b16ff0e657609d1e30381d85a78f0621c",
     "Plan": null,
-    "Note": "Нужно набрать 10 очков с членами ARCK указанного знака. Позывные этой группы в положении не перечислены."
+    "Note": "Зачёт зависит от списка членов ARCK по этому знаку зодиака. В положении указан принцип, а списка позывных для этого знака в открытой карточке нет."
   },
   {
     "Url": "https://hamlog.online/club/rcpw/f6470456be06605ec2e345e8a6a1b77e/",
@@ -3774,7 +3851,7 @@
     "Title": "Karpukhin V. F.",
     "TextSha256": "bf12589c4a8a918978fe9fc4e96a27b4d2aebcf4fe2e5bd7f039c6ef6254e4eb",
     "Plan": null,
-    "Note": "Кроме 100 очков нужны обязательные связи с коллективными станциями и участниками из специальных списков. Две даты и отдельные диапазоны удваивают очки."
+    "Note": "Для зачёта обязательны связь с одной из двух коллективных станций и связи с двумя участниками по списку организатора. Нужен подтверждённый список для проверки этих связей."
   },
   {
     "Url": "https://hamlog.online/club/kwant/f71a519e60ae449577964fca849e1edb/",
@@ -3935,21 +4012,65 @@
     "Title": "Antarctica 200 years",
     "TextSha256": "84a1c871528b25ec15dcd41dabdefcf26db9c287b92c92e5a4ad15ae1ee35ab9",
     "Plan": null,
-    "Note": "В разных степенях меняются общий порог, требования к антарктическим QSO и зачёт клубных станций. Нужны списки антарктических станций, операторов и членов «Арктики»."
+    "Note": "Нужна связь с антарктической станцией и 200 очков. Для подсчёта пригодных позывных нужны актуальные списки экспедиционных и личных позывных, а для зачёта действуют разные правила повторов."
   },
   {
     "Url": "https://hamlog.online/club/kwant/d496695b55b9b09cc97a1eb7535d9650/",
     "Title": "Tambov Treasurer",
     "TextSha256": "7a2824b0e71135b7c87138bc6ba161339913796569296cd95ac298072b91aa19",
-    "Plan": null,
-    "Note": "Нужны 30 разных позывных, из них не менее 10 членов «Кванта», и обязательная связь с R2REC. HAMLOG показывает дополнительный порог 11 для объединённой группы."
+    "Plan": {
+      "Kind": "contact-points",
+      "MemberPoints": 1,
+      "ExtraPoints": 1,
+      "FromUtc": "2017-01-01",
+      "Required": 30,
+      "Calls": [
+        "R2REC"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 1,
+          "Area": true,
+          "Targets": [
+            "TB"
+          ]
+        }
+      ],
+      "Contacts": {
+        "Repeat": "call",
+        "GroupModes": true,
+        "Roster": "kwant",
+        "CreditBeforePublication": true,
+        "AcceptObserverCredit": true,
+        "Additional": [
+          {
+            "Kind": "stations",
+            "Required": 11,
+            "ReportedByHamlog": true,
+            "DistinctStations": true,
+            "Roster": "kwant",
+            "Calls": [
+              "R2REC"
+            ]
+          },
+          {
+            "Kind": "stations",
+            "Required": 1,
+            "Calls": [
+              "R2REC"
+            ]
+          }
+        ]
+      }
+    },
+    "Note": "Подходят позывные Тамбовской области и члены «Кванта». Нужны 30 разных позывных, в том числе обязательная связь с R2REC. Для дополнительного зачёта берётся счётчик HAMLOG на 11 позывных. Повторы не засчитываются."
   },
   {
     "Url": "https://hamlog.online/global/russia/r3d/ce1797b4b527d746d951f074d7579daf/",
     "Title": "Star Patrol",
     "TextSha256": "9dc356f1bddcce5e47452c37b081e594a1c5ffb43939fca34fd147fc62b1cc7e",
     "Plan": null,
-    "Note": "Связь с орбиты, космонавт на Земле, коллективная станция и член клуба дают разные очки. Перечень станций «Подлипок» обновляется ежегодно."
+    "Note": "Положение «Звёздного патруля» исключает связи в автоматических режимах. В карточке можно открыть правила и проверить зачёт вручную."
   },
   {
     "Url": "https://hamlog.online/global/russia/r1o/ee033e615a25ddce996d534f9df6df7a/",
@@ -4196,7 +4317,7 @@
     "Title": "First Over the North Pole",
     "TextSha256": "5180c34551733e843d6be6174e4ca1fcb0913564c924e6d3925cdc03c3ba8434",
     "Plan": null,
-    "Note": "Нужно 100 очков с членами «Арктики», INORC и станциями за Полярным кругом. Для последних требуется положение станции во время передачи, а для клубных ставок нужны оба списка."
+    "Note": "Засчитываются связи за Полярным кругом и с членами «Арктики» и INORC. Открытая статистика активаторов даёт только часть зачётных позывных. Для полной проверки нужны оба списка и координаты станции."
   },
   {
     "Url": "https://hamlog.online/global/russia/r4c/bd448e04d95f3d09a9bba190eb2cc403/",
@@ -4687,15 +4808,411 @@
     "Url": "https://hamlog.online/global/russia/r9c/acb198ce8587aded88fe2d7647601e80/",
     "Title": "Hero Telyatnikov L.P.",
     "TextSha256": "d926c4ea9c24680253cc29b54a1c9c4446cf327b4ef6f88d365bca459c109e45",
-    "Plan": null,
-    "Note": "Кроме 30 очков нужна связь с обязательной коллективной станцией. Для зачёта остальных контактов требуются перечни МЧС и РАС из приложений."
+    "Plan": {
+      "Kind": "contact-points",
+      "MemberPoints": 1,
+      "ExtraPoints": 5,
+      "FromUtc": "2024-04-01",
+      "Required": 30,
+      "Calls": [
+        "RA8CP",
+        "R95FSI"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 3,
+          "Targets": [
+            "R1IA",
+            "R8DR",
+            "RW3X"
+          ]
+        },
+        {
+          "Points": 2,
+          "Targets": [
+            "R0AGG",
+            "R0JAY",
+            "R1BNJ",
+            "R1IB",
+            "R1IC",
+            "R1II",
+            "R2FBD",
+            "R3GG",
+            "R3NBD",
+            "R4CGQ",
+            "R4CR",
+            "R5AV",
+            "R6LB",
+            "R8CGZ",
+            "R8LCI",
+            "R8QAN",
+            "R8QAP",
+            "R8WM",
+            "R9HBO",
+            "R9LE",
+            "R9LZ",
+            "R9VE",
+            "RA1IG",
+            "RA3GM",
+            "RA3TL",
+            "RA4CJ",
+            "RA8CS",
+            "RA9DZ",
+            "RA9MX",
+            "RA9XAF",
+            "RA9YFK",
+            "RC1M",
+            "RD4CBM",
+            "RD8B",
+            "RG2E",
+            "RG4D",
+            "RJ9M",
+            "RL1B",
+            "RM8W",
+            "RN3ZU",
+            "RU9CK",
+            "RV1CC",
+            "RV9WB",
+            "RW4NW",
+            "RY9C",
+            "RZ6FA",
+            "RZ9WA",
+            "UA0QN",
+            "UA4CSG",
+            "UA6CP",
+            "UA9LBQ",
+            "UA9LLE",
+            "UA9WHS",
+            "UB6LSM",
+            "UB8COS",
+            "UI4H"
+          ]
+        },
+        {
+          "Points": 1,
+          "Targets": [
+            "EU1DT",
+            "EW2CU",
+            "R0AHG",
+            "R0AHQ",
+            "R0ONJ",
+            "R3UBO",
+            "R9AV",
+            "R9MBW",
+            "R9UAO",
+            "R9YE",
+            "RA0AEP",
+            "RA0AF",
+            "RA0AHE",
+            "RA0AN",
+            "RA1ALH",
+            "RA1D",
+            "RA1PO",
+            "RA3WEO",
+            "RA3WUG",
+            "RA9AMC",
+            "RA9ATY",
+            "RA9FLR",
+            "RA9YV",
+            "RC1BQ",
+            "RD3WAF",
+            "RD9I",
+            "RU0AG",
+            "RU0AV",
+            "RU0AX",
+            "RU6UR",
+            "RU9YJ",
+            "RV0ADW",
+            "RV0ALR",
+            "RV9CRG",
+            "RV9CTB",
+            "RW9ML",
+            "RW9SN",
+            "RX6LDU",
+            "RX9ATX",
+            "RZ0A",
+            "RZ0OFW",
+            "RZ6ANG",
+            "RZ9OP",
+            "UA0AAA",
+            "UA0AAS",
+            "UA0AIO",
+            "UA0AJG",
+            "UA0ALQ",
+            "UA0ANY",
+            "UA0AOC",
+            "UA0SDX",
+            "UA0STD",
+            "UA0WFG",
+            "UA1AAJ",
+            "UA1CCG",
+            "UA1F",
+            "UA3SNB",
+            "UA3UCO",
+            "UA3ZQ",
+            "UA6AFS",
+            "UA6G",
+            "UA9AC",
+            "UA9ACL",
+            "UA9CSE",
+            "UA9QBA",
+            "UA9SLP",
+            "UA9SPS",
+            "UA9YBF"
+          ]
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "CreditBeforePublication": true,
+        "HamlogRosterCredit": true,
+        "AcceptObserverCredit": true,
+        "Additional": [
+          {
+            "Kind": "stations",
+            "Required": 1,
+            "Calls": [
+              "RA8CP"
+            ],
+            "ReportedByHamlog": true
+          }
+        ],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "AnnualFrom": "04-17",
+            "AnnualUntil": "04-17"
+          },
+          {
+            "Factor": 2,
+            "AnnualFrom": "04-26",
+            "AnnualUntil": "04-26"
+          },
+          {
+            "Factor": 2,
+            "AnnualFrom": "04-30",
+            "AnnualUntil": "04-30"
+          },
+          {
+            "Factor": 2,
+            "AnnualFrom": "10-04",
+            "AnnualUntil": "10-04"
+          },
+          {
+            "Factor": 2,
+            "AnnualFrom": "12-27",
+            "AnnualUntil": "12-27"
+          }
+        ]
+      }
+    },
+    "Note": "Нужна связь с RA8CP и достаточный общий счёт. Ставки 1, 2 и 3 очка определяются по двум спискам из положения. RA8CP и R95FSI дают по 5. На указанные для этого диплома даты начисляются двойные очки."
   },
   {
     "Url": "https://hamlog.online/global/russia/r9c/d556abf3b59d6f35f7c03f056766e3a6/",
     "Title": "Hero Zamaraev V.V.",
     "TextSha256": "58869015e14e38514d40fa84633f80aab41645f082d1cba078593888b447b7ed",
-    "Plan": null,
-    "Note": "Порог 27 очков и обязательная связь с коллективной станцией Уральского института ГПС МЧС. Для других целей нужны списки операторов МЧС и РАС."
+    "Plan": {
+      "Kind": "contact-points",
+      "MemberPoints": 1,
+      "ExtraPoints": 5,
+      "FromUtc": "2024-04-01",
+      "Required": 27,
+      "Calls": [
+        "RA8CP",
+        "R95FSI"
+      ],
+      "BonusGroups": [
+        {
+          "Points": 3,
+          "Targets": [
+            "R1IA",
+            "R8DR",
+            "RW3X"
+          ]
+        },
+        {
+          "Points": 2,
+          "Targets": [
+            "R0AGG",
+            "R0JAY",
+            "R1BNJ",
+            "R1IB",
+            "R1IC",
+            "R1II",
+            "R2FBD",
+            "R3GG",
+            "R3NBD",
+            "R4CGQ",
+            "R4CR",
+            "R5AV",
+            "R6LB",
+            "R8CGZ",
+            "R8LCI",
+            "R8QAN",
+            "R8QAP",
+            "R8WM",
+            "R9HBO",
+            "R9LE",
+            "R9LZ",
+            "R9VE",
+            "RA1IG",
+            "RA3GM",
+            "RA3TL",
+            "RA4CJ",
+            "RA8CS",
+            "RA9DZ",
+            "RA9MX",
+            "RA9XAF",
+            "RA9YFK",
+            "RC1M",
+            "RD4CBM",
+            "RD8B",
+            "RG2E",
+            "RG4D",
+            "RJ9M",
+            "RL1B",
+            "RM8W",
+            "RN3ZU",
+            "RU9CK",
+            "RV1CC",
+            "RV9WB",
+            "RW4NW",
+            "RY9C",
+            "RZ6FA",
+            "RZ9WA",
+            "UA0QN",
+            "UA4CSG",
+            "UA6CP",
+            "UA9LBQ",
+            "UA9LLE",
+            "UA9WHS",
+            "UB6LSM",
+            "UB8COS",
+            "UI4H"
+          ]
+        },
+        {
+          "Points": 1,
+          "Targets": [
+            "EU1DT",
+            "EW2CU",
+            "R0AHG",
+            "R0AHQ",
+            "R0ONJ",
+            "R3UBO",
+            "R9AV",
+            "R9MBW",
+            "R9UAO",
+            "R9YE",
+            "RA0AEP",
+            "RA0AF",
+            "RA0AHE",
+            "RA0AN",
+            "RA1ALH",
+            "RA1D",
+            "RA1PO",
+            "RA3WEO",
+            "RA3WUG",
+            "RA9AMC",
+            "RA9ATY",
+            "RA9FLR",
+            "RA9YV",
+            "RC1BQ",
+            "RD3WAF",
+            "RD9I",
+            "RU0AG",
+            "RU0AV",
+            "RU0AX",
+            "RU6UR",
+            "RU9YJ",
+            "RV0ADW",
+            "RV0ALR",
+            "RV9CRG",
+            "RV9CTB",
+            "RW9ML",
+            "RW9SN",
+            "RX6LDU",
+            "RX9ATX",
+            "RZ0A",
+            "RZ0OFW",
+            "RZ6ANG",
+            "RZ9OP",
+            "UA0AAA",
+            "UA0AAS",
+            "UA0AIO",
+            "UA0AJG",
+            "UA0ALQ",
+            "UA0ANY",
+            "UA0AOC",
+            "UA0SDX",
+            "UA0STD",
+            "UA0WFG",
+            "UA1AAJ",
+            "UA1CCG",
+            "UA1F",
+            "UA3SNB",
+            "UA3UCO",
+            "UA3ZQ",
+            "UA6AFS",
+            "UA6G",
+            "UA9AC",
+            "UA9ACL",
+            "UA9CSE",
+            "UA9QBA",
+            "UA9SLP",
+            "UA9SPS",
+            "UA9YBF"
+          ]
+        }
+      ],
+      "Contacts": {
+        "Repeat": "band-mode",
+        "GroupModes": true,
+        "CreditBeforePublication": true,
+        "HamlogRosterCredit": true,
+        "AcceptObserverCredit": true,
+        "Additional": [
+          {
+            "Kind": "stations",
+            "Required": 1,
+            "Calls": [
+              "RA8CP"
+            ],
+            "ReportedByHamlog": true
+          }
+        ],
+        "Adjustments": [
+          {
+            "Factor": 2,
+            "AnnualFrom": "04-17",
+            "AnnualUntil": "04-17"
+          },
+          {
+            "Factor": 2,
+            "AnnualFrom": "09-03",
+            "AnnualUntil": "09-03"
+          },
+          {
+            "Factor": 2,
+            "AnnualFrom": "04-30",
+            "AnnualUntil": "04-30"
+          },
+          {
+            "Factor": 2,
+            "AnnualFrom": "10-04",
+            "AnnualUntil": "10-04"
+          },
+          {
+            "Factor": 2,
+            "AnnualFrom": "12-27",
+            "AnnualUntil": "12-27"
+          }
+        ]
+      }
+    },
+    "Note": "Нужна связь с RA8CP и достаточный общий счёт. Ставки 1, 2 и 3 очка определяются по двум спискам из положения. RA8CP и R95FSI дают по 5. На указанные для этого диплома даты начисляются двойные очки."
   },
   {
     "Url": "https://hamlog.online/global/russia/r4c/f5e87fe2d86cae300790e6d2b39026f3/",
@@ -5117,7 +5634,7 @@
     "Title": "USSR 100 - 10 clubs",
     "TextSha256": "56fcabd241b9638685fe0eb40f776c81e3f5696236cc0594c60374c0c406af37",
     "Plan": null,
-    "Note": "В совместном зачёте участвуют десять клубов. Нужны их отдельные списки и состав действующих участников после дней активности."
+    "Note": "Подходят станции десяти перечисленных в положении клубов. Для проверки всех позывных нужны списки клубов из положения."
   },
   {
     "Url": "https://hamlog.online/club/comrade/db9dfe864c8ca092db028cab41ea9aad/",
@@ -5414,7 +5931,7 @@
     "Title": "Donors",
     "TextSha256": "62f90b29424a737e251f50c930f06487d666f295a5f41eaa517a05b26b3f3fd8",
     "Plan": null,
-    "Note": "Три степени имеют пороги 10, 20 и 30. Нужны перечень участников клуба «Мужество», таблица надбавок по диапазонам и даты удвоения."
+    "Note": "Для трёх степеней нужны станции из перечней активаторов организатора. В положении указано, что список дополняется. Зачёт проверяет HAMLOG."
   },
   {
     "Url": "https://hamlog.online/club/rcpw/c69623174657fe04432541c094f8f9a4/",

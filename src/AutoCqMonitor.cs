@@ -101,7 +101,7 @@ namespace JtdxAutoCq
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         static readonly HashSet<string> ContactFields = new HashSet<string> {
             "CALL", "BAND", "FREQ", "STATION_CALLSIGN", "SWL", "MODE", "SUBMODE",
-            "QSO_DATE", "TIME_ON", "QSO_DATE_OFF", "TIME_OFF", "GRIDSQUARE", "CNTY", "APP_LOGHX_RDA",
+            "QSO_DATE", "TIME_ON", "QSO_DATE_OFF", "TIME_OFF", "GRIDSQUARE", "MY_GRIDSQUARE", "CNTY", "APP_LOGHX_RDA",
         };
         internal static readonly IList<string> BandNames = Array.AsReadOnly(Bands);
 
@@ -181,7 +181,8 @@ namespace JtdxAutoCq
             return new LogbookQso {
                 Call = call, Station = Callsign.Clean(Read(fields, "STATION_CALLSIGN")),
                 Band = band.ToLowerInvariant(), Mode = mode.ToUpperInvariant(),
-                Locator = AwardLocator.Parse(Read(fields, "GRIDSQUARE")),
+                Locator = AwardLocator.Full(Read(fields, "GRIDSQUARE")),
+                StationLocator = AwardLocator.Full(Read(fields, "MY_GRIDSQUARE")),
                 County = (county.Length == 0 ? Read(fields, "CNTY") : county).ToUpperInvariant(),
                 StartedUtc = LogbookQso.ReadUtc(date, Read(fields, "TIME_ON")),
                 EndedUtc = LogbookQso.ReadUtc(endDate.Length == 0 ? date : endDate, Read(fields, "TIME_OFF")),

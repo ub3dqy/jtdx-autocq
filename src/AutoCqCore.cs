@@ -12,7 +12,7 @@ namespace JtdxAutoCq
     public sealed class RadioStatus
     {
         public ulong Frequency;
-        public string Mode, DxCall, DeCall;
+        public string Mode, DxCall, DeCall, DeLocator;
         public bool TxEnabled, Transmitting, Decoding, Watchdog, TxFirst;
 
         internal static string FormatTxPeriod(string mode, bool txFirst)
@@ -47,7 +47,7 @@ namespace JtdxAutoCq
                     s.Frequency = r.U64(); s.Mode = r.Text(); s.DxCall = r.Text();
                     r.Text(); r.Text();
                     s.TxEnabled = r.Bool(); s.Transmitting = r.Bool(); s.Decoding = r.Bool();
-                    r.U32(); r.U32(); s.DeCall = r.Text(); r.Text(); r.Text();
+                    r.U32(); r.U32(); s.DeCall = r.Text(); s.DeLocator = AwardLocator.Full(r.Text()); r.Text();
                     s.Watchdog = r.Bool(); r.Text(); r.Bool(); s.TxFirst = r.Bool();
                     p.Status = s;
                 }
@@ -85,15 +85,16 @@ namespace JtdxAutoCq
         {
             DateTime end = r.DateTimeUtc();
             string call = Callsign.Parse(r.Text());
-            string locator = AwardLocator.Parse(r.Text());
+            string locator = AwardLocator.Full(r.Text());
             string band = JtdxAdif.Band(r.U64());
             string mode = r.Text().Trim().ToUpperInvariant();
             for (int field = 0; field < 5; ++field) r.Text(); // reports, power, comments, name
             DateTime start = r.DateTimeUtc();
             string operatorCall = Callsign.Clean(r.Text());
             string station = Callsign.Clean(r.Text());
+            string stationLocator = r.HasData ? AwardLocator.Full(r.Text()) : null;
             if (call == null || band == null || mode.Length == 0) return null;
-            return new LogbookQso { Call = call, Band = band, Mode = mode, Locator = locator,
+            return new LogbookQso { Call = call, Band = band, Mode = mode, Locator = locator, StationLocator = stationLocator,
                 Station = String.IsNullOrEmpty(station) ? operatorCall : station, StartedUtc = start, EndedUtc = end };
         }
 
@@ -149,6 +150,7 @@ namespace JtdxAutoCq
     {
         readonly MemoryStream stream;
         public QtReader(byte[] data) { stream = new MemoryStream(data, false); }
+        internal bool HasData { get { return stream.Position < stream.Length; } }
         public byte Byte()
         { int x = stream.ReadByte(); if (x < 0) throw new EndOfStreamException(); return (byte)x; }
         public uint U32() { return ((uint)Byte() << 24) | ((uint)Byte() << 16) | ((uint)Byte() << 8) | Byte(); }
@@ -400,6 +402,7 @@ namespace JtdxAutoCq
 
         public void OnStatus(RadioStatus status, DateTime now)
         {
+            if (Awards != null) Awards.SetOperatorLocator(status.DeLocator);
             string previousCall = Status == null ? "" : CleanCall(Status.DxCall);
             string nextCall = CleanCall(status.DxCall);
             bool previousTxConfirmed = unconfirmedManualCall == null;
@@ -709,6 +712,7 @@ namespace JtdxAutoCq
             {
                 if (String.IsNullOrEmpty(contact.Locator))
                     contact.Locator = Cqs.LocatorFor(contact.Call, contact.EndedUtc ?? DateTime.UtcNow);
+                if (String.IsNullOrEmpty(contact.StationLocator)) contact.StationLocator = Status.DeLocator;
                 Awards.Record(contact);
             }
         }

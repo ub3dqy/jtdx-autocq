@@ -406,7 +406,8 @@ namespace JtdxAutoCq
             { if (Needs(call, band, mode)) logged.Add(call); }
         }
 
-        internal AwardProgress(AwardProgram program, LogbookHistory history, string own, Func<string, string> dxcc)
+        internal AwardProgress(AwardProgram program, LogbookHistory history, string own, Func<string, string> dxcc,
+            string stationLocator = null)
         {
             Program = program;
             from = program.From; until = program.Until;
@@ -432,7 +433,7 @@ namespace JtdxAutoCq
             }
             if (program.UsesTemplate)
             {
-                Points = new HamlogPointProgress(program, history, own, dxcc);
+                Points = new HamlogPointProgress(program, history, own, dxcc, stationLocator);
                 return;
             }
             if (!program.UsesLocalTargets || program.ClosedByIssuance) return;
@@ -492,7 +493,8 @@ namespace JtdxAutoCq
                 RecordGeographic(contact.Call, contact.Band, contact.Mode, contact.StartedUtc ?? contact.EndedUtc);
             else if (Online != null) Online.Record(contact);
             else if (Points != null && contact.StartedUtc.HasValue)
-                Points.Record(contact.Call, contact.Band, contact.Mode, contact.StartedUtc.Value, contact.County, contact.Locator);
+                Points.Record(contact.Call, contact.Band, contact.Mode, contact.StartedUtc.Value, contact.County, contact.Locator,
+                    contact.StationLocator);
         }
 
         internal void Record(string call, string band, string mode, DateTime? time)
@@ -511,16 +513,21 @@ namespace JtdxAutoCq
         readonly AwardProgress[] programs;
         readonly string band, mode, own;
 
-        internal AwardSearch(AwardCatalog catalog, LogbookHistory history, string own, string band, string mode, Func<string, string> dxcc)
+        internal AwardSearch(AwardCatalog catalog, LogbookHistory history, string own, string band, string mode, Func<string, string> dxcc,
+            string stationLocator = null)
         {
             catalog.CheckCallsign(own);
             this.band = band; this.mode = mode;
             this.own = own;
             programs = catalog.Programs.Where(program => program.Selected && !program.ClosedByIssuance && program.HasSearchRules)
-                .Select(program => new AwardProgress(program, history, own, dxcc)).ToArray();
+                .Select(program => new AwardProgress(program, history, own, dxcc, stationLocator)).ToArray();
         }
 
         internal int Available(DateTime now) { return programs.Count(program => program.Available(band, mode, now)); }
+        internal bool NeedsOperatorLocator(DateTime now)
+        { return programs.Any(program => program.CanSelectForSearch(now) && program.Points != null && program.Points.NeedsOperatorLocator); }
+        internal void SetOperatorLocator(string locator)
+        { foreach (AwardProgress program in programs) if (program.Points != null) program.Points.SetOperatorLocator(locator); }
         internal int Score(string call, DateTime now, string grid = null)
         { return programs.Count(program => program.Needs(call, band, mode, now, grid)); }
         internal string Reason(string call, DateTime now, string grid = null)

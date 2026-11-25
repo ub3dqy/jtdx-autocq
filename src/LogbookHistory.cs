@@ -11,7 +11,7 @@ namespace JtdxAutoCq
 {
     internal sealed class LogbookQso
     {
-        public string Call, Station, Band, Mode, Locator, County;
+        public string Call, Station, Band, Mode, Locator, StationLocator, County;
         public DateTime? StartedUtc, EndedUtc;
 
         public bool BelongsTo(string station)
@@ -131,14 +131,16 @@ namespace JtdxAutoCq
                 while ((line = reader.ReadLine()) != null)
                 {
                     string[] columns = line.Split('\t');
-                    if (columns.Length != 8 && columns.Length != 10) throw new InvalidDataException("Не удалось прочитать записи LogHX.");
+                    if (columns.Length != 8 && columns.Length != 10 && columns.Length != 11)
+                        throw new InvalidDataException("Не удалось прочитать записи LogHX.");
                     string call = Callsign.Parse(columns[0]);
                     if (call == null || String.IsNullOrWhiteSpace(columns[1])) continue;
                     result.Add(new LogbookQso {
                         Call = call, Band = columns[1].Trim().ToLowerInvariant(), Mode = columns[2].Trim().ToUpperInvariant(),
                         Station = Callsign.Clean(columns[3]),
-                        Locator = columns.Length == 10 ? AwardLocator.Parse(columns[8]) : null,
-                        County = columns.Length == 10 ? columns[9].ToUpperInvariant() : null,
+                        Locator = columns.Length >= 10 ? AwardLocator.Full(columns[8]) : null,
+                        County = columns.Length >= 10 ? columns[9].ToUpperInvariant() : null,
+                        StationLocator = columns.Length == 11 ? AwardLocator.Full(columns[10]) : null,
                         StartedUtc = LogbookQso.ReadUtc(columns[4], columns[5]),
                         EndedUtc = LogbookQso.ReadUtc(columns[6].Length == 0 ? columns[4] : columns[6], columns[7]),
                     });
