@@ -11,7 +11,7 @@ namespace JtdxAutoCq
 {
     internal sealed class LogbookQso
     {
-        public string Call, Station, Band, Mode, Locator, StationLocator, County;
+        public string Call, Station, Band, Mode;
         public DateTime? StartedUtc, EndedUtc;
 
         public bool BelongsTo(string station)
@@ -138,9 +138,6 @@ namespace JtdxAutoCq
                     result.Add(new LogbookQso {
                         Call = call, Band = columns[1].Trim().ToLowerInvariant(), Mode = columns[2].Trim().ToUpperInvariant(),
                         Station = Callsign.Clean(columns[3]),
-                        Locator = columns.Length >= 10 ? AwardLocator.Full(columns[8]) : null,
-                        County = columns.Length >= 10 ? columns[9].ToUpperInvariant() : null,
-                        StationLocator = columns.Length == 11 ? AwardLocator.Full(columns[10]) : null,
                         StartedUtc = LogbookQso.ReadUtc(columns[4], columns[5]),
                         EndedUtc = LogbookQso.ReadUtc(columns[6].Length == 0 ? columns[4] : columns[6], columns[7]),
                     });

@@ -33,26 +33,18 @@ namespace JtdxAutoCq
                 return regions.Length == 1 ? regions[0] : null;
             }
         }
-        internal bool GeographicSearch
-        {
-            get { return RdaOnly || MonitoringRegion != null || ContactAward && (Contacts.RestrictsCounties
-                || Contacts.Additional.Any(condition => condition.ByCounty)
-                || BonusGroups.Any(group => group.Area && group.Targets.Any(HamlogCountyIndex.IsCounty))); }
-        }
         internal bool Districts { get { return ContactAward && Contacts.Repeat == HamlogContactCriteria.District; } }
         internal bool Locators { get { return ContactAward && Contacts.Repeat == HamlogContactCriteria.Locator; } }
-        internal bool UsesRcpwRoster { get { return Rcpw || ContactAward && Contacts.Roster == "rcpw"; } }
         internal bool Points { get { return Club || Rcpw || ContactAward; } }
         internal bool AllStations { get { return ContactAward && Contacts.AllStations; } }
         internal bool MultiLevel { get { return AllStations || ContactAward && Contacts.Levels != null && Contacts.Levels.Length > 1; } }
         internal int MaxRequired { get { return AllStations ? 100000 : 10000; } }
-        internal bool Requires(int value)
+        internal HamlogRulePlan Copy()
         {
-            return value == Required || (Rcpw || ContactAward) && AlternativeRequired > 0 && value == AlternativeRequired
-                || AllStations && value >= AlternativeRequired && value <= Required
-                || ContactAward && Contacts.Levels != null && Contacts.Levels.Contains(value);
+            var copy = (HamlogRulePlan)MemberwiseClone();
+            if (Contacts != null) copy.Contacts = Contacts.Copy();
+            return copy;
         }
-
         internal bool SameAs(HamlogRulePlan other)
         {
             if (other == null || Kind != other.Kind || Required != other.Required || MemberPoints != other.MemberPoints
@@ -144,7 +136,6 @@ namespace JtdxAutoCq
             }
         }
 
-        internal int RcpwFactor(string own) { return RcpwDoubleDistrictZero && HamlogAwardAreas.IsZeroDistrict(own) ? 2 : 1; }
     }
 
     public sealed class HamlogBonusGroup
@@ -175,6 +166,7 @@ namespace JtdxAutoCq
         public HamlogPointAdjustment[] Adjustments = new HamlogPointAdjustment[0];
 
         internal bool RestrictsCounties { get { return !String.IsNullOrEmpty(CountyPrefix); } }
+        internal HamlogContactCriteria Copy() { return (HamlogContactCriteria)MemberwiseClone(); }
 
         internal void Validate(int required, string[] calls, bool areaGroups)
         {
@@ -264,27 +256,21 @@ namespace JtdxAutoCq
 
         internal string NamedCall(string call) { return PortableAliases ? Callsign.BaseCall(call) : call; }
 
-        internal string ContactKey(string call, string band, string mode)
-        { return call + "|" + band + "|" + (MinimumDistanceKm > 0 ? RdrcMode(mode)
-            : GroupModes ? HamlogPointProgress.ModeGroup(mode) : (mode ?? "").ToUpperInvariant()); }
-
-        internal decimal Adjust(decimal points, string band, DateTime time, string call)
+        static readonly Regex Digital = new Regex(@"^(?:DIGI(?:TAL)?|FT[48]|JT\w+|Q65|FST4\w*|MSK144|JS8|RTTY\w*|PSK\w*|MFSK\w*|OLIVIA|CONTESTI|VARA\w*|HELL\w*|SSTV|THOR\w*|DOMINO\w*|ROS|PACKET|PKT|AMTOR\w*|MT63|FSK\w*|WSPR)$",
+            RegexOptions.CultureInvariant);
+        internal static string ModeGroup(string mode)
         {
-            foreach (HamlogPointAdjustment adjustment in Adjustments) points = adjustment.Apply(points, band, time, call);
-            return points;
-        }
-
-        internal bool MatchesPoints(int points, HamlogCredit credit)
-        {
-            if (Adjustments.Length == 0) return points == credit.Points;
-            DateTime day = credit.DayUtc.Date;
-            return new[] { day }.Concat(Adjustments.SelectMany(adjustment => adjustment.Boundaries(day)))
-                .Any(time => Adjust(points, credit.Band, time, credit.Call) == credit.Points);
+            mode = (mode ?? "").ToUpperInvariant();
+            int submode = mode.IndexOf(" (", StringComparison.Ordinal);
+            if (submode > 0) mode = mode.Substring(0, submode);
+            if (Digital.IsMatch(mode)) return "DIGI";
+            if (mode == "USB" || mode == "LSB" || mode == "PHONE" || mode == "PH" || mode == "AM" || mode == "FM") return "SSB";
+            return mode;
         }
 
         internal bool AllowsBandMode(string band, string mode)
         {
-            string group = HamlogPointProgress.ModeGroup(mode);
+            string group = ModeGroup(mode);
             return !String.IsNullOrEmpty(group) && JtdxAdif.BandNames.Contains(band)
                 && (Bands.Length == 0 || Bands.Contains(band)) && (Modes.Length == 0 || Modes.Contains(group))
                 && (MinimumDistanceKm == 0 || RdrcMode(mode) != null);
@@ -304,23 +290,10 @@ namespace JtdxAutoCq
             return mode == "RTTYM" ? "RTTY" : mode;
         }
 
-        internal bool IsActivatorArea(string call, Func<string, string> dxcc)
-        {
-            if (ActivatorAreas.Length == 0 || dxcc == null || String.IsNullOrEmpty(call)) return false;
-            string entity = dxcc(call);
-            return ActivatorAreas.Any(area => HamlogAwardAreas.Matches(area, call, entity));
-        }
-
         internal int UsableCountyCount
         {
             get { return EligibleCounties.Length == 0 ? LastCounty - RetiredCounties.Length
                 : EligibleCounties.Except(RetiredCounties).Count(); }
-        }
-
-        internal string DistrictCode(string call, string county, bool allowRetired = false)
-        {
-            return !String.IsNullOrEmpty(call) && !call.EndsWith("/AM", StringComparison.Ordinal)
-                && InCountyScope(county, allowRetired) ? county : null;
         }
 
         internal bool InCountyScope(string county, bool allowRetired)

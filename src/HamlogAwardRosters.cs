@@ -30,6 +30,7 @@ namespace JtdxAutoCq
             {
                 case "arck":
                 case "arck-dx": return Arck;
+                case "rcpw": return HamlogRcpwRoster.Calls;
                 case "lefty": return Lefty;
                 case "afaru": return HamlogPublishedRosters.Afaru;
                 case "fifth-ocean": return HamlogPublishedRosters.FifthOcean;
@@ -119,8 +120,17 @@ namespace JtdxAutoCq
             "UA3SCU UA4WW UA6GO UA6HML UA6LQZ UA6NT UA9HO UB1OBV UB3ATK UB6LLI UB8AHK UG4P UG5F UI6L UI7M UN7JID " +
             "UR2LX W1CU YL3GX YL3NU YO3LW YO8DOH YT7MK YU1WAT Z35W Z35Z");
 
+        // Public callsign roster of the Knights of the Sky.
+        internal static readonly HashSet<string> Sky = Calls(("EW1D R4CQ EV6C RA6F EW8LL UT5RL UZ9RR USR55 R5GG RY1A EW3FH EW3WF EU1XD RW4CCW R2AKN " +
+            "F5PBL RD4CAF EW2CQ EW8ZM EV6W RA3QH OK1MBR RZ6AIJ UX8IX UX8IXX LW2EIY U4MIR YU1SU R4CGP RC4P " +
+            "EU7DD RA3TD UR1MI YU1TY PY1AX UB3YCJ RK4CL EW3ADK EU1ZZ R4DL UA9CES " +
+            "LZ1ZF AC1ZF LZ9Z LZ77ZZ LZ44WFF LZ25MIG LZ78ZZ LZ21MIG US2MT LZ1KSZ US1EA RA3RPW LZ1KGR LZ3DC " +
+            "RZ6AKK RY6AAC BD7NSK UA4PIE RU3GC R0QAF R4CGQ UB9UZA YL2AG OE6VKO UB6HQQ R3AP RA5AD " +
+            "R8FF R8FF/1 R8FF/3 R8FF/6 R8FF/7 R8FF/8 R8FF/M R8FF/P RA3SO UA4NV R5AV RV1A LZ1ON RW9CC " +
+            "UB4CIA RA9ODW RA4DAB SV1QVA UD6AXJ UB3MBD"));
+
         static readonly Lazy<HashSet<string>> AfaruSky = new Lazy<HashSet<string>>(() =>
-            new HashSet<string>(HamlogPublishedRosters.Afaru.Concat(HamlogPointProgress.SkyCallsigns), StringComparer.Ordinal));
+            new HashSet<string>(HamlogPublishedRosters.Afaru.Concat(Sky), StringComparer.Ordinal));
 
         static HashSet<string> Calls(string values)
         { return new HashSet<string>(values.Split(' '), StringComparer.Ordinal); }

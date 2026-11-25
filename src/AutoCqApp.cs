@@ -16,8 +16,8 @@ using System.Xml;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.37.0")]
-[assembly: AssemblyFileVersion("0.9.37.0")]
+[assembly: AssemblyVersion("0.9.38.0")]
+[assembly: AssemblyFileVersion("0.9.38.0")]
 [assembly: AssemblyTitle(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyProduct(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyCompany(JtdxAutoCq.AppBrand.Author)]
@@ -202,7 +202,7 @@ namespace JtdxAutoCq
 
     public sealed partial class MainForm : Form
     {
-        const string ModuleVersion = "0.9.37";
+        const string ModuleVersion = "0.9.38";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = JtdxPatcher.PatchedHash;
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -963,10 +963,19 @@ namespace JtdxAutoCq
         }
         void StartRadioSession(AwardCatalog awards)
         {
+            AwardSearch search = null;
+            if (awards != null)
+            {
+                if (engine.Status == null) throw new InvalidOperationException("Ожидается состояние JTDX.");
+                search = new AwardSearch(awards, Callsign.Clean(engine.Status.DeCall), JtdxAdif.Band(engine.Status.Frequency),
+                    engine.Status.Mode, engine.DxccForCall, engine.Status.DeLocator);
+                DateTime now = DateTime.UtcNow;
+                if (search.Available(now) == 0 && search.NeedsOperatorLocator(now))
+                    throw new InvalidOperationException("Для диплома дальних связей укажите свой QTH-локатор в настройках JTDX.");
+            }
             if (engine.Options.ExcludedDxcc.Length > 0 || engine.HasPriorityCountries
-                || engine.Options.MonitorEnabled && engine.Options.MonitorDxcc.Length > 0
-                || awards != null && awards.Programs.Any(program => program.Selected
-                    && (program.UsesOnlineRules || program.Goals.Any(goal => goal.Kind == "dxcc"))))
+                || search == null && engine.Options.MonitorEnabled && engine.Options.MonitorDxcc.Length > 0
+                || search != null && search.NeedsDxcc)
                 CountryTable();
             if (!demo)
             {
@@ -1000,16 +1009,6 @@ namespace JtdxAutoCq
                         throw new InvalidOperationException("Счётчики JTDX отличаются от выбранных в модуле. Закройте JTDX, повторите «1. Подготовить» и снова запустите JTDX.");
                 }
                 tail.Reset(); direction = settings.Direction();
-            }
-            AwardSearch search = null;
-            if (awards != null)
-            {
-                if (engine.Status == null) throw new InvalidOperationException("Ожидается состояние JTDX.");
-                search = new AwardSearch(awards, startupHistory, Callsign.Clean(engine.Status.DeCall),
-                    JtdxAdif.Band(engine.Status.Frequency), engine.Status.Mode, engine.DxccForCall, engine.Status.DeLocator);
-                DateTime now = DateTime.UtcNow;
-                if (search.Available(now) == 0 && search.NeedsOperatorLocator(now))
-                    throw new InvalidOperationException("Для диплома дальних связей укажите свой QTH-локатор в настройках JTDX.");
             }
             engine.Start(DateTime.UtcNow, search);
             UpdateNativeSelection(DateTime.UtcNow);
@@ -1140,7 +1139,6 @@ namespace JtdxAutoCq
                 if (packet.Decode.IsNew) replayWanted = true;
                 engine.OnDecode(packet.Decode, DateTime.UtcNow);
             }
-            if (packet.LoggedContact != null && nativeStatusSeen) engine.OnLoggedContact(packet.LoggedContact);
             if (packet.Type == 3)
             {
                 engine.Cqs.Invalidate();

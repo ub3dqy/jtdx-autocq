@@ -1,77 +1,45 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Text;
-using System.Text.RegularExpressions;
 
 namespace JtdxAutoCq
 {
     internal static class HamlogRcpwRoster
     {
         internal const string Url = "https://rcpw.ru/members.html";
-        const int MaximumBytes = 2 * 1024 * 1024;
-        static readonly object Gate = new object();
-        static readonly Regex Row = new Regex(@"<tr(?:\s[^>]*)?>\s*<td\b[^>]*>([^<]*(?:<(?!/td\b)[^>]*>[^<]*)*)</td>"
-            + @"\s*<td\b[^>]*>(.*?)</td>\s*<td\b[^>]*>(.*?)</td>", RegexOptions.IgnoreCase | RegexOptions.Singleline,
-            TimeSpan.FromSeconds(2));
-        static readonly Regex Markup = new Regex(@"<[^>]+>");
-        static readonly Regex MemberNumber = new Regex(@"\A#?\s*\d{1,5}\z");
-        static Dictionary<string, string> current;
-        static DateTime loadedUtc;
-
-        internal static Dictionary<string, string> Read()
-        {
-            lock (Gate)
-            {
-                if (current != null && DateTime.UtcNow - loadedUtc < TimeSpan.FromHours(6)) return current;
-                var request = (HttpWebRequest)WebRequest.Create(Url);
-                request.AllowAutoRedirect = false;
-                request.Timeout = request.ReadWriteTimeout = 12000;
-                request.UserAgent = "JTDX-AutoCQ";
-                request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
-                using (var response = (HttpWebResponse)request.GetResponse())
-                using (Stream stream = response.GetResponseStream())
-                using (var body = new MemoryStream())
-                {
-                    if (response.StatusCode != HttpStatusCode.OK || response.ContentLength > MaximumBytes)
-                        throw new IOException("Сайт RCPW не вернул список членов клуба.");
-                    var buffer = new byte[8192];
-                    int count;
-                    while ((count = stream.Read(buffer, 0, buffer.Length)) > 0)
-                    {
-                        if (body.Length + count > MaximumBytes) throw new IOException("Список членов RCPW слишком большой.");
-                        body.Write(buffer, 0, count);
-                    }
-                    current = ParseMembers(Encoding.UTF8.GetString(body.ToArray()));
-                    if (current.Count < 100)
-                    {
-                        current = null;
-                        throw new InvalidDataException("Не удалось прочитать список членов RCPW.");
-                    }
-                    loadedUtc = DateTime.UtcNow;
-                    return current;
-                }
-            }
-        }
-
-        internal static string[] Parse(string html)
-        { return ParseMembers(html).Keys.ToArray(); }
-
-        internal static Dictionary<string, string> ParseMembers(string html)
-        {
-            return Row.Matches(html).Cast<Match>().Where(row => MemberNumber.IsMatch(Text(row.Groups[1].Value))
-                && Text(row.Groups[3].Value).IndexOf("(SK)", StringComparison.OrdinalIgnoreCase) < 0)
-                .SelectMany(row => Regex.Split(Text(row.Groups[2].Value), @"[\s,;]+")
-                    .Select(token => new { Call = Callsign.Parse(token), Member = Text(row.Groups[1].Value).TrimStart('#').Trim() }))
-                .Where(entry => entry.Call != null)
-                .GroupBy(entry => entry.Call, StringComparer.Ordinal)
-                .Where(group => group.Select(entry => entry.Member).Distinct(StringComparer.Ordinal).Count() == 1)
-                .ToDictionary(group => group.Key, group => group.First().Member, StringComparer.Ordinal);
-        }
-
-        static string Text(string markup)
-        { return WebUtility.HtmlDecode(Markup.Replace(markup, " ")).Trim(); }
+        // Club callsigns checked against the published roster on 2026-11-25.
+        internal static readonly HashSet<string> Calls = new HashSet<string>((
+            "ER5AE EU4DGC EW1ACC EW4F EW6CC EW6DX EX7DY LZ1D LZ1KAU LZ1ST LZ2OQ R0AA R0AEB " +
+            "R0AGK R0AM R0JF R0SCZ R1ABI R1BPV R1CBK R1FE R1QA R2AB R2AKN R2ALE R2BPR " +
+            "R2DE R2FAX R2WAC R2ZM R2ZR R3BEE R3CF R3DMO R3EV R3GW R3GZ R3KHR R3KLA " +
+            "R3KMI R3KPO R3LCN R3NBL R3PM R3QV R3RM R3ST R3THP R3WBG R3WM R4CCE R4FCG " +
+            "R4FK R4FSB R4IO R4LC R4OF R4PI R4PL R4PM R4RB R4UR R5AP R5BC R5GG " +
+            "R6ABG R6AH R6AP R6AW R6BA R6CN R6DBT R6DDF R6DKW R6DOE R6FAZ R6LCT R6LFO " +
+            "R6LPA R6OBN R7AT R7CW R7DP R7FL R7FW R7HK R7II R7IT R7KA R7KDW R7LI " +
+            "R7MC R7XT R7YO R8AAG R8AEX R8CA R8CBQ R8CGO R9CP R9FBL R9FFH R9FO R9GM " +
+            "R9SBZ R9SR R9SY R9UAO R9UW R9VA R9WGI R9WKD R9YZ RA0ACM RA0CDZ RA0SE RA0WBI " +
+            "RA0WHT RA1TAR RA2FU RA3AKF RA3DA RA3IHA RA3NC RA3NQ RA3QFX RA3RPW RA3TTY RA3XAP RA3Y " +
+            "RA3YAU RA4AAJ RA4C RA4CID RA4FBG RA4NFK RA4UAT RA5AD RA6A RA6ACI RA6BD RA6HIH RA6HV " +
+            "RA6LJM RA6MH RA6MZ RA7G RA9AC RA9AIF RA9CJK RA9FBK RA9MG RA9UJP RA9WU RA9YEN RC1TC " +
+            "RC3AO RC3F RC3Z RC4PC RC4PK RC5B RC5D RC6K RC6OZ RC7LS RC7T RC9MG RC9WK " +
+            "RC9YG RD1T RD3KK RD3TCQ RD4AM RD6A RD6D RD6ZD RD8D RG2V RG3G RG8A RK0JT " +
+            "RK3G RK3RR RK4DC RK4HM RK4NB RK6DE RK6FK RK6MB RK7M RK9DR RK9FCE RL9W RM4W " +
+            "RM6LW RM6OB RN1CW RN1QK RN2B RN3DJF RN3TA RN3ZKT RN4ACP RN6AN RN6LDQ RN7T RO3H " +
+            "RO7L RO9A RQ7M RQ9F RT1S RT6M RT9YO RU0AX RU0LM RU1QD RU3AMU RU3FM RU3KY " +
+            "RU4CK RU4HP RU4PH RU6CF RU6CO RU6UR RU9AD RU9CZ RU9FO RU9MC RU9WT RV3AMV RV3DAS " +
+            "RV3FF RV3GZ RV3ID RV3WT RV4C RV6CT RV6K RV8W RV9CEC RV9FF RW4PUG RW6AAJ RW6AOH " +
+            "RW6AVG RW6C RW6DD RW6HFT RW6HLI RW9BM RW9UI RX0SA RX3AFP RX3RZ RX4CH RX4SA RX6BQ " +
+            "RX6M RX7K RX9CAZ RX9WN RY1A RY3F RY7KV RZ3AEN RZ3AJO RZ3ASC RZ3GP RZ3K RZ3ZI " +
+            "RZ4AC RZ4AZ RZ5D RZ6ATA RZ6CV RZ6HKM RZ9AWA RZ9WU S58MU UA0FAM UA0IHZ UA0WCV UA0WFG " +
+            "UA0WG UA1APX UA1QM UA1ZNP UA3A UA3DDL UA3DKH UA3FQ UA3GDJ UA3IBD UA3LFM UA3PTK UA3SCA " +
+            "UA3UAD UA3UHP UA3UTX UA3WG UA3YDI UA4ABW UA4AFY UA4AOC UA4CDN UA4HTT UA4PCF UA4PPQ UA4RX " +
+            "UA5B UA6ABA UA6ABE UA6AHR UA6AK UA6BM UA6EED UA6HF UA6HRX UA6UDN UA6XN UA6YT UA8U " +
+            "UA9APX UA9CDB UA9CFH UA9FBD UA9FY UA9JFE UA9OTW UA9UKA UA9WRT UA9XCQ UB1WCL UB1ZBM UB3DZX " +
+            "UB3GAX UB3GBJ UB3LBU UB3RBU UB4NAM UB4PUC UB6C UB6HLP UB6LSD UB9WGG UC5D UC6K UD8A " +
+            "UF0W UG5F UI0A UN7IDN UN8ZAA UR3CQM UR3INH UR3UG UR3VHQ UR4QRC UR5CCC UR5CD UR5KHO " +
+            "UR5MFI UR5MY UR5ZJW UR6AJ UR7CT UR7IQH UR7WBC UR8GF UR8UV UR9QQ US1UX US2IW US2MM " +
+            "US3IKQ US3IV US4IRT US4LPX US4MC US4MDS US5CX US5IND US5LSK US5MC US5MGJ US6IL US6MM " +
+            "US6UZ US7IHJ US8IW US9IP UT0MS UT3ID UT3UQ UT4VX UT5CO UT5ZB UT6MS UT8IK UT9LH " +
+            "UV6QAH UW3QU UW8M UX1HX UX3LF UX8IX UY0CA UY5CQ UY7AM UY9ID YL2PP YU1U YU1WAT " +
+            "YU5DR").Split(' '), StringComparer.Ordinal);
     }
 }

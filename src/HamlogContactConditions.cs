@@ -14,16 +14,9 @@ namespace JtdxAutoCq
             if (!DateTime.TryParseExact("2000-" + value, "yyyy-MM-dd", CultureInfo.InvariantCulture,
                     DateTimeStyles.None, out parsed))
                 throw new InvalidDataException("Для ежегодной даты укажите месяц и день (ММ-ДД).");
-            return MonthDay(parsed);
+            return parsed.Month * 100 + parsed.Day;
         }
 
-        internal static int MonthDay(DateTime time) { return time.Month * 100 + time.Day; }
-
-        internal static bool InRange(DateTime time, int first, int last)
-        {
-            int date = MonthDay(time);
-            return first <= last ? first <= date && date <= last : first <= date || date <= last;
-        }
     }
 
     public sealed class HamlogContactRequirement
@@ -37,9 +30,6 @@ namespace JtdxAutoCq
 
         internal bool ByCounty { get { return Kind == Counties || Kind == CountyContacts; } }
         internal bool UsesRoster { get { return !String.IsNullOrEmpty(Roster); } }
-        internal string Label { get { return UsesRoster ? "позывные из списка " + HamlogAwardRosters.Label(Roster)
-            : Kind == Counties ? "районы RDA" : Kind == CountyContacts
-            ? "связи с обязательным районом" : DistinctStations ? "разные обязательные станции" : "связи с обязательными станциями"; } }
 
         internal void Validate(HamlogContactCriteria criteria)
         {
@@ -50,7 +40,7 @@ namespace JtdxAutoCq
                 || UsesRoster && (Kind != Stations || !ReportedByHamlog || !DistinctStations || PortableStations || roster == null)
                 || (ByCounty ? Calls.Length != 0 || DistinctStations || PortableStations || CountyCodes.Length > 99
                     || CountyCodes.Length == 0 && (!criteria.RestrictsCounties || Kind == CountyContacts)
-                    || CountyCodes.Any(code => !HamlogCountyIndex.IsCounty(code)
+                    || CountyCodes.Any(code => !HamlogRdaCode.IsCounty(code)
                         || criteria.RestrictsCounties && !criteria.InCountyScope(code, allowRetired: true))
                     || Kind == Counties && Required > (CountyCodes.Length != 0 ? CountyCodes.Length
                         : criteria.UsableCountyCount)
@@ -68,11 +58,6 @@ namespace JtdxAutoCq
                 && CountyCodes.SequenceEqual(other.CountyCodes);
         }
 
-        internal int Count(HamlogCredit[] credits)
-        {
-            return Kind == Counties ? credits.Where(Matches).Select(row => row.County).Distinct().Count() : credits.Count(Matches);
-        }
-
         internal string Station(string call)
         {
             if (Calls.Contains(call) || UsesRoster && HamlogAwardRosters.For(Roster).Contains(call)) return call;
@@ -81,45 +66,6 @@ namespace JtdxAutoCq
             return Calls.Contains(original) ? original : null;
         }
 
-        internal bool Matches(HamlogCredit row) { return !row.Observation && Matches(row.Call, row.County); }
-
-        internal bool Matches(string call, string county)
-        { return ByCounty ? HamlogCountyIndex.IsCounty(county) && (CountyCodes.Length == 0 || CountyCodes.Contains(county)) : Station(call) != null; }
-    }
-
-    internal sealed class HamlogRequirementProgress
-    {
-        readonly HamlogContactRequirement rule;
-        readonly HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
-        int projected;
-        internal readonly int Confirmed;
-        internal int Required { get { return rule.Required; } }
-        internal string Label { get { return rule.Label; } }
-        internal bool Enough { get { return projected >= Required; } }
-
-        internal HamlogRequirementProgress(HamlogContactRequirement rule, IEnumerable<HamlogCredit> confirmed, int? fromHamlog = null)
-        {
-            this.rule = rule;
-            foreach (HamlogCredit credit in confirmed) Record(credit);
-            if (fromHamlog.HasValue) projected = fromHamlog.Value;
-            Confirmed = projected;
-        }
-
-        internal bool Needs(string call, string county)
-        {
-            return !Enough && rule.Matches(call, county)
-                && !seen.Contains(Key(call, county));
-        }
-
-        internal void Record(HamlogCredit credit)
-        {
-            if (!rule.Matches(credit)) return;
-            string key = Key(credit.Call, credit.County);
-            if (key == null || seen.Add(key)) projected++;
-        }
-
-        string Key(string call, string county)
-        { return rule.Kind == HamlogContactRequirement.Counties ? county : rule.DistinctStations ? rule.Station(call) : null; }
     }
 
     public sealed class HamlogPointAdjustment
@@ -128,38 +74,24 @@ namespace JtdxAutoCq
         public string FromUtc, UntilUtc, AnnualFrom, AnnualUntil;
         public string[] Bands = new string[0];
         public string[] PortableSuffixes = new string[0];
-        Tuple<DateTime?, DateTime?> window;
-        Tuple<int, int> monthDays;
 
         internal bool Annual { get { return !String.IsNullOrEmpty(AnnualFrom) || !String.IsNullOrEmpty(AnnualUntil); } }
-
-        Tuple<int, int> MonthDays
-        {
-            get { return monthDays ?? (monthDays = Tuple.Create(HamlogCalendar.MonthDay(AnnualFrom), HamlogCalendar.MonthDay(AnnualUntil))); }
-        }
-
-        Tuple<DateTime?, DateTime?> Window
-        {
-            get
-            {
-                return window ?? (window = Tuple.Create(AwardCatalog.ReadTime(FromUtc), AwardCatalog.ReadTime(UntilUtc, true)));
-            }
-        }
 
         internal void Validate()
         {
             Bands = (Bands ?? new string[0]).Distinct(StringComparer.Ordinal).ToArray();
             PortableSuffixes = (PortableSuffixes ?? new string[0]).Distinct(StringComparer.Ordinal).ToArray();
-            window = null;
-            monthDays = null;
-            DateTime? from = Window.Item1, until = Window.Item2;
+            DateTime? from = AwardCatalog.ReadTime(FromUtc), until = AwardCatalog.ReadTime(UntilUtc, true);
             if (Factor < 1 || Factor > 5 || Add < 0 || Add > 1000 || Factor == 1 && Add == 0
                 || from.HasValue != until.HasValue || from.HasValue && from >= until
                 || Annual && from.HasValue || !from.HasValue && !Annual && Bands.Length == 0 && PortableSuffixes.Length == 0
                 || Bands.Any(band => !JtdxAdif.BandNames.Contains(band)) || PortableSuffixes.Any(suffix => suffix != "/P" && suffix != "/M"))
                 throw new InvalidDataException("Проверьте условия повышения очков.");
             if (Annual)
-                monthDays = Tuple.Create(HamlogCalendar.MonthDay(AnnualFrom), HamlogCalendar.MonthDay(AnnualUntil));
+            {
+                HamlogCalendar.MonthDay(AnnualFrom);
+                HamlogCalendar.MonthDay(AnnualUntil);
+            }
         }
 
         internal bool SameAs(HamlogPointAdjustment other)
@@ -169,22 +101,5 @@ namespace JtdxAutoCq
                 && (AnnualFrom ?? "") == (other.AnnualFrom ?? "") && (AnnualUntil ?? "") == (other.AnnualUntil ?? "")
                 && Bands.SequenceEqual(other.Bands) && PortableSuffixes.SequenceEqual(other.PortableSuffixes);
         }
-
-        internal decimal Apply(decimal points, string band, DateTime at, string call)
-        {
-            var range = Window;
-            return points > 0 && (Bands.Length == 0 || Bands.Contains(band))
-                && (PortableSuffixes.Length == 0 || call != null && PortableSuffixes.Any(suffix => call.EndsWith(suffix, StringComparison.Ordinal)))
-                && (!Annual || HamlogCalendar.InRange(at, MonthDays.Item1, MonthDays.Item2))
-                && (!range.Item1.HasValue || at >= range.Item1.Value && at < range.Item2.Value) ? points * Factor + Add : points;
-        }
-
-        internal DateTime[] Boundaries(DateTime withinDay)
-        {
-            var range = Window;
-            return new[] { range.Item1, range.Item2 }.Where(at => at.HasValue && at.Value > withinDay && at.Value < withinDay.AddDays(1))
-                .Select(at => at.Value).ToArray();
-        }
-
     }
 }

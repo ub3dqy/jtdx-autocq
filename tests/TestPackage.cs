@@ -18,7 +18,7 @@ static class TestPackage
             if(!File.Exists(Path.Combine(directory,"docs/bug-report-demo.png")))throw new Exception("Missing bug report screenshot.");
             foreach (string file in new[] { "frequency-stop-demo.png", "signoff-retry-demo.png", "logbook-source-demo.png", "profiles-demo.png", "dxcc-targets-demo.png",
                 "station-reason-demo.png", "session-summary-demo.png", "awards-demo.png", "award-goals-demo.png",
-                "hamlog-account-demo.png", "hamlog-plan-demo.png", "hamlog-additional-demo.png", "award-catalog.md", "pdfpig-license.md", "dotnet-license.md" })
+                "hamlog-account-demo.png", "hamlog-plan-demo.png", "award-catalog.md", "pdfpig-license.md", "dotnet-license.md" })
                 if (!File.Exists(Path.Combine(directory, "docs", file))) throw new Exception("Missing " + file);
             if (JtdxPatcher.Resource("LogHxReader.exe").Length == 0) throw new Exception("Missing embedded LogHX reader.");
             if (JtdxPatcher.Resource("PdfRulesReader.zip").Length == 0) throw new Exception("Missing embedded PDF rules reader.");

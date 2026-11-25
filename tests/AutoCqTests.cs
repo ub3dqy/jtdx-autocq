@@ -2310,9 +2310,8 @@ class AutoCqTests
                         e.RequestReply = d => commands.Add("TARGET " + d.Message);
                         var tula = HamlogAward.Gunsmiths.Create();
                         tula.Selected = true;
-                        tula.Hamlog = new HamlogStanding { Callsign = "K1ABC", CheckedUtc = At, Required = 100 };
                         var catalog = new AwardCatalog { Programs = new List<AwardProgram> { tula } };
-                        var search = new AwardSearch(catalog, LogbookHistory.Empty, "K1ABC", "20m", "FT8", e.DxccForCall);
+                        var search = new AwardSearch(catalog, "K1ABC", "20m", "FT8", e.DxccForCall);
                         e.OnStatus(S(false, ""), At);
                         e.Start(At, search);
                         e.OnLine(ManualSelection(At.AddSeconds(2), "W3AAA"), At.AddSeconds(2));
@@ -2331,7 +2330,7 @@ class AutoCqTests
                         e.OnLine("Halt Tx triggered at RX: UDP request", At.AddSeconds(59.4));
                         e.OnStatus(S(false, "W3AAA"), At.AddSeconds(59.5));
                         e.Tick(At.AddSeconds(59.6), true);
-                        Assert(search.Score("DO1ZZZ", At) == 0 && search.Score("R3PAA", At) == 1,
+                        Assert(search.MatchCount("DO1ZZZ", At) == 0 && search.MatchCount("R3PAA", At) == 1,
                             "The fixture failed to distinguish the caller from an award target");
                         Assert(e.Monitoring && e.ManualMonitorCall == "" && e.IncomingMonitorCall == "DO1ZZZ"
                             && commands.SequenceEqual(new[] { "HALT", "CALLER K1ABC DO1ZZZ JO53" }),
@@ -2371,9 +2370,8 @@ class AutoCqTests
                         {
                             var program = HamlogAward.Gunsmiths.Create();
                             program.Selected = true;
-                            program.Hamlog = new HamlogStanding { Callsign = "K1ABC", CheckedUtc = At, Required = 100 };
                             var catalog = new AwardCatalog { Programs = new List<AwardProgram> { program } };
-                            search = new AwardSearch(catalog, LogbookHistory.Empty, "K1ABC", "20m", "FT8", e.DxccForCall);
+                            search = new AwardSearch(catalog, "K1ABC", "20m", "FT8", e.DxccForCall);
                         }
                         e.Start(At, search);
                         if (operation != "cq")

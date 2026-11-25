@@ -17,7 +17,6 @@ namespace JtdxAutoCq
         [DataMember(Name = "mode")] public string Mode;
         [DataMember(Name = "count")] public int? Count;
 
-        internal int Required { get { return Count ?? 1; } }
         internal AwardGoal Copy() { return (AwardGoal)MemberwiseClone(); }
 
         internal void Validate()
@@ -34,8 +33,6 @@ namespace JtdxAutoCq
                     throw new InvalidDataException("Укажите префикс страны DXCC, например JA или PY.");
             }
             else throw new InvalidDataException("Выберите тип цели. Поддерживаются позывные, страны DXCC и маски.");
-            if (Required < 1 || Required > 1000 || Kind == "call" && Required != 1)
-                throw new InvalidDataException("Для отдельного позывного нужна одна связь. Для DXCC или маски укажите от 1 до 1000 разных станций.");
             if (Band.Length != 0 && !JtdxAdif.BandNames.Contains(Band))
                 throw new InvalidDataException("Неизвестный диапазон " + Band + ".");
             if (Mode.Length != 0 && Mode != "FT8" && Mode != "FT4")
@@ -55,15 +52,12 @@ namespace JtdxAutoCq
         [DataMember(Name = "goals")] public List<AwardGoal> Goals = new List<AwardGoal>();
         [DataMember(Name = "manualSearch", EmitDefaultValue = false)] public bool ManualSearch;
         public bool Selected;
-        public bool OtherLevel;
         public string Section, Sponsor, PublishedFromUtc, PublishedUntilUtc;
         public bool PublicEntry, Withdrawn;
         public string RuleDocumentStatus, RuleNote;
         public DateTime RulesCheckedUtc;
         public int RuleCompilerVersion;
         public HamlogRulePlan DownloadedRules, EditedRules;
-        // The result belongs to the local operator's profile, not a catalog export.
-        public HamlogStanding Hamlog;
 
         internal HamlogRulePlan EffectiveRules { get { return EditedRules ?? DownloadedRules; } }
         internal HamlogAward Template
@@ -71,31 +65,26 @@ namespace JtdxAutoCq
             get { return HamlogAward.Find(Url) ?? (ManualSearch && Goals.Count != 0 ? null : HamlogAward.FromDocument(this)); }
         }
         internal bool HasEditedRules { get { return EditedRules != null || ManualSearch && Goals.Count != 0; } }
-        internal bool UsesTemplate
-        {
-            get
-            {
-                HamlogAward template = Template;
-                return template != null && (Goals.Count == 0 || template.HasOnlineRules || template.DocumentPlan != null);
-            }
-        }
-        internal bool UsesPointRules { get { return UsesTemplate && Template.HasPointRules; } }
-        internal bool UsesOnlineRules { get { return UsesTemplate && Template.HasOnlineRules; } }
-        internal bool UsesGeographicSearch { get { return UsesTemplate && Template.GeographicSearch; } }
         internal bool UsesLocalTargets { get { return Goals.Count != 0 && (String.IsNullOrEmpty(Url) || ManualSearch && Template == null); } }
-        internal bool HasSearchRules { get { return UsesLocalTargets || UsesPointRules || UsesOnlineRules; } }
+        internal bool HasSearchRules { get { return UsesLocalTargets || Template != null && Template.HasSearchRules; } }
         internal DateTime? From
         {
-            get { return new[] { AwardCatalog.ReadTime(UsesTemplate ? Template.From : FromUtc), AwardCatalog.ReadTime(PublishedFromUtc) }.Max(); }
+            get { return new[] { AwardCatalog.ReadTime(Template == null ? FromUtc : Template.From), AwardCatalog.ReadTime(PublishedFromUtc) }.Max(); }
         }
         internal DateTime? Until
         {
-            get { return new[] { AwardCatalog.ReadTime(UsesTemplate ? Template.Until : UntilUtc, true), AwardCatalog.ReadTime(PublishedUntilUtc, true) }.Min(); }
+            get { return new[] { AwardCatalog.ReadTime(Template == null ? UntilUtc : Template.Until, true), AwardCatalog.ReadTime(PublishedUntilUtc, true) }.Min(); }
         }
-        internal bool ClosedByIssuance
+        internal bool ClosedByIssuance { get { return HasIssued == true; } }
+        internal bool Expired(DateTime now) { return Until <= now; }
+        internal bool Upcoming(DateTime now) { return From > now; }
+        internal bool CanSelectForSearch(DateTime now)
+        { return !ClosedByIssuance && HasSearchRules && !Upcoming(now) && !Expired(now); }
+
+        internal DateTime NextValidityChange(DateTime now)
         {
-            get { return HasIssued == true && !OtherLevel && Template != HamlogAward.Russia
-                && !(EffectiveRules != null && EffectiveRules.MultiLevel); }
+            if (ClosedByIssuance || Expired(now)) return DateTime.MaxValue;
+            return Upcoming(now) ? From.Value : Until ?? DateTime.MaxValue;
         }
         internal string CatalogKey { get { return HamlogLinks.Award(Url) ?? Id; } }
 
@@ -202,16 +191,18 @@ namespace JtdxAutoCq
             if (personal && (incoming.Callsign.Length == 0 || !imported.HasValue))
                 throw new InvalidDataException("Выберите JSON с позывным и датой выгрузки или сохранённую страницу HAMLOG.");
             if (saved.HasValue && imported.HasValue && imported < saved)
-                throw new InvalidDataException("Этот каталог старее последней сверки HAMLOG.");
+                throw new InvalidDataException("Этот файл старее последнего загруженного списка HAMLOG.");
 
             var merged = Programs.ToDictionary(program => program.Id, program => program.Copy(), StringComparer.Ordinal);
             var byPage = merged.Values.GroupBy(row => row.CatalogKey, StringComparer.Ordinal)
                 .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
             var ids = new HashSet<string>(StringComparer.Ordinal);
             var pages = new HashSet<string>(StringComparer.Ordinal);
-            foreach (AwardProgram row in incoming.Programs)
+            foreach (AwardProgram item in incoming.Programs)
             {
-                if (row == null) throw new InvalidDataException("В файле есть пустая запись диплома.");
+                if (item == null) throw new InvalidDataException("В файле есть пустая запись диплома.");
+                if (personal && item.HasIssued != true) continue;
+                AwardProgram row = personal ? new AwardProgram { Id = item.Id, Url = item.Url, Title = item.Title, HasIssued = true } : item;
                 if (String.IsNullOrWhiteSpace(row.Id) && String.IsNullOrWhiteSpace(row.Url))
                     throw new InvalidDataException("Для строки «" + row.Title + "» укажите ссылку HAMLOG или постоянный идентификатор.");
                 row.Validate();
@@ -224,7 +215,6 @@ namespace JtdxAutoCq
                         throw new InvalidDataException("Адрес диплома «" + row.Title + "» не совпадает с каталогом HAMLOG.");
                     row.Id = old.Id;
                     if (old.HasIssued == true || !row.HasIssued.HasValue) row.HasIssued = old.HasIssued;
-                    if (row.CatalogKey == old.CatalogKey) row.Hamlog = old.Hamlog;
                     if (row.CatalogKey == old.CatalogKey)
                     {
                         row.DownloadedRules = old.DownloadedRules;
@@ -235,7 +225,7 @@ namespace JtdxAutoCq
                         row.RuleCompilerVersion = old.RuleCompilerVersion;
                     }
                     row.SetPublication(old);
-                    if (old.PublicEntry) row.Title = old.Title;
+                    if (old.PublicEntry || personal) row.Title = old.Title;
                     if (row.Goals.Count == 0)
                     {
                         row.Goals = old.Goals;
@@ -243,13 +233,12 @@ namespace JtdxAutoCq
                         if (String.IsNullOrEmpty(row.FromUtc) || old.ManualSearch) row.FromUtc = old.FromUtc;
                         if (String.IsNullOrEmpty(row.UntilUtc) || old.ManualSearch) row.UntilUtc = old.UntilUtc;
                     }
-                    row.OtherLevel = old.OtherLevel;
                     row.Selected = old.Selected && !row.ClosedByIssuance && row.HasSearchRules;
                 }
                 merged[row.Id] = row;
             }
             Programs = merged.Values.ToList();
-            NormalizeOnlinePrograms();
+            NormalizeBuiltInPrograms();
             if (imported.HasValue) GeneratedUtc = incoming.GeneratedUtc;
             if (incoming.Callsign.Length > 0) Callsign = incoming.Callsign;
         }
@@ -279,7 +268,7 @@ namespace JtdxAutoCq
             }
             Programs = programs;
             IncludeBuiltInPrograms();
-            NormalizeOnlinePrograms();
+            NormalizeBuiltInPrograms();
             PublicCatalogUtc = fetched;
         }
 
@@ -333,28 +322,27 @@ namespace JtdxAutoCq
             programs.AddRange(added.Values);
             Programs = programs;
             Callsign = own;
-            NormalizeOnlinePrograms();
+            NormalizeBuiltInPrograms();
             return unmatched;
         }
 
-        internal void NormalizeOnlinePrograms()
+        internal void NormalizeBuiltInPrograms()
         {
             var result = new List<AwardProgram>();
             var known = new Dictionary<string, AwardProgram>(StringComparer.Ordinal);
             foreach (AwardProgram row in Programs)
             {
-                if (!row.UsesOnlineRules || HamlogAward.Find(row.Url) == null) { result.Add(row); continue; }
-                HamlogAward award = row.Template;
+                if (row.ClosedByIssuance) row.Selected = false;
+                HamlogAward award = HamlogAward.Find(row.Url);
+                if (award == null || !award.HasSearchRules) { result.Add(row); continue; }
                 AwardProgram prior;
                 if (known.TryGetValue(award.Url, out prior))
                 {
                     prior.Selected |= row.Selected;
-                    prior.OtherLevel |= row.OtherLevel;
                     if (row.HasIssued == true) prior.HasIssued = true;
+                    if (prior.ClosedByIssuance) prior.Selected = false;
                     if (row.PublicEntry && (!prior.PublicEntry || prior.Withdrawn && !row.Withdrawn))
                         prior.SetPublication(row);
-                    if (prior.Hamlog == null || row.Hamlog != null && row.Hamlog.CheckedUtc > prior.Hamlog.CheckedUtc)
-                        prior.Hamlog = row.Hamlog;
                     continue;
                 }
                 var current = row.Copy();
@@ -365,193 +353,6 @@ namespace JtdxAutoCq
                 result.Add(current);
             }
             Programs = result;
-        }
-    }
-
-    internal sealed class AwardProgress
-    {
-        internal readonly AwardProgram Program;
-        readonly DateTime? from, until;
-        readonly GoalProgress[] goals;
-        readonly HashSet<string> geographicWorked;
-        readonly string region;
-        readonly string own;
-        readonly Func<string, string> dxcc;
-        internal readonly HamlogPointProgress Points;
-        internal readonly HamlogOnlineProgress Online;
-
-        sealed class GoalProgress
-        {
-            readonly AwardGoal goal;
-            readonly Predicate<string> matches;
-            readonly HashSet<string> logged = new HashSet<string>(StringComparer.Ordinal);
-            internal int Count { get { return logged.Count; } }
-            internal bool Complete { get { return Count >= goal.Required; } }
-
-            internal GoalProgress(AwardGoal goal, Func<string, string> dxcc)
-            {
-                this.goal = goal;
-                if (goal.Kind == "dxcc") matches = call => String.Equals(dxcc(call), goal.Value, StringComparison.OrdinalIgnoreCase);
-                else if (goal.Kind == "mask") matches = MonitorTargets.MaskPattern(goal.Value).IsMatch;
-                else matches = call => call == goal.Value;
-            }
-
-            internal bool OnBand(string band, string mode)
-            { return (goal.Band.Length == 0 || goal.Band == band) && (goal.Mode.Length == 0 || goal.Mode == mode); }
-
-            internal bool Needs(string call, string band, string mode)
-            { return !Complete && OnBand(band, mode) && !logged.Contains(call) && matches(call); }
-
-            internal void Record(string call, string band, string mode)
-            { if (Needs(call, band, mode)) logged.Add(call); }
-        }
-
-        internal AwardProgress(AwardProgram program, LogbookHistory history, string own, Func<string, string> dxcc,
-            string stationLocator = null)
-        {
-            Program = program;
-            from = program.From; until = program.Until;
-            this.own = own;
-            this.dxcc = dxcc;
-            goals = program.Goals.Select(goal => new GoalProgress(goal, dxcc)).ToArray();
-            if (program.UsesGeographicSearch)
-            {
-                region = program.Template.MonitoringRegion;
-                geographicWorked = new HashSet<string>(StringComparer.Ordinal);
-                foreach (LogbookQso row in history.Records)
-                    if (row.BelongsTo(own)) RecordGeographic(row.Call, row.Band, row.Mode, row.StartedUtc ?? row.EndedUtc);
-                if (program.Hamlog != null && program.Hamlog.Callsign == own && program.Hamlog.Credits != null)
-                    foreach (HamlogCredit credit in program.Hamlog.Credits)
-                        if (!credit.Observation) RecordGeographic(credit.Call, credit.Band, credit.Mode, credit.DayUtc);
-                // Reserve repeats from the logbook. Progress in an RDA award comes from HAMLOG.
-                history = LogbookHistory.Empty;
-            }
-            if (program.UsesOnlineRules)
-            {
-                Online = new HamlogOnlineProgress(program, history, own, dxcc);
-                return;
-            }
-            if (program.UsesTemplate)
-            {
-                Points = new HamlogPointProgress(program, history, own, dxcc, stationLocator);
-                return;
-            }
-            if (!program.UsesLocalTargets || program.ClosedByIssuance) return;
-            foreach (LogbookQso row in history.Records)
-                if (row.BelongsTo(own)) Record(row.Call, row.Band, row.Mode, row.StartedUtc ?? row.EndedUtc);
-        }
-
-        bool Within(DateTime? time)
-        { return (!from.HasValue || time.HasValue && time >= from) && (!until.HasValue || time.HasValue && time < until); }
-
-        internal int GoalsCount { get { return goals.Length; } }
-        internal int CompletedGoals { get { return goals.Count(goal => goal.Complete); } }
-        internal bool Complete { get { return Program.ClosedByIssuance
-            || (Online != null ? Online.Complete : Points != null ? Points.ConfirmedComplete
-                : Program.UsesLocalTargets && CompletedGoals == goals.Length); } }
-        internal bool Expired(DateTime now) { return until.HasValue && now >= until.Value; }
-        internal bool Upcoming(DateTime now) { return from.HasValue && now < from.Value; }
-        internal bool CanSelectForSearch(DateTime now)
-        { return Program.HasSearchRules && Within(now) && !Complete && (Points == null || !Points.IsMember) && (Online == null || !Online.IsActivator); }
-        internal DateTime NextValidityChange(DateTime now)
-        {
-            if (Expired(now)) return DateTime.MaxValue;
-            return Upcoming(now) && (!until.HasValue || from < until) ? from.Value : until ?? DateTime.MaxValue;
-        }
-        internal int LoggedFor(int index) { return goals[index].Count; }
-        internal bool Available(string band, string mode, DateTime time)
-        {
-            return CanSelectForSearch(time) && (geographicWorked != null ? JtdxAdif.BandNames.Contains(band) && (mode == "FT8" || mode == "FT4")
-                : Online != null ? Online.Available(band, mode, time)
-                : Points != null ? Points.Available(band, mode, time)
-                : Program.UsesLocalTargets && goals.Any(goal => !goal.Complete && goal.OnBand(band, mode)));
-        }
-        internal bool Needs(string call, string band, string mode, DateTime time, string grid = null)
-        {
-            if (geographicWorked != null)
-            {
-                if (!Available(band, mode, time) || call == own || dxcc == null || String.IsNullOrEmpty(call)) return false;
-                string entity = dxcc(call);
-                return HamlogAwardAreas.Russian(entity) && HamlogAwardAreas.MatchesMonitoringRegion(region, call, entity)
-                    && !geographicWorked.Contains(GeographicKey(call, band, mode));
-            }
-            return CanSelectForSearch(time) && (Online != null ? Online.Needs(call, band, mode, time, grid)
-                : Points != null ? Points.CandidatePoints(call, band, mode, time, grid) > 0
-                : Program.UsesLocalTargets && goals.Any(goal => goal.Needs(call, band, mode)));
-        }
-        static string GeographicKey(string call, string band, string mode)
-        { return call + "|" + band + "|" + HamlogPointProgress.ModeGroup(mode); }
-
-        void RecordGeographic(string call, string band, string mode, DateTime? time)
-        {
-            if (time.HasValue && Within(time)) geographicWorked.Add(GeographicKey(call, band, mode));
-        }
-
-        internal void Record(LogbookQso contact)
-        {
-            if (geographicWorked != null)
-                RecordGeographic(contact.Call, contact.Band, contact.Mode, contact.StartedUtc ?? contact.EndedUtc);
-            else if (Online != null) Online.Record(contact);
-            else if (Points != null && contact.StartedUtc.HasValue)
-                Points.Record(contact.Call, contact.Band, contact.Mode, contact.StartedUtc.Value, contact.County, contact.Locator,
-                    contact.StationLocator);
-        }
-
-        internal void Record(string call, string band, string mode, DateTime? time)
-        {
-            if (!Within(time)) return;
-            if (geographicWorked != null)
-                RecordGeographic(call, band, mode, time);
-            else if (Program.UsesLocalTargets)
-                foreach (GoalProgress goal in goals) goal.Record(call, band, mode);
-            else if (Points != null && time.HasValue) Points.Record(call, band, mode, time.Value);
-        }
-    }
-
-    internal sealed class AwardSearch
-    {
-        readonly AwardProgress[] programs;
-        readonly string band, mode, own;
-
-        internal AwardSearch(AwardCatalog catalog, LogbookHistory history, string own, string band, string mode, Func<string, string> dxcc,
-            string stationLocator = null)
-        {
-            catalog.CheckCallsign(own);
-            this.band = band; this.mode = mode;
-            this.own = own;
-            programs = catalog.Programs.Where(program => program.Selected && !program.ClosedByIssuance && program.HasSearchRules)
-                .Select(program => new AwardProgress(program, history, own, dxcc, stationLocator)).ToArray();
-        }
-
-        internal int Available(DateTime now) { return programs.Count(program => program.Available(band, mode, now)); }
-        internal bool NeedsOperatorLocator(DateTime now)
-        { return programs.Any(program => program.CanSelectForSearch(now) && program.Points != null && program.Points.NeedsOperatorLocator); }
-        internal void SetOperatorLocator(string locator)
-        { foreach (AwardProgress program in programs) if (program.Points != null) program.Points.SetOperatorLocator(locator); }
-        internal int Score(string call, DateTime now, string grid = null)
-        { return programs.Count(program => program.Needs(call, band, mode, now, grid)); }
-        internal string Reason(string call, DateTime now, string grid = null)
-        {
-            AwardProgress[] matches = programs.Where(program => program.Needs(call, band, mode, now, grid)).ToArray();
-            if (matches.Length == 0) return "Станция не подходит для выбранных дипломов на текущем диапазоне и в этом виде работы.";
-            string names = String.Join(", ", matches.Select(program => program.Program.Title + (program.Points == null || program.Program.UsesGeographicSearch ? ""
-                : " (+" + program.Points.CandidatePoints(call, band, mode, now, grid).ToString("0.##") + " очк.)")));
-            string square = matches.Any(program => program.Online != null && program.Program.Template.Rule == HamlogRule.Grid)
-                ? " Незачтённый квадрат " + AwardLocator.Parse(grid) + "." : "";
-            string geographic = matches.Any(program => program.Program.UsesGeographicSearch) ? " Зачёт определяет HAMLOG." : "";
-            return "Подходит для " + names + "." + square + geographic;
-        }
-        internal void Record(string call, DateTime at)
-        {
-            foreach (AwardProgress program in programs)
-                if (program.Program.UsesLocalTargets || program.Program.UsesGeographicSearch) program.Record(call, band, mode, at);
-        }
-
-        internal void Record(LogbookQso contact)
-        {
-            // Use the recorded start date for awards with daily repeat rules.
-            if (!contact.StartedUtc.HasValue || contact.Band != band || contact.Mode != mode || !contact.BelongsTo(own)) return;
-            foreach (AwardProgress program in programs) program.Record(contact);
         }
     }
 }

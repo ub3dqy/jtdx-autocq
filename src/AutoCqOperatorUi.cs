@@ -35,14 +35,14 @@ namespace JtdxAutoCq
             var profiles = menu.Items.Add("Профили настроек", null, delegate { Guard(ShowProfiles); });
             var targets = menu.Items.Add("Подбор целей DXCC", null, delegate { Guard(ChooseDxccFromLogbook); });
             var awards = menu.Items.Add("Дипломы HAMLOG", null, delegate { Guard(ShowAwards); });
-            var awardMonitor = menu.Items.Add("Мониторинг дипломов", null, delegate { Guard(() => StartAutomation(true)); });
+            var awardMonitor = menu.Items.Add("Мониторинг дипломов", null, delegate { Guard(() => StartRadioSession(preferences.Awards)); });
             menu.Items.Add("Итоги сеанса", null, delegate { Guard(ShowSessionSummary); });
             menu.Opening += delegate {
                 source.Enabled = !engine.Armed && !startingWithHistory;
                 targets.Enabled = source.Enabled && !loadingTargets;
                 awards.Enabled = targets.Enabled;
                 awardMonitor.Enabled = awards.Enabled && engine.Status != null && !engine.Status.TxEnabled && !engine.Status.Transmitting
-                    && preferences.Awards.Programs.Any(program => program.Selected && program.HasSearchRules && !program.ClosedByIssuance);
+                    && preferences.Awards.Programs.Any(program => program.Selected && program.CanSelectForSearch(DateTime.UtcNow));
                 profiles.Enabled = !startingWithHistory;
             };
             tools.Click += delegate { menu.Show(tools, new Point(0, tools.Height)); };
@@ -115,148 +115,41 @@ namespace JtdxAutoCq
         }
 
         void StartAutomation()
-        { StartAutomation(false); }
-
-        void StartAutomation(bool awards)
         {
             if (startingWithHistory || engine.Armed) return;
             string file = PrimaryLogbook();
-            bool needsPrimary = awards && preferences.Awards.Programs.Any(program => program.Selected && program.UsesPointRules);
             int request = ++historyStartRequest;
             startingWithHistory = true;
             UpdateUi();
             ReadLogbook(file, (history, failure) => {
                 if (request != historyStartRequest) return;
-                if (failure != null && needsPrimary)
-                {
-                    startingWithHistory = false;
-                    UpdateUi();
-                    Guard(() => { throw new InvalidOperationException("Не удалось открыть основной журнал для расчёта очков. Проверьте его в меню «Основной журнал»."); });
-                    return;
-                }
                 if (failure != null && !String.Equals(file, NativeLogbook, StringComparison.OrdinalIgnoreCase))
                 {
                     Log("Основной журнал недоступен. Проверяю локальный журнал JTDX.");
-                    ReadLogbook(NativeLogbook, (local, error) => FinishStart(request, local, error, awards));
+                    ReadLogbook(NativeLogbook, (local, error) => FinishStart(request, local, error));
                     return;
                 }
-                FinishStart(request, history, failure, awards);
+                FinishStart(request, history, failure);
             });
         }
 
-        void FinishStart(int request, LogbookHistory history, Exception failure, bool awards)
+        void FinishStart(int request, LogbookHistory history, Exception failure)
         {
             if (request != historyStartRequest) return;
             startupHistory = history ?? LogbookHistory.Empty;
             if (failure != null) Log("История связей недоступна. Автомат запустится без данных прошлых сеансов.");
             else if (!demo) Log("История связей загружена из журнала " + LogbookName(history.Path) + ".");
-            if (awards && !demo)
-            {
-                RefreshAwardCredit(request);
-                return;
-            }
             startingWithHistory = false;
             UpdateUi();
-            Guard(() => StartRadioSession(awards ? preferences.Awards : null));
-        }
-
-        void RefreshAwardCredit(int request)
-        {
-            string own = engine.Status == null ? null : Callsign.Parse(engine.Status.DeCall);
-            if (own == null)
-            {
-                startingWithHistory = false;
-                UpdateUi();
-                Guard(() => { throw new InvalidOperationException("Подключите JTDX с вашим позывным перед сверкой с HAMLOG."); });
-                return;
-            }
-            AwardCatalog selected = preferences.Awards.Copy();
-            DateTime now = DateTime.UtcNow;
-            var programs = selected.Programs.Where(program => program.Selected && program.HasSearchRules && !program.ClosedByIssuance
-                && (program.UsesOnlineRules || program.UsesPointRules) && (!program.Until.HasValue || now < program.Until.Value)).ToArray();
-            if (programs.Length == 0)
-            {
-                startingWithHistory = false;
-                UpdateUi();
-                Guard(() => StartRadioSession(selected));
-                return;
-            }
-            Log("Сверяю зачёт выбранных дипломов по позывному " + own + ".");
-            var failures = new string[programs.Length];
-            var worker = new BackgroundWorker();
-            worker.DoWork += delegate {
-                System.Threading.Tasks.Parallel.For(0, programs.Length,
-                    new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = 3 }, index => {
-                        AwardProgram program = programs[index];
-                        try { program.Hamlog = HamlogStandingClient.Read(program.Template, own); }
-                        catch (Exception error)
-                        {
-                            failures[index] = program.Title + ". " + error.Message;
-                            if (!program.UsesGeographicSearch) program.Selected = false;
-                        }
-                    });
-            };
-            worker.RunWorkerCompleted += delegate(object sender, RunWorkerCompletedEventArgs args) {
-                worker.Dispose();
-                if (IsDisposed || Disposing || request != historyStartRequest) return;
-                startingWithHistory = false;
-                UpdateUi();
-                Guard(() => {
-                    if (args.Error != null) throw new InvalidOperationException("Не удалось сверить зачёт с HAMLOG.", args.Error);
-                    if (engine.Status == null || Callsign.Clean(engine.Status.DeCall) != own
-                        || engine.Status.TxEnabled || engine.Status.Transmitting)
-                        throw new InvalidOperationException("Состояние JTDX изменилось во время сверки. Запустите поиск на приёме.");
-                    DateTime checkedAt = DateTime.UtcNow;
-                    for (int index = 0; index < programs.Length; index++)
-                    {
-                        AwardProgram snapshot = programs[index];
-                        if (failures[index] != null)
-                        {
-                            Log((snapshot.UsesGeographicSearch ? "Зачёт пока не сверён. Поиск по территории диплома доступен. " : "Диплом пропущен. ")
-                                + failures[index]);
-                            continue;
-                        }
-                        snapshot.Selected = new AwardProgress(snapshot, startupHistory, own, engine.DxccForCall)
-                            .CanSelectForSearch(checkedAt);
-                        AwardProgram saved = preferences.Awards.Programs.FirstOrDefault(program => program.Id == snapshot.Id);
-                        if (saved != null)
-                        {
-                            saved.Hamlog = snapshot.Hamlog;
-                            saved.Selected = snapshot.Selected;
-                        }
-                    }
-                    if (failures.All(failure => failure != null)
-                        && !selected.Programs.Any(program => program.Selected && (program.UsesLocalTargets || program.UsesGeographicSearch)))
-                        throw new InvalidOperationException("HAMLOG не подтвердил зачёт выбранных дипломов. Подробности в журнале AutoCQ.");
-                    preferenceStore.Save(preferences);
-                    Log("Зачёт обновлён для " + failures.Count(failure => failure == null) + " дипломов.");
-                    StartRadioSession(selected);
-                });
-            };
-            worker.RunWorkerAsync();
+            Guard(() => StartRadioSession(null));
         }
 
         void ShowAwards()
         {
             if (engine.Armed || startingWithHistory || loadingTargets) return;
-            loadingTargets = true;
-            string file = PrimaryLogbook();
-            ReadLogbook(file, (history, failure) => {
-                loadingTargets = false;
-                if (engine.Armed || startingWithHistory) return;
-                if (failure != null) Log("Не удалось прочитать основной журнал для дипломов. Проверьте его в меню «Основной журнал».");
-                Guard(() => EditAwardCatalog(history ?? LogbookHistory.Empty));
-            });
-        }
-
-        void EditAwardCatalog(LogbookHistory history)
-        {
             string own = engine.Status == null ? "" : Callsign.Clean(engine.Status.DeCall);
             var catalog = preferences.Awards ?? new AwardCatalog();
-            using (var dialog = new AwardsDialog(catalog, history, own, call => {
-                DxccCountry country = CountryTable().Find(call);
-                return country == null ? null : country.Prefix;
-            }, demo ? null : Path.Combine(settings.StateDirectory, "hamlog-rules"), Log))
+            using (var dialog = new AwardsDialog(catalog, own, demo ? null : Path.Combine(settings.StateDirectory, "hamlog-rules"), Log))
             {
                 dialog.ShowDialog(this);
                 preferences.Awards = dialog.Catalog;
@@ -437,184 +330,42 @@ namespace JtdxAutoCq
                 new AwardGoal { Kind = "dxcc", Value = "K", Band = "20m", Mode = "FT8" },
                 new AwardGoal { Kind = "dxcc", Value = "JA", Band = "20m", Mode = "FT8" },
             } };
-            var stations = new AwardProgram { Title = "Две японские станции", Goals = new List<AwardGoal> {
-                new AwardGoal { Kind = "mask", Value = "JA*", Band = "20m", Count = 2 },
-            } };
-            var falcon = HamlogAward.Murom.Create();
-            var tula = HamlogAward.Tula.Create();
-            var russia = HamlogAward.Russia.Create();
-            var gunsmiths = HamlogAward.Gunsmiths.Create();
             var arck = HamlogAward.Arck35.Create();
             arck.HasIssued = true;
-            var counties = new AwardProgram { Title = "New England County Award (NECA)",
-                Url = HamlogLinks.Origin + "neca/", Sponsor = "HAMLOG", HasIssued = false };
-            var angels = new AwardProgram { Title = "Небесные ангелы", Url = HamlogLinks.Origin + "club/nebo/1572/",
-                Sponsor = "Рыцари неба", Selected = true, RuleDocumentStatus = "downloaded",
-                DownloadedRules = new HamlogRulePlan { Kind = "sky-hunter", FromUtc = "2025-07-30",
-                    Required = 95, MemberPoints = 10, ExtraPoints = 20,
-                    Calls = new[] { "U4MIR", "UA9CES", "R2AKN", "R4CQ", "RA6F", "LZ1ZF", "LZ05RN", "LZ55ZF" } }
+            arck.Sponsor = "Радиоклуб «Кристалл»";
+            var romania = HamlogAward.Romania.Create();
+            romania.Selected = true;
+            romania.Sponsor = "Румынские дипломы";
+            var raem = new AwardProgram { Title = "RAEM", Url = HamlogLinks.Origin + "raem/", Sponsor = "СРР",
+                RuleDocumentStatus = "downloaded", RuleNote = "По положению подходят связи телеграфом. AutoCQ использует FT8 и FT4."
             };
-            var border = new AwardProgram { Title = "Ни шагу назад", Url = HamlogLinks.Origin + "club/rcpw/1800/",
-                Sponsor = "Радиоклуб пограничников RCPW", Selected = true, RuleDocumentStatus = "downloaded",
-                DownloadedRules = new HamlogRulePlan { Kind = "rcpw-hunter", FromUtc = "2026-06-22", BonusUntilUtc = "2026-07-01",
-                    Required = 100, AlternativeRequired = 50, ExtraPoints = 10, MemberPoints = 5 }
-            };
-            var romania = new AwardProgram { Title = "День объединения Румынии", Url = HamlogLinks.Origin + "club/demo/2026/",
-                Sponsor = "AJR DX Radio Alba", Selected = true, RuleDocumentStatus = "downloaded",
-                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2026-11-20", UntilUtc = "2026-12-01",
-                    Required = 2, MemberPoints = 1, ExtraPoints = 1, Calls = new[] { "YQ0U" },
-                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.BandMode }
-                }
-            };
-            var raem = new AwardProgram { Title = "RAEM", Url = HamlogLinks.Origin + "raem/", Sponsor = "СРР", RuleDocumentStatus = "downloaded",
-                RuleNote = "Охотнику нужны 68 очков за связи телеграфом на КВ. Для автоматического поиска в AutoCQ доступны FT8 и FT4."
-            };
-            var saratov = new AwardProgram { Title = "Земля Саратовская — левый берег", Url = HamlogLinks.Origin + "club/demo/1802/",
-                Sponsor = "Саратовское отделение СРР", Selected = true, RuleDocumentStatus = "downloaded",
-                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2024-01-07",
-                    Required = 8, MemberPoints = 1, ExtraPoints = 1,
-                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.District, CountyPrefix = "SA", LastCounty = 58,
-                        EligibleCounties = new[] { 19, 23, 28, 29, 31, 32, 35, 36, 38, 40, 41, 42, 44, 45, 46, 51, 54, 56 },
-                        Bands = new[] { "160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m" } }
-                }
-            };
-            var tulaDistricts = new AwardProgram { Title = "Тула", Url = HamlogLinks.Origin + "club/demo/1146/",
-                Sponsor = "Тульское отделение СРР", Selected = true, RuleDocumentStatus = "downloaded",
-                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2022-03-01",
-                    Required = 1146, MemberPoints = 2, ExtraPoints = 1,
-                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.BandMode, CountyPrefix = "TL", LastCounty = 38,
-                        MultiplyByCountyCount = true, ActivatorAreas = new[] { "TL" } },
-                    BonusGroups = new[] { new HamlogBonusGroup { Area = true, Points = 2, Targets = new[] { "TL" } } }
-                }
-            };
-            var kazan = new AwardProgram { Title = "Казань", Url = HamlogLinks.Origin + "club/demo/2505/",
-                Sponsor = "Казанский радиоклуб", Selected = true, RuleDocumentStatus = "downloaded",
-                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2024-01-01",
-                    Required = 25, MemberPoints = 1, ExtraPoints = 1,
-                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.BandMode,
-                        GroupModes = true, CountyPrefix = "TA", LastCounty = 7,
-                        Additional = new[] { new HamlogContactRequirement {
-                            Kind = HamlogContactRequirement.Counties, Required = 5, ReportedByHamlog = true
-                        } }
-                    }
-                }
-            };
-            var yesenin = new AwardProgram { Title = "Родина русского поэта С. А. Есенина", Url = HamlogLinks.Origin + "club/demo/1030/",
-                Sponsor = "Рязанская область", Selected = true, RuleDocumentStatus = "downloaded",
-                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2025-10-01",
-                    Required = 30, MemberPoints = 1, ExtraPoints = 1,
-                    BonusGroups = new[] { new HamlogBonusGroup { Area = true, Points = 1, Targets = new[] { "RA" } } },
-                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.EveryQso, ShortcutDay = "10-03",
-                        ShortcutContacts = 3, Adjustments = new[] { new HamlogPointAdjustment { Factor = 3,
-                            AnnualFrom = "10-01", AnnualUntil = "10-07" } } }
-                }
-            };
+            var oldTula = HamlogAward.Tula.Create();
+            oldTula.Sponsor = "Тульское отделение СРР";
             var lake = new AwardProgram { Title = "Соль России · Баскунчак", Url = HamlogLinks.Origin + "club/demo/106/",
                 Sponsor = "Астраханская область", Selected = true, RuleDocumentStatus = "downloaded",
                 DownloadedRules = new HamlogRulePlan { Kind = "rda-search", SearchRegion = "AO", Required = 106, FromUtc = "2022-12-25" }
             };
-            var distance = new AwardProgram { Title = "Дальние цифровые связи",
-                Url = HamlogLinks.Origin + "club/demo/1100/", Sponsor = "Российский цифровой радиолюбительский клуб",
-                Selected = true, RuleDocumentStatus = "downloaded",
-                RuleNote = "Подходят цифровые связи на расстоянии больше 10 000 км.",
+            var distance = new AwardProgram { Title = "Дальние цифровые связи", Url = HamlogLinks.Origin + "club/demo/1100/",
+                Sponsor = "Российский цифровой радиолюбительский клуб", Selected = true, RuleDocumentStatus = "downloaded",
                 DownloadedRules = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2014-03-21", Required = 100,
                     MemberPoints = 1, ExtraPoints = 1,
-                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.BandMode,
-                        MinimumDistanceKm = 10000, CreditBeforePublication = true }
+                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.BandMode, MinimumDistanceKm = 10000 }
                 }
             };
-            var series = new AwardProgram { Title = "ARCK QSO 10–10000", Url = HamlogLinks.Origin + "club/demo/356/",
-                Sponsor = "Радиолюбительский клуб «Кристалл»", Selected = true, RuleDocumentStatus = "downloaded",
-                DownloadedRules = new HamlogRulePlan { Kind = "contact-points", FromUtc = "2022-01-15",
-                    Required = 10000, AlternativeRequired = 10, MemberPoints = 1, ExtraPoints = 1,
-                    Contacts = new HamlogContactCriteria { Repeat = HamlogContactCriteria.BandMode, GroupModes = true, AllStations = true,
-                        AcceptObserverCredit = true }
-                }
-            };
-            new HamlogRuleCache(awardCache, (url, cancel) => new HamlogRules(url, "Демонстрационный документ", null),
-                (delay, cancel) => { }).Scan(new[] { border }, default(System.Threading.CancellationToken), result => { });
-            var custom = new AwardProgram { Title = "Учебный диплом", Url = HamlogLinks.Origin + "club/demo/19/",
+            var local = new AwardProgram { Title = "Личный список позывных", Url = HamlogLinks.Origin + "club/demo/19/",
                 ManualSearch = true, Goals = new List<AwardGoal> { new AwardGoal { Kind = "call", Value = "W2ABC" } } };
-            foreach (AwardProgram program in new[] { russia, gunsmiths, falcon, tula, arck, counties, angels, border, romania, raem,
-                saratov, tulaDistricts, kazan, yesenin, lake, distance, series, custom })
+            var example = new AwardCatalog { Callsign = "K1ABC", PublicCatalogUtc = DateTime.UtcNow.AddMinutes(-20),
+                Programs = new List<AwardProgram> { arck, romania, raem, oldTula, lake, distance, local }
+            };
+            foreach (AwardProgram program in example.Programs)
             {
                 program.PublicEntry = true;
                 program.Section = "Клубные и региональные";
+                program.RuleCompilerVersion = HamlogPlanCompiler.Version;
+                program.RulesCheckedUtc = DateTime.UtcNow;
+                program.Validate();
             }
-            russia.Section = "Международные и национальные";
-            counties.Section = "Территориальные";
-            russia.Sponsor = "Моя Россия · HAMLOG";
-            DateTime october = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
-            falcon.Hamlog = new HamlogStanding {
-                Callsign = "K1ABC", Points = 78, Required = 85, CheckedUtc = october.AddDays(14).AddHours(11),
-                Credits = Enumerable.Range(0, 13).Select(day => new HamlogCredit {
-                    Call = "RA3RPW", Band = "20m", Mode = "FT8", DayUtc = october.AddDays(day), Points = 6
-                }).ToList()
-            };
-            tula.Hamlog = new HamlogStanding { Callsign = "K1ABC", Required = 50, CheckedUtc = falcon.Hamlog.CheckedUtc };
-            russia.Hamlog = new HamlogStanding {
-                Callsign = "K1ABC", Points = 87, Required = 100, CheckedUtc = falcon.Hamlog.CheckedUtc,
-                ConfirmedSquares = Enumerable.Range(0, 87).Select(square => "KO" + square.ToString("00")).ToArray()
-            };
-            gunsmiths.Hamlog = new HamlogStanding { Callsign = "K1ABC", Points = 62, Required = 100, CheckedUtc = falcon.Hamlog.CheckedUtc };
-            saratov.Hamlog = new HamlogStanding {
-                Callsign = "K1ABC", Points = 5, Required = 8, CheckedUtc = falcon.Hamlog.CheckedUtc,
-                Credits = saratov.DownloadedRules.Contacts.EligibleCounties.Take(5).Select((district, index) =>
-                    new HamlogCredit { Call = "R4CA" + (char)('A' + index), County = "SA-" + district.ToString("D2"),
-                        Locator = "LO43", Band = "40m", Mode = "FT8", DayUtc = october, Points = 1 }).ToList()
-            };
-            tulaDistricts.Hamlog = new HamlogStanding {
-                Callsign = "K1ABC", Points = 144, Required = 1146, CheckedUtc = falcon.Hamlog.CheckedUtc,
-                Credits = Enumerable.Range(0, 18).Select(index => new HamlogCredit {
-                    Call = "R3PA" + (char)('A' + index), County = "TL-0" + (1 + index % 4), Locator = "KO92",
-                    Band = "40m", Mode = "FT8", DayUtc = october, Points = 2
-                }).ToList()
-            };
-            kazan.Hamlog = new HamlogStanding {
-                Callsign = "K1ABC", Points = 25, Required = 25, CheckedUtc = falcon.Hamlog.CheckedUtc,
-                Credits = Enumerable.Range(0, 25).Select(index => new HamlogCredit {
-                    Call = "R4PA" + (char)('A' + index), County = "TA-0" + (1 + index % 4), Locator = "LO44",
-                    Band = "40m", Mode = "FT8", DayUtc = october, Points = 1
-                }).ToList()
-            };
-            yesenin.Hamlog = new HamlogStanding {
-                Callsign = "K1ABC", Points = 6, Required = 30, CheckedUtc = falcon.Hamlog.CheckedUtc,
-                Credits = new List<HamlogCredit> {
-                    new HamlogCredit { Call = "R3SAA", Band = "20m", Mode = "FT8", DayUtc = october.AddDays(1), Points = 3 },
-                    new HamlogCredit { Call = "R3SAB", Band = "40m", Mode = "FT8", DayUtc = october.AddDays(2), Points = 3 }
-                }
-            };
-            lake.Hamlog = new HamlogStanding {
-                Callsign = "K1ABC", Points = 20, Required = 106, CheckedUtc = falcon.Hamlog.CheckedUtc,
-                Credits = new List<HamlogCredit> {
-                    new HamlogCredit { Call = "R7UAA", Band = "20m", Mode = "FT8", DayUtc = october, Points = 20 }
-                }
-            };
-            distance.Hamlog = new HamlogStanding { Callsign = "K1ABC", Points = 8, Required = 100,
-                CheckedUtc = falcon.Hamlog.CheckedUtc, Credits = Enumerable.Range(0, 8).Select(index =>
-                    new HamlogCredit { Call = "VK2AA" + (char)('A' + index), Band = "20m", Mode = "FT8", DayUtc = october,
-                        Locator = "QF56", Points = 1 }).ToList()
-            };
-            series.Hamlog = new HamlogStanding { Callsign = "K1ABC", Points = 3, Required = 10,
-                CheckedUtc = falcon.Hamlog.CheckedUtc, Credits = new[] { "UN8GAA", "JA1AAA", "VK2AAA" }.Select(call =>
-                    new HamlogCredit { Call = call, Band = "20m", Mode = "FT8", DayUtc = october, Points = 1 }).ToList()
-            };
-            var awardHistory = new LogbookHistory(history.Path, history.Records.Concat(falcon.Hamlog.Credits.Take(12).Select(credit =>
-                new LogbookQso { Call = credit.Call, Band = credit.Band, Mode = credit.Mode, StartedUtc = credit.DayUtc }))
-                .Concat(new[] {
-                    new LogbookQso { Call = "R5AV", Band = "40m", Mode = "FT8", StartedUtc = october.AddDays(14) },
-                    new LogbookQso { Call = "R4CQ", Band = "160m", Mode = "FT8", StartedUtc = october.AddDays(13) },
-                }).ToList());
-            var example = new AwardCatalog {
-                Callsign = "K1ABC", PublicCatalogUtc = DateTime.UtcNow.AddMinutes(-20),
-                Programs = new List<AwardProgram> { russia, gunsmiths, arck, counties, diploma, stations, falcon, tula, angels, border,
-                    romania, raem, saratov, tulaDistricts, kazan, yesenin, lake, distance, series, custom }
-            };
-            foreach (AwardProgram program in example.Programs) program.Validate();
-            var awards = new AwardsDialog(example, awardHistory, "K1ABC", call => {
-                DxccCountry country = table.Find(call);
-                return country == null ? null : country.Prefix;
-            }, cache: awardCache, demo: true);
+            var awards = new AwardsDialog(example, "K1ABC", cache: awardCache, demo: true);
             awards.SelectDemoProgram(distance);
             return new Form[] {
                 new LogbookSourceDialog("", history.Path, "LogHX"),
@@ -626,12 +377,8 @@ namespace JtdxAutoCq
                 summary,
                 awards,
                 new AwardGoalsDialog(diploma),
-                new HamlogJournalDialog(falcon.Title, new HamlogPointProgress(falcon, awardHistory, "K1ABC")),
                 new HamlogAccountDialog("K1ABC", ""),
                 new HamlogPlanDialog(distance),
-                new HamlogAdditionalRulesDialog(yesenin.EffectiveRules.Contacts, yesenin.EffectiveRules.Contacts.Additional,
-                    yesenin.EffectiveRules.Contacts.Adjustments, yesenin.EffectiveRules.Contacts.ShortcutDay,
-                    yesenin.EffectiveRules.Contacts.ShortcutContacts),
             };
         }
     }

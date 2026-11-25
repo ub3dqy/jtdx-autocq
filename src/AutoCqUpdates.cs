@@ -36,7 +36,7 @@ namespace JtdxAutoCq
                 {
                     var preferences = (AppPreferences)new XmlSerializer(typeof(AppPreferences)).Deserialize(input);
                     if (preferences.Awards == null) preferences.Awards = new AwardCatalog();
-                    preferences.Awards.NormalizeOnlinePrograms();
+                    preferences.Awards.NormalizeBuiltInPrograms();
                     return preferences;
                 }
             }

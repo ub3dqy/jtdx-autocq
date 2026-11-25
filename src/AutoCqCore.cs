@@ -30,7 +30,6 @@ namespace JtdxAutoCq
         public string Id, Version;
         public RadioStatus Status;
         public DecodedMessage Decode;
-        internal LogbookQso LoggedContact;
 
         public static QtPacket Parse(byte[] data)
         {
@@ -60,42 +59,8 @@ namespace JtdxAutoCq
                     if (d.Milliseconds >= 86400000 || Double.IsNaN(d.DeltaTime) || Double.IsInfinity(d.DeltaTime)) throw new InvalidDataException("Неверное декодирование.");
                     p.Decode = d;
                 }
-                if (p.Type == 5 || p.Type == 12)
-                {
-                    // Forward the original packet to LogHX even if its award fields are absent.
-                    try
-                    {
-                        if (p.Type == 5) p.LoggedContact = ReadLoggedContact(r);
-                        else
-                        {
-                            List<LogbookQso> contacts = JtdxAdif.ContactsFromText(r.Text());
-                            if (contacts.Count == 1) p.LoggedContact = contacts[0];
-                        }
-                    }
-                    catch (InvalidDataException) { }
-                    catch (EndOfStreamException) { }
-                    catch (DecoderFallbackException) { }
-                    catch (ArgumentOutOfRangeException) { }
-                }
                 return p;
             }
-        }
-
-        static LogbookQso ReadLoggedContact(QtReader r)
-        {
-            DateTime end = r.DateTimeUtc();
-            string call = Callsign.Parse(r.Text());
-            string locator = AwardLocator.Full(r.Text());
-            string band = JtdxAdif.Band(r.U64());
-            string mode = r.Text().Trim().ToUpperInvariant();
-            for (int field = 0; field < 5; ++field) r.Text(); // reports, power, comments, name
-            DateTime start = r.DateTimeUtc();
-            string operatorCall = Callsign.Clean(r.Text());
-            string station = Callsign.Clean(r.Text());
-            string stationLocator = r.HasData ? AwardLocator.Full(r.Text()) : null;
-            if (call == null || band == null || mode.Length == 0) return null;
-            return new LogbookQso { Call = call, Band = band, Mode = mode, Locator = locator, StationLocator = stationLocator,
-                Station = String.IsNullOrEmpty(station) ? operatorCall : station, StartedUtc = start, EndedUtc = end };
         }
 
         public static byte[] TriggerCq(string id, uint schema, string direction, bool txFirst, bool send)
@@ -150,33 +115,12 @@ namespace JtdxAutoCq
     {
         readonly MemoryStream stream;
         public QtReader(byte[] data) { stream = new MemoryStream(data, false); }
-        internal bool HasData { get { return stream.Position < stream.Length; } }
         public byte Byte()
         { int x = stream.ReadByte(); if (x < 0) throw new EndOfStreamException(); return (byte)x; }
         public uint U32() { return ((uint)Byte() << 24) | ((uint)Byte() << 16) | ((uint)Byte() << 8) | Byte(); }
         public ulong U64() { return ((ulong)U32() << 32) | U32(); }
         public double Double() { return BitConverter.Int64BitsToDouble(unchecked((long)U64())); }
         public bool Bool() { byte b = Byte(); if (b > 1) throw new InvalidDataException("bool"); return b != 0; }
-        internal DateTime DateTimeUtc()
-        {
-            // Qt 5.2 and later serialize QDateTime as a Julian day, milliseconds and time spec.
-            const ulong firstJulianDay = 1721426, lastJulianDay = 5373484;
-            ulong day = U64();
-            uint milliseconds = U32();
-            byte spec = Byte();
-            if (day < firstJulianDay || day > lastJulianDay || milliseconds >= 86400000)
-                throw new InvalidDataException("QDateTime");
-            DateTime time = DateTime.MinValue.AddDays(day - firstJulianDay).AddMilliseconds(milliseconds);
-            if (spec == 0) return time.ToUniversalTime();
-            if (spec == 2)
-            {
-                int offset = unchecked((int)U32());
-                if (offset <= -86400 || offset >= 86400) throw new InvalidDataException("QDateTime offset");
-                time = time.AddSeconds(-offset);
-            }
-            else if (spec != 1) throw new InvalidDataException("QDateTime time spec");
-            return DateTime.SpecifyKind(time, DateTimeKind.Utc);
-        }
         public string Text()
         {
             uint n = U32(); if (n == uint.MaxValue) return "";
@@ -334,11 +278,11 @@ namespace JtdxAutoCq
                     throw new InvalidOperationException("Выключите передачу в JTDX для запуска мониторинга.");
                 string band = JtdxAdif.Band(Status.Frequency);
                 if ((awards != null || Options.MonitorOnePerBand) && band == null)
-                    throw new InvalidOperationException("Не удалось определить диапазон JTDX для учёта связей.");
+                    throw new InvalidOperationException("Не удалось определить диапазон JTDX для мониторинга.");
                 if (awards != null)
                 {
                     if (awards.Available(now) == 0)
-                        throw new InvalidOperationException("На текущем диапазоне и в этом виде работы нет оставшихся целей выбранных дипломов.");
+                        throw new InvalidOperationException("Для текущего диапазона и вида работы выберите действующий диплом с правилами поиска.");
                 }
                 else monitorTargets = new MonitorTargets(Options, DxccForCall, Options.MonitorOnePerBand
                         ? WorkedCallsOnBand(band, CleanCall(Status.DeCall)) : null);
@@ -349,7 +293,7 @@ namespace JtdxAutoCq
             sessionFrequency = Status.Frequency; sessionMode = Status.Mode; sessionPeriod = Status.TxFirst;
             workedCallers.Clear();
             string callerBand = JtdxAdif.Band(sessionFrequency);
-            if (callerBand != null)
+            if (awards == null && callerBand != null)
                 foreach (string call in WorkedCallsOnBandMode(callerBand, sessionMode, CleanCall(Status.DeCall)))
                     workedCallers.Add(CleanCall(call));
             hunting = finishing = false; manualCq = null; ResetCqRound();
@@ -588,15 +532,8 @@ namespace JtdxAutoCq
                 Cqs.Complete(worked);
                 if (Status != null && Status.Frequency == sessionFrequency && Status.Mode == sessionMode)
                     workedCallers.Add(CleanCall(worked));
-                if (Monitoring && Status.Frequency == sessionFrequency && Status.Mode == sessionMode)
-                {
-                    if (monitorTargets != null) monitorTargets.Complete(worked);
-                    if (Awards != null)
-                    {
-                        DateTime recorded = RadioTime(line) ?? now;
-                        Awards.Record(CleanCall(worked), recorded);
-                    }
-                }
+                if (monitorTargets != null && Status != null && Status.Frequency == sessionFrequency && Status.Mode == sessionMode)
+                    monitorTargets.Complete(worked);
             }
             if (!Armed) return;
             if (line.EndsWith("  Decoding finished", StringComparison.Ordinal))
@@ -704,17 +641,6 @@ namespace JtdxAutoCq
                 due=now;
             }
             else Stop("JTDX остановлен. Автомат выключен: " + reason, false);
-        }
-
-        internal void OnLoggedContact(LogbookQso contact)
-        {
-            if (Monitoring && Awards != null && Status.Frequency == sessionFrequency && Status.Mode == sessionMode)
-            {
-                if (String.IsNullOrEmpty(contact.Locator))
-                    contact.Locator = Cqs.LocatorFor(contact.Call, contact.EndedUtc ?? DateTime.UtcNow);
-                if (String.IsNullOrEmpty(contact.StationLocator)) contact.StationLocator = Status.DeLocator;
-                Awards.Record(contact);
-            }
         }
 
         void ContinueAfterRetry(string call, DateTime now, bool busyTarget = false, bool noDecode = false)
@@ -1258,7 +1184,7 @@ namespace JtdxAutoCq
         public bool IsMonitorCandidate(CqStation row, DateTime now)
         {
             return Monitoring && IsMonitorMessage(row, now)
-                && (Awards == null ? monitorTargets.CanTry(row.Call) : Awards.Score(row.Call, now, Cqs.LocatorFor(row.Call, now)) > 0);
+                && (Awards == null ? monitorTargets.CanTry(row.Call) : Awards.MatchCount(row.Call, now, Cqs.LocatorFor(row.Call, now)) > 0);
         }
 
         bool IsMonitorMessage(CqStation row, DateTime now)
@@ -1285,7 +1211,7 @@ namespace JtdxAutoCq
             {
                 if (Awards != null)
                 {
-                    if (Awards.Score(call, now, Cqs.LocatorFor(call, now)) == 0) return Awards.Reason(call, now, Cqs.LocatorFor(call, now));
+                    if (Awards.MatchCount(call, now, Cqs.LocatorFor(call, now)) == 0) return Awards.Reason(call, now, Cqs.LocatorFor(call, now));
                 }
                 else
                 {
@@ -1341,7 +1267,7 @@ namespace JtdxAutoCq
             }
             if (!manual) station = Cqs.Next(now, CanCall, includeSignoffs: true,
                 eligible: row => IsMonitorCandidate(row, now), allowWorked: true,
-                priority: Awards == null ? (Func<CqStation, int>)null : row => Awards.Score(row.Call, now, Cqs.LocatorFor(row.Call, now)));
+                priority: Awards == null ? (Func<CqStation, int>)null : row => Awards.MatchCount(row.Call, now, Cqs.LocatorFor(row.Call, now)));
             if (station == null) return;
             loggedCall = null; ResetContact();
             manualCq = null;

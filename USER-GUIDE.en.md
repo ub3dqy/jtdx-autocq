@@ -171,77 +171,25 @@ Select a callsign in **«Станции из левого окна JTDX»** and 
 
 ### Search for HAMLOG award contacts
 
-1. Open **«Журнал и дипломы → Дипломы HAMLOG»** (Logbook and awards → HAMLOG awards) and click **«Обновить каталог»** (Update catalog). AutoCQ loads the list and then the published documents. If **«Разобрать скачанное»** (Process downloaded rules) appears after an AutoCQ update, click it to use the documents already on your computer. Ready awards appear as AutoCQ processes them.
-2. To hide issued awards, click **«Выполненные из кабинета…»** (Completed awards from my account). In your browser, sign in to HAMLOG, open **My received awards** and save it with **Ctrl+S** as **Webpage, HTML only**. Select the saved file in AutoCQ. [Open HAMLOG Awards](https://hamlog.online/account/awards.php)
-3. Choose **«Состояние → Доступны для поиска»** (Status → Available for search) and tick the awards you want in the **«Поиск»** (Search) column. Close the window to save your choices. While JTDX is receiving, choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring). AutoCQ checks available HAMLOG credit and listens on the current band.
+1. Open **«Журнал и дипломы → Дипломы HAMLOG»** (Logbook and awards → HAMLOG awards) and click **«Обновить каталог»** (Update catalog). AutoCQ downloads the award list, then the published conditions. You can select awards as their search rules become ready. After updating AutoCQ, use **«Разобрать скачанное»** (Process downloaded rules) to process documents already on your computer.
+2. Click **«Полученные из кабинета…»** (Received awards from my account) to exclude awards you've already received. Sign in to HAMLOG in your browser, open **My received awards**, and use **Ctrl+S** to save the page as **Webpage, HTML only**. If the list spans several pages, save each one and select all the files in AutoCQ. The **«Полученные»** (Received) filter shows the awards you imported. Their checkboxes are disabled. [My awards on HAMLOG](https://hamlog.online/account/awards.php)
+3. Select **«Состояние → Доступны для поиска»** (Status → Available for search), tick the awards you want and close the window. While JTDX is receiving, choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring). AutoCQ listens on the current band and calls stations that fit.
 
-![Digital QSO Long Distance credit in the HAMLOG award list](docs/awards-demo.png)
+![Choosing awards to monitor in AutoCQ](docs/awards-demo.png)
 
-![Importing a saved page from your HAMLOG account](docs/hamlog-account-demo.png)
+![Importing received awards from your HAMLOG account](docs/hamlog-account-demo.png)
 
-AutoCQ retries a temporary request failure. If the download is interrupted, click **«Продолжить загрузку»** (Resume download) to reuse files already downloaded. If HAMLOG asks you to wait and provides a delay, AutoCQ shows it. The AutoCQ log records the error details.
+The search depends on the award. A nationwide RDA award looks for stations in European Russia, Asiatic Russia and Kaliningrad. A regional award looks for callsigns from that region. For **Digital QSO Long Distance**, AutoCQ compares your JTDX grid locator with the station's locator from a recent decode. Incoming callers can still get a reply, subject to your DXCC exclusions.
 
-The catalog opens to **«Действующие»** (Active). In **«Состояние»** (Status), you can also view **«Выполненные и выданные»** (Completed and issued), **«Срок истёк»** (Expired) or **«Все дипломы»** (All awards). A dash in the search column means the award is unavailable for monitoring. If an award expires during a session, AutoCQ skips it when choosing new targets. Changing the filters keeps eligible awards selected. The number above the table includes all selected awards.
+Upload your contacts to your HAMLOG account. There you can see which contacts counted, how many points you have and which awards you can receive. After HAMLOG issues new awards, import **My received awards** again.
 
-Import the saved account page again after receiving new awards. To check an individual award, right-click its row and choose **«Сверить зачёт с HAMLOG»** (Check HAMLOG credit). AutoCQ deselects completed awards after checking credit or your main logbook. For programs with multiple tiers, you can continue searching for a tier that is still open.
+Double-click an award to open **«Правила поиска»** (Search rules). Here you can see and edit the criteria. Click **«Сохранить»** (Save) to keep your changes or **«Вернуть исходные»** (Restore original rules) to restore the published settings. AutoCQ keeps your changes when the catalog is updated and lists the awards with saved edits.
 
-**«Правила из положения»** (Rules from the published conditions) means AutoCQ prepared search rules. **«Условия пока не распознаны»** (Conditions not yet recognized) means the document is saved and AutoCQ cannot yet use it for search. For example, some club awards depend on a separate roster. **«Текст PDF не прочитан»** means AutoCQ could not extract the text. Open the original under **«Положение HAMLOG…»** (Published conditions) in the row menu.
+![Viewing and editing award search rules](docs/hamlog-plan-demo.png)
 
-If a row says **«Проверено · поиск недоступен»** (Reviewed, search unavailable), select it to see the reason below the list. RAEM, for example, counts CW contacts, while Rivers of Russia needs the reference of the river being activated at the time of the QSO.
+If you cannot select an award, click its name to see why. The award may have ended, its conditions may be unavailable, or AutoCQ may not yet have search rules for it. Choose **«Положение HAMLOG…»** (Published conditions) in the row menu to read the original. Use **«Задать свой список целей…»** (Set your own targets) to enter known callsigns, DXCC entities or patterns.
 
-Each prepared award follows its own repeat-contact rule. For the OE6XMF award, one QSO counts per UTC day, even if the station changes bands or uses a portable callsign. For Stelvio Pass, the points depend on the other station's DXCC entity.
-
-Nationwide RDA searches cover European Russia, Asiatic Russia and Kaliningrad. For an award covering one region, such as Tula or Ryazan, AutoCQ selects callsigns from that region. Upload contacts from your main logbook to HAMLOG to update your credit.
-
-For **South Kazakhstan**, the first letter after the digit identifies an eligible callsign. G or Q covers Almaty and its region, N covers Shymkent and Turkestan, and T covers Taraz and Zhambyl. For example, a contact with `UN8GAA` is worth 200 points, or 400 on 160 m. The separately listed callsigns have their own point values. [South Kazakhstan rules](https://hamlog.online/club/arto/1776/rules/)
-
-The **ARCK QSO** series accept contacts with any station. If a callsign has already counted on 20 m in FT8, another contact in FT4 on 20 m adds no credit. A contact on another band or in CW can count. Check HAMLOG credit to see the next tier. [ARCK QSO rules](https://hamlog.online/club/arck/355/rules/)
-
-For **Digital QSO Long Distance**, enter your own grid locator in JTDX. AutoCQ reads the other station's locator from a recent decode and selects it when the distance between the grids is clearly more than 10,000 km. FT8 and FT4 count as different modes for this award. A contact from your main logbook can appear under **«Вне зачёта»** (Awaiting credit) when the record contains both locators. [Long-distance award rules](https://hamlog.online/club/rdrc/cd6f36084a9ba476a5a937409c8cca5a/rules/)
-
-**Tambov Treasurer** requires 30 distinct callsigns from Tambov Oblast and the Kvant club. The R2REC contact is mandatory, and HAMLOG supplies the club count. The **Telyatnikov and Zamaraev** awards have a mandatory contact with RA8CP. For other contacts, AutoCQ uses the published emergency services rosters. [Tambov Treasurer rules](https://hamlog.online/club/kwant/d496695b55b9b09cc97a1eb7535d9650/rules/)
-
-**Saratov Land — the Left Bank** requires eight different districts on HF. Double-click the award to see the published list under **«Зачётные районы»** (Eligible districts). For **Tula**, each QSO is worth two points. If you have 18 credited contacts across four districts, the score is 36 × 4 = 144 points. A new district increases the multiplier. [Saratov Land rules](https://hamlog.online/global/russia/r4c/1025/rules/) · [Tula rules](https://hamlog.online/global/russia/r3p/485/rules/)
-
-For **WHCG**, AutoCQ reads the first four characters of a recent grid locator from an Ecuadorian station. It checks whether you need the grid and shows the next tier at 5, 12 or 20 grids. **FIRAC OE DIGI** requires 30 digital contacts, including contacts with three different stations in the Austrian group. Another contact on a different band may count toward the total and leaves the number of distinct stations unchanged. [WHCG rules](https://hamlog.online/club/hcdx/177/rules/) · [FIRAC OE rules](https://www.oevsv.at/oevsv/diplome/)
-
-Kazan has two requirements. You need 25 credited contacts and five different city districts. If you see **«25 из 25 · 4 из 5»** (25 of 25, 4 of 5), AutoCQ looks for a station in a fifth district. St. Petersburg TV Tower requires 60 points plus a contact with RC1B or one of the operators named in the rules. [Kazan rules](https://hamlog.online/club/kazan/be5792cd277125309bc1216c86f36bba/rules/) · [TV Tower rules](https://hamlog.online/global/russia/r1a/a75954ec9180c819a1a6d4bb4e2fd522/rules/)
-
-To see the additional conditions, double-click the award and choose **«Зачёт и надбавки»** (Required contacts and bonuses). The window shows mandatory districts, callsigns, extra points and special dates. After making changes, click **«Применить»** (Apply), followed by **«Сохранить»** (Save) in the rule editor. When AutoCQ checks credit again, it verifies any mandatory counters supplied by HAMLOG. **«Вернуть исходные»** (Restore original rules) restores the published settings.
-
-For the Yesenin award, a contact with Ryazan Oblast scores one point, or three points from October 1 to 7. You can qualify with 30 points or with three contacts on October 3 in the same year. If these three contacts are still only in your main log, AutoCQ pauses calls for that award while awaiting HAMLOG credit. [Yesenin award rules](https://hamlog.online/global/russia/r3s/ceddda6399c0f0c743c89d76a8340145/rules/)
-
-![Annual scoring bonuses and a qualifying date in the Yesenin award rules](docs/hamlog-additional-demo.png)
-
-For My Russia, AutoCQ reads the grid locator from a recent JTDX decode. Each credited square counts once across all bands. For Legendary Gunsmiths of Tula, another QSO with the same station on a different band can count. FT8 and FT4 belong to the same digital mode group on a given band. ARCK 35 Years requires distinct club members, so each callsign counts once.
-
-For supported RCPW awards, AutoCQ reads the callsigns from the club's roster. For example, a contact for “Not a Step Back” is worth 10 points during the activity days and five afterward. AutoCQ uses the threshold HAMLOG reports for your callsign. When HAMLOG shows no credit yet and the rules give two thresholds, AutoCQ starts with the lower threshold and checks it again once the first contact is credited. [Not a Step Back rules](https://hamlog.online/club/rcpw/bbfc8b0d8f75b77c547a8cd342e70de3/rules/)
-
-For 105 Years of the Border Troops, temporary callsigns such as R105PW count during the activity days. This award and Dynamo 100 give double points to operators from Russia's zero call district under the published rules. Open the award rules to see the callsigns, dates and point values. [RCPW archive](https://rcpw.ru/daysactiv23.html)
-
-Each award has its own repeat-contact rules. Romania's National Day counts two QSOs with YQ0U on different bands or modes. The VK5IPA award credits every separate QSO and AutoCQ shows the next tier after checking HAMLOG. [YQ0U rules](https://hamlog.online/club/romania/ce6666711abaa4e7ab5831a23b5370ca/rules/) · [VK5IPA rules](https://hamlog.online/global/australia/vk5/e766e96a35afca0a42fe8fa1de3337a7/rules/)
-
-After any automatic or manual QSO, AutoCQ checks the incoming queue first. When the queue is clear, it goes back to listening for award stations. Among the stations it calls on its own, priority goes to those that help with more than one selected award.
-
-During automatic CQ operation, double-click a station in JTDX to call it manually. AutoCQ follows the selected station's TX period. Automatic operation continues on the same timer after the contact or the retry limit.
-
-If HAMLOG did not return a result for an award, AutoCQ shows it in the log and searches for the awards it could check. You can check credit again after uploading new contacts to HAMLOG.
-
-#### Murom Falcon and your main logbook
-
-For Murom Falcon, **«Вне зачёта»** (Awaiting credit) shows possible points from contacts in your logbook. Click **«Связи из журнала…»** (Logbook contacts) to see their callsigns, dates and bands. If those contacts cover the points you still need, AutoCQ waits for HAMLOG to credit them. To see your historical credit for Tula 875 from September 2021, use **«Состояние → Срок истёк»** (Status → Expired).
-
-![Logbook contacts awaiting HAMLOG credit](docs/award-points-journal-demo.png)
-
-#### View or edit search rules
-
-Double-click a row or choose **«Правила поиска…»** (Search rules) from its menu. For a recognized award, the editor shows the rules AutoCQ will use. Edit the fields and click **«Сохранить»** (Save). To go back to the original rules, click **«Вернуть исходные»** (Restore original), then **«Сохранить»**. A catalog update keeps your manual edits and lists the affected awards below the table.
-
-![Minimum distance in the Digital QSO Long Distance rules](docs/hamlog-plan-demo.png)
-
-If you know eligible stations for an award that uses other conditions, choose **«Задать свой список целей…»** (Set my targets) from its row menu. Enter callsigns, DXCC entities or patterns such as `JA*`. AutoCQ checks this list against your main logbook. The same menu can create a standalone list or open a prepared JSON file. [Import file format](docs/award-catalog.md)
-
-![Two DXCC targets on 20 metres in a custom list](docs/award-goals-demo.png)
+If the download stops, click **«Продолжить загрузку»** (Resume download). AutoCQ will reuse its saved documents and fetch the ones it still needs. The AutoCQ log shows the reason for the interruption.
 
 ## 8. Updates
 

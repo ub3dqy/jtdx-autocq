@@ -17,7 +17,7 @@ You could let it work for an hour, answering callers and looking for another sta
 - **Keep a queue.** Remember callers while you are busy. Manually added callsigns are called directly after the current contact and available incoming callers.
 - **Make a manual call while monitoring.** Choose an interesting station outside the target list. After that contact, AutoCQ resumes monitoring with the same settings and time remaining.
 - **Watch for wanted stations.** Match DXCC entities, callsigns and patterns against fresh CQ, 73, RRR or RR73. Return to receive after the contact or attempt limit.
-- **Work with HAMLOG awards.** AutoCQ downloads the catalog and rules, checks your credit, and looks for the contacts you still need for an award, including its next open tier.
+- **Find stations for HAMLOG awards.** Pick the awards you want and AutoCQ listens for stations that fit their published rules.
 - **Answer incoming calls in every mode.** A station calling you takes priority over the next CQ or outgoing call. Fresh calls from stations you have already worked can join the queue. AutoCQ skips stations on your DXCC exclusion list.
 - **Update from the application.** Notify you about new releases and show download percentage, transferred size, speed and estimated time remaining. Install when you choose.
 - **Show monitoring retry pauses.** List unanswered stations with a countdown to their next eligible attempt. Stopping monitoring clears the list.
@@ -67,23 +67,11 @@ Spotted an interesting station outside your targets? While monitoring is listeni
 
 Open **«Журнал и дипломы»** (Logbook and awards) to select your LogHX logbook or an ADIF export from another program. AutoCQ uses that history, including voice and contacts made through other software. In **«Подбор целей DXCC»** (Find DXCC targets), select a band and tick the entities that you still need on that band.
 
-In **«Дипломы HAMLOG»** (HAMLOG awards), click **«Обновить каталог»** (Update catalog). If **«Разобрать скачанное»** (Process downloaded rules) appears after an AutoCQ update, click it to process your saved documents first. Filter for awards available for search, tick the awards you want, close the window, and choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring).
+Open **«Дипломы HAMLOG»** (HAMLOG awards) and click **«Обновить каталог»** (Update catalog). AutoCQ downloads the published conditions and turns them into search rules. Use **«Полученные из кабинета…»** (Received awards from my account) to import saved pages of awards you've already received. Those awards become unavailable for selection.
 
-Double-click an award to see its search rules. For Saratov Land, the editor shows the list of districts on the left bank. For Tula, AutoCQ multiplies the contact points by the number of different districts worked. **«Зачёт и надбавки»** (Required contacts and bonuses) explains how that score is calculated. [How to prepare awards and start monitoring](USER-GUIDE.en.md#search-for-hamlog-award-contacts)
+Tick the awards you want and choose **«Журнал и дипломы → Мониторинг дипломов»** (Logbook and awards → Award monitoring). AutoCQ listens on the current band and calls stations that fit. For a Tula Oblast award, it looks for callsigns from Tula Oblast. Credit, points and award issuance stay in your HAMLOG account. [How to prepare awards and start monitoring](USER-GUIDE.en.md#search-for-hamlog-award-contacts)
 
-Select a reviewed award whose search is unavailable to see the reason below the list. For example, a river award needs the reference of the river the station is activating.
-
-Nationwide RDA searches cover European Russia, Asiatic Russia and Kaliningrad. For regional awards, AutoCQ selects callsigns in the relevant region. HAMLOG checks contacts, calculates credit and issues awards.
-
-The South Kazakhstan award uses the first letter after the digit in the callsign to identify the region. The **ARCK QSO** series accept stations from any country and show the next tier reported by HAMLOG. For **RCPW** awards, AutoCQ uses the club's callsign roster.
-
-For **Digital QSO Long Distance**, enter your grid locator in JTDX. AutoCQ compares it with each station's locator from a recent decode and selects stations more than 10,000 km away. For **Tambov Treasurer**, it checks the mandatory R2REC contact and the Kvant roster total separately.
-
-Some awards give extra points on particular dates or for certain callsigns. For the Yesenin award, contacts score more points from October 1 to 7, and three contacts on October 3 are enough to qualify. Double-click the award and open **«Зачёт и надбавки»** (Required contacts and bonuses) to see those conditions.
-
-After an interruption, **«Продолжить загрузку»** (Resume download) uses documents already downloaded. The AutoCQ log shows the reason for the interruption.
-
-![Choosing a regional award in AutoCQ](docs/awards-demo.png)
+![Selecting HAMLOG awards to monitor](docs/awards-demo.png)
 
 The same menu lets you save settings under a name and check **«Итоги сеанса»** (Session results). The results show final confirmations and which records were found in your main logbook. If a callsign remains in the left list, select it and click **«Почему пропущена?»** (Why was this station skipped?).
 

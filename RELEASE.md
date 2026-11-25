@@ -1,25 +1,23 @@
-# AutoCQ 0.9.37
+# AutoCQ 0.9.38
 
 ## Русский
 
-- Для «Дальних цифровых связей» AutoCQ сравнивает ваш QTH-локатор в JTDX с локатором из свежего сообщения. Поиск выбирает станции на расстоянии свыше 10 000 км, если полученных локаторов достаточно для такой оценки.
-- Добавлен поиск для **ARCK-30**, **DX ARCK-30** и **YL-ARCK-30**. Для каждой карточки используется её список подходящих станций.
-- В дипломах Телятникова и Замараева учтены официальные списки МЧС и РАС, особые даты и обязательная связь с RA8CP. «Тамбовская казначейша» сверяет число зачтённых участников «Кванта» и отдельно проверяет связь с R2REC.
-- У проверенных карточек, для которых поиск пока недоступен, под таблицей видна причина.
-- Если положения уже скачаны, откройте **«Дипломы HAMLOG»** и нажмите **«Разобрать скачанное»**, чтобы применить новые правила.
+- В **«Дипломах HAMLOG»** теперь весь путь занимает три шага. Обновите каталог, загрузите полученные дипломы и отметьте те, для которых хотите искать станции.
+- Кнопка **«Полученные из кабинета…»** принимает сразу несколько HTML-страниц HAMLOG. Полученные дипломы снимаются с поиска. У дипломов с истёкшим сроком также нельзя поставить галочку.
+- Во время мониторинга AutoCQ подбирает станции по условиям выбранных дипломов. Сколько связей зачтено, сколько очков набрано и что ещё нужно для диплома, можно посмотреть в личном кабинете HAMLOG.
+- Правила можно открыть двойным щелчком, отредактировать и при необходимости вернуть исходные. Обновление каталога сохраняет ваши правки.
 
-**Как обновиться.** Откройте **«Обновления»**, скачайте выпуск и закройте JTDX перед установкой. Затем нажмите **«Обновить и перезапустить»**. При работе с LogHX запускайте JTDX значком в журнале.
+**Как обновиться.** Откройте **«Обновления»** в AutoCQ, скачайте выпуск и закройте JTDX перед установкой. Затем нажмите **«Обновить и перезапустить»**. При работе с LogHX запускайте JTDX через значок в журнале.
 
 [Руководство](https://github.com/ub3dqy/jtdx-autocq/blob/main/USER-GUIDE.md) · [Сайт UB3DQY](https://ub3dqy.com/ru/read/5/)
 
 ## English
 
-- For **Digital QSO Long Distance**, AutoCQ compares your JTDX grid locator with the other station's locator in a recent decode. It selects stations more than 10,000 km away when the locators establish that distance.
-- Added search rules for **ARCK-30**, **DX ARCK-30**, and **YL-ARCK-30**. Each award has its own callsign eligibility rules.
-- The Telyatnikov and Zamaraev awards use the published emergency services rosters, special dates, and the mandatory RA8CP contact. Tambov Treasurer checks the credited Kvant club count and the required R2REC contact separately.
-- Select a reviewed award whose search is unavailable to see the reason below the table.
-- If you have already downloaded the conditions, open **«Дипломы HAMLOG»** (HAMLOG awards) and click **«Разобрать скачанное»** (Process downloaded rules) to apply the new rules.
+- The HAMLOG award workflow has three steps. Update the catalog, import the awards you've received, and tick the awards you want to monitor.
+- **«Полученные из кабинета…»** (Received awards from my account) accepts several saved HAMLOG pages at once. Received awards are removed from the search selection. Expired awards also have disabled checkboxes.
+- AutoCQ listens for stations that meet the selected award conditions. See credited contacts, points and remaining requirements in your HAMLOG account.
+- Double-click an award to open its search rules. Edit them as needed or restore the original rules. Catalog updates keep your edits.
 
-**Updating.** Open **«Обновления»** (Updates), download the release, and close JTDX before installation. Click **«Обновить и перезапустить»** (Update and restart). If you use LogHX, launch JTDX from its icon.
+**Updating.** Open **«Обновления»** (Updates) in AutoCQ, download the release and close JTDX before installation. Click **«Обновить и перезапустить»** (Update and restart). If you use LogHX, launch JTDX from its icon.
 
 [User guide](https://github.com/ub3dqy/jtdx-autocq/blob/main/USER-GUIDE.en.md) · [UB3DQY website](https://ub3dqy.com/ru/read/5/)

@@ -44,7 +44,7 @@ namespace JtdxAutoCq
 
         internal static string Region(string area)
         {
-            if (HamlogCountyIndex.IsCounty(area)) area = area.Substring(0, 2);
+            if (HamlogRdaCode.IsCounty(area)) area = area.Substring(0, 2);
             return area != null && Series.ContainsKey(area) ? area : null;
         }
 
@@ -56,12 +56,6 @@ namespace JtdxAutoCq
                 && Matches(region, parts[0], dxcc);
         }
 
-        internal static bool IsZeroDistrict(string call)
-        {
-            Match regular = RegionCall.Match(call ?? "");
-            return regular.Success && regular.Groups[1].Value[0] == '0';
-        }
-
         internal static string[] Parse(string text)
         {
             string area;
@@ -69,11 +63,10 @@ namespace JtdxAutoCq
         }
 
         internal static bool Known(string area)
-        { return area != null && (Country.IsMatch(area) || Series.ContainsKey(area) || KazakhstanAreas.Contains(area) || HamlogCountyIndex.IsCounty(area)); }
+        { return area != null && (Country.IsMatch(area) || Series.ContainsKey(area) || KazakhstanAreas.Contains(area) || HamlogRdaCode.IsCounty(area)); }
 
-        internal static bool Matches(string area, string call, string dxcc, string county = null, bool portable = false)
+        internal static bool Matches(string area, string call, string dxcc)
         {
-            if (HamlogCountyIndex.IsCounty(area)) return area == county;
             if (String.IsNullOrEmpty(dxcc)) return false;
             if (KazakhstanAreas.Contains(area))
             {
@@ -82,9 +75,7 @@ namespace JtdxAutoCq
             }
             string series;
             if (!Series.TryGetValue(area, out series)) return area == "DXCC " + dxcc;
-            return HamlogCountyIndex.IsCounty(county) ? county.StartsWith(area + "-", StringComparison.Ordinal)
-                : MatchesRussianSeries(portable && call.EndsWith("/P", StringComparison.Ordinal)
-                    ? call.Substring(0, call.Length - 2) : call, dxcc, series.Split(' '));
+            return MatchesRussianSeries(call, dxcc, series.Split(' '));
         }
 
         internal static bool MatchesRussianSeries(string call, string dxcc, IEnumerable<string> series)
