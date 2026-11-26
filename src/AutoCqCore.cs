@@ -191,6 +191,7 @@ namespace JtdxAutoCq
         public int SilentTerminalRepeats { get { return silentTerminalRepeats; } }
         public DateTime ConfirmationDeadline { get { return waitUntil; } }
         public Action<string> Notice = delegate { };
+        internal Action<string> Diagnostic = delegate { };
         public Action<OperatingSession> SessionFinished = delegate { };
         public OperatingSession Session { get; private set; }
         public Action RequestCq = delegate { };
@@ -253,7 +254,7 @@ namespace JtdxAutoCq
             get { return reverse73 && (reverseNeedsReply || !pending); }
         }
         DateTime? unexplainedStop;
-        string replyTarget, selectedQueuedCall;
+        string replyTarget, selectedQueuedCall, replyPreviousCall;
         bool replyDuringCq;
         int sessionWaitPeriods, sessionCallAttempts, sessionSwitchMinutes;
         DateTime lastResponseAt, lastDecodeFinished;
@@ -382,9 +383,22 @@ namespace JtdxAutoCq
 
         public void OnStatus(RadioStatus status, DateTime now)
         {
-            if (Awards != null) Awards.SetOperatorLocator(status.DeLocator);
             string previousCall = Status == null ? "" : CleanCall(Status.DxCall);
             string nextCall = CleanCall(status.DxCall);
+            bool radioChanged = status.Frequency != sessionFrequency || status.Mode != sessionMode;
+            // The TX log can reach the companion before the queued status for
+            // the previous DX. Wait for the status acknowledging our new reply.
+            if (Armed && commandOutstanding && replyTarget != null && waitingCall == replyTarget
+                && lastTerminalSlot.HasValue && nextCall.Length > 0 && nextCall == replyPreviousCall && nextCall != replyTarget
+                && now < commandDeadline && !radioChanged && !status.Watchdog
+                && (status.TxFirst == sessionPeriod || status.TxFirst == expectedPeriod))
+            {
+                Diagnostic("При переходе на " + replyTarget + " получен статус прежнего корреспондента " + nextCall
+                    + ". Ожидаю подтверждение нового вызова.");
+                return;
+            }
+
+            if (Awards != null) Awards.SetOperatorLocator(status.DeLocator);
             bool previousTxConfirmed = unconfirmedManualCall == null;
             bool wasEnabled = previousTxConfirmed && Status != null && Status.TxEnabled;
             bool wasTransmitting = previousTxConfirmed && Status != null && Status.Transmitting;
@@ -402,7 +416,6 @@ namespace JtdxAutoCq
             Waiting.SetContext(status);
             Cqs.SetContext(status);
             if (!Armed) return;
-            bool radioChanged = status.Frequency != sessionFrequency || status.Mode != sessionMode;
             bool adoptNativeSelection = !radioChanged
                 && (nativeHandoff || nativeIdleSelection && !Monitoring && !CallerRulesActive);
             bool permittedPeriod = adoptNativeSelection || status.TxFirst == sessionPeriod
@@ -460,9 +473,9 @@ namespace JtdxAutoCq
             if (radioChanged || !permittedPeriod)
             { StopForRadioStatus(status, !permittedPeriod); return; }
             if (Awaiting73 && (now < waitUntil || status.Decoding) && !String.IsNullOrEmpty(status.DxCall) && CleanCall(status.DxCall) != waitingCall)
-            { Stop("JTDX выбрал другую станцию до окончания ожидания 73. Автомат выключен.", true); return; }
+            { Stop("JTDX сообщил о выборе " + nextCall + " во время ожидания 73 от " + waitingCall + ". Автомат выключен.", true); return; }
             if (ReverseExchangePending && nextCall.Length > 0 && nextCall != waitingCall)
-            { Stop("JTDX сменил корреспондента во время подтверждения 73. Автомат выключен.", true); return; }
+            { Stop("JTDX сообщил о выборе " + nextCall + " во время обмена 73 с " + waitingCall + ". Автомат выключен.", true); return; }
             if (UseNativeSelection && status.TxEnabled && !commandOutstanding && waitingCall == null && selectedQueuedCall == null)
             {
                 bool dxCleared = previousCall.Length > 0 && nextCall.Length == 0;
@@ -499,7 +512,12 @@ namespace JtdxAutoCq
                 unexplainedStop = null;
                 everEnabled = true;
                 if (commandOutstanding && (!expectedPeriod.HasValue || status.TxFirst == expectedPeriod.Value) && (replyTarget == null || CleanCall(status.DxCall) == replyTarget))
-                { SetSessionPeriod(status.TxFirst, now); commandOutstanding = false; pending = false; replyTarget = null; expectedPeriod = null; }
+                {
+                    SetSessionPeriod(status.TxFirst, now);
+                    commandOutstanding = pending = false;
+                    replyTarget = replyPreviousCall = null;
+                    expectedPeriod = null;
+                }
             }
             if (!commandOutstanding && selectedQueuedCall != null && !String.IsNullOrEmpty(status.DxCall) && CleanCall(status.DxCall) != selectedQueuedCall)
             { Stop("Выбрана другая станция во время QSO из очереди. Автомат выключен.", true); return; }
@@ -739,7 +757,7 @@ namespace JtdxAutoCq
                 DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out value)) return value;
             return null;
         }
-        void ResetContact()
+        void ResetContact(string previousCall = null)
         {
             sessionContact = null;
             waitingCall = null; received73 = false; missing73Recorded = false; terminalRadioTime = null;
@@ -755,6 +773,7 @@ namespace JtdxAutoCq
             lastAttemptReplySlot = -1;
             resumedAcknowledgementCall = null;
             replyTarget = null; selectedQueuedCall = null; replyDuringCq = false; lastInitialSlot = -1;
+            replyPreviousCall = CleanCall(previousCall);
             expectedPeriod = null; activeSearchCall = null; completedCurrent = false;
             manualMonitorCall = null;
             incomingMonitorCall = null;
@@ -843,7 +862,8 @@ namespace JtdxAutoCq
             if (unconfirmedManualCall != null && call != unconfirmedManualCall) return;
             CompleteConfirmedContact();
             bool haltInFlight = cqHaltExpected || stoppingRetry != null;
-            ResetContact(); ResetCqRound(keepPendingHalt: haltInFlight);
+            ResetContact(waitingCall ?? pendingOwner ?? Status.DxCall);
+            ResetCqRound(keepPendingHalt: haltInFlight);
             cqHaltExpected = haltInFlight;
             pending = hunting = false; loggedCall = null; unexplainedStop = null; manualCq = null;
             unconfirmedManualCall = null;
@@ -853,7 +873,7 @@ namespace JtdxAutoCq
             if (Status.TxEnabled && CleanCall(Status.DxCall) == call)
             {
                 SetSessionPeriod(Status.TxFirst, now);
-                commandOutstanding = false; replyTarget = null; everEnabled = true;
+                commandOutstanding = false; replyTarget = replyPreviousCall = null; everEnabled = true;
             }
             Notice("Ручной вызов " + call + " в JTDX. После связи или лимита вызовов продолжу "
                 + (Monitoring ? "мониторинг." : "автоматическую работу."));
@@ -1369,7 +1389,7 @@ namespace JtdxAutoCq
             return "Станция подходит. AutoCQ проверит свежесть сообщения при следующем выборе.";
         }
 
-        void ListenForTarget(DateTime now)
+        void ListenForTarget(DateTime now, string previousCall = null)
         {
             if (selectedQueuedCall != null || Status == null || Status.TxEnabled || Status.Transmitting) return;
             if (Status.Decoding) return;
@@ -1378,7 +1398,7 @@ namespace JtdxAutoCq
             WaitingStation caller = NextCaller(now);
             if (caller != null)
             {
-                loggedCall = null; ResetContact();
+                loggedCall = null; ResetContact(previousCall ?? Status.DxCall);
                 commandOutstanding = true; commandDeadline = now.AddSeconds(6);
                 ReplyToQueuedCaller(caller);
                 return;
@@ -1400,7 +1420,7 @@ namespace JtdxAutoCq
                 eligible: row => IsMonitorCandidate(row, now), allowWorked: Expeditions == null,
                 priority: row => MonitorPriority(row, now));
             if (station == null) return;
-            loggedCall = null; ResetContact();
+            loggedCall = null; ResetContact(previousCall ?? Status.DxCall);
             manualCq = null;
             if (manual) manualMonitorCall = station.Call;
             commandOutstanding = true; commandDeadline = now.AddSeconds(6);
@@ -1594,10 +1614,11 @@ namespace JtdxAutoCq
                 }
                 CompleteConfirmedContact();
                 RecordMissing73();
+                string previousCall = waitingCall ?? pendingOwner ?? Status.DxCall;
                 ResetContact();
                 pending = false;
                 if (!finishing) Notice("Мониторинг: проверяю входящие вызовы, затем продолжаю поиск целей.");
-                ListenForTarget(now);
+                ListenForTarget(now, previousCall);
                 return;
             }
             if (cqListening)
@@ -1650,7 +1671,7 @@ namespace JtdxAutoCq
                 return;
             }
             commandOutstanding = true; commandDeadline = now.AddSeconds(6);
-            loggedCall = null; lastContact = null; ResetContact();
+            loggedCall = null; lastContact = null; ResetContact(waitingCall ?? pendingOwner ?? Status.DxCall);
             if (next != null)
             {
                 ReplyToQueuedCaller(next);

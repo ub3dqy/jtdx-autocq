@@ -86,12 +86,13 @@ class AutoCqTests
         e.OnStatus(S(false, ""), At); e.Start(At);
         return e;
     }
-    static AutoCqEngine TerminalHaltRace(out List<string> commands, bool monitorMode, string mode, bool logged)
+    static AutoCqEngine TerminalHaltRace(out List<string> commands, bool monitorMode, string mode, bool logged,
+        AwardSearch awards = null, ExpeditionSearch expeditions = null)
     {
         AutoCqEngine e = monitorMode ? MonitorActive(out commands) : Active(out commands);
         e.Stop("fixture", false);
         RadioStatus initial = S(!monitorMode, monitorMode ? "" : "W1AW"); initial.Mode = mode;
-        e.OnStatus(initial, At); e.Start(At);
+        e.OnStatus(initial, At); e.Start(At, awards, expeditions);
         if (monitorMode)
         {
             e.OnLine(ManualSelection(At.AddSeconds(1), "W1AW"), At.AddSeconds(1));
@@ -3010,6 +3011,71 @@ class AutoCqTests
                             Assert(e.Monitoring && commands.Last() == "REPLY CQ JA2ZZB FN20",
                                 "Monitoring did not continue after consuming its own Halt acknowledgement");
                         }
+                    }
+                });
+                Run("Late status for the previous DX cannot cancel a new RR73 exchange", () => {
+                    foreach (string mode in new[] { "FT4", "FT8" })
+                    foreach (string operation in new[] { "CQ", "monitoring", "awards", "expeditions" })
+                    foreach (string outcome in new[] { "confirm", "manual stop", "timeout", "wrong DX", "retune", "later change" })
+                    {
+                        AwardSearch awards = null;
+                        ExpeditionSearch expeditions = null;
+                        if (operation == "awards")
+                        {
+                            var program = HamlogAward.Gunsmiths.Create();
+                            program.Selected = true;
+                            var catalog = new AwardCatalog { Programs = new List<AwardProgram> { program } };
+                            awards = new AwardSearch(catalog, "K1ABC", "20m", mode, call => null);
+                        }
+                        if (operation == "expeditions")
+                            expeditions = new ExpeditionSearch(new ExpeditionOptions(), new ExpeditionCatalog(), call => null);
+                        List<string> commands;
+                        AutoCqEngine engine = TerminalHaltRace(out commands, operation != "CQ", mode, true, awards, expeditions);
+                        var diagnostics = new List<string>();
+                        engine.Diagnostic = diagnostics.Add;
+                        engine.RequestCallerReply = decode => commands.Add(decode.Message);
+                        double slot = mode == "FT4" ? 7.5 : 15;
+                        DateTime tx = At.AddSeconds(4 * slot);
+                        var caller = D(tx.AddSeconds(-slot), "W2ABC", "R-06");
+                        caller.Mode = mode == "FT4" ? ":" : "~";
+                        engine.OnDecode(caller, tx.AddSeconds(0.85));
+                        engine.OnLine("Halt Tx triggered at RX: UDP request", tx.AddSeconds(0.9));
+                        RadioStatus idle = S(false, ""); idle.Mode = mode;
+                        engine.OnStatus(idle, tx.AddSeconds(0.94));
+                        engine.Tick(tx.AddSeconds(1), true);
+                        Assert(commands.SequenceEqual(new[] { "HALT", caller.Message }), "The next caller was not selected");
+
+                        // The log of the new TX is consumed while the prior DX
+                        // status is still queued and the new status is in flight.
+                        engine.OnLine(Tx(tx, "W2ABC", "RR73").Replace("FT8:", mode + ":"), tx.AddSeconds(1.1));
+                        RadioStatus previous = S(true, "W1AW"); previous.Mode = mode;
+                        engine.OnStatus(previous, tx.AddSeconds(1.12));
+                        Assert(engine.Armed && engine.WaitingCall == "W2ABC" && engine.Status == idle,
+                            "A queued status for the previous DX stopped or replaced the new exchange");
+                        Assert(diagnostics.Count == 1 && diagnostics[0].Contains("W1AW") && diagnostics[0].Contains("W2ABC"),
+                            "The handoff diagnostic did not identify both callsigns");
+                        if (outcome == "manual stop")
+                            engine.OnLine("Halt Tx triggered at RX: Halt Tx button clicked", tx.AddSeconds(1.2));
+                        if (outcome == "wrong DX")
+                        {
+                            RadioStatus wrong = S(true, "W3ABC"); wrong.Mode = mode;
+                            engine.OnStatus(wrong, tx.AddSeconds(1.2));
+                        }
+                        if (outcome == "retune")
+                        {
+                            previous.Frequency += 1000;
+                            engine.OnStatus(previous, tx.AddSeconds(1.2));
+                        }
+                        if (outcome == "confirm" || outcome == "later change")
+                        {
+                            RadioStatus selected = S(true, "W2ABC"); selected.Mode = mode;
+                            engine.OnStatus(selected, tx.AddSeconds(1.2));
+                            Assert(engine.Armed && engine.Status == selected, "The real acknowledgement was not accepted");
+                            if (outcome == "later change") engine.OnStatus(previous, tx.AddSeconds(1.3));
+                        }
+                        engine.Tick(tx.AddSeconds(7.5), true);
+                        Assert(engine.Armed == (outcome == "confirm"),
+                            operation + " mishandled " + outcome + " during the handoff in " + mode);
                     }
                 });
                 Run("Terminal Halt acknowledgement handling still honours manual and external stops", () => {
