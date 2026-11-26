@@ -8,9 +8,11 @@ namespace JtdxAutoCq
     public sealed class ExpeditionOptions
     {
         public bool DxTrips = true, Parks = true, Nature = true, PortableRda = true, WantedRda = true, RareDx = true;
+        public bool Summits = true, Bunkers = true, LogHxSpots;
         public int MaxDxRank = 50;
         public string[] WantedDxcc = new string[0];
         public string WantedBand = "";
+        public string ListBand = "";
 
         internal ExpeditionOptions Copy()
         {
@@ -18,26 +20,29 @@ namespace JtdxAutoCq
             copy.MaxDxRank = Math.Max(1, Math.Min(340, MaxDxRank));
             copy.WantedDxcc = (WantedDxcc ?? new string[0]).Select(Callsign.Clean).Where(value => value.Length > 0).Distinct().ToArray();
             copy.WantedBand = JtdxAdif.BandNames.Contains(WantedBand) ? WantedBand : "";
+            copy.ListBand = JtdxAdif.BandNames.Contains(ListBand) ? ListBand : "";
             return copy;
         }
 
         internal bool HasTargets
         {
-            get { return DxTrips || Parks || Nature || PortableRda || WantedRda || RareDx || WantedDxcc.Length > 0; }
+            get { return DxTrips || Parks || Nature || PortableRda || WantedRda || RareDx || Summits || Bunkers || WantedDxcc.Length > 0; }
         }
     }
 
-    internal enum ExpeditionSource { Ng3k, Pota, Wwff, Rda, WantedRda, DxRanks, DxSpots }
+    internal enum ExpeditionSource { Ng3k, Pota, Wwff, Rda, WantedRda, DxRanks, DxSpots, DxSummit, Sota, Wwbota, LogHx, DxNews }
 
     internal sealed class ExpeditionActivity
     {
         internal ExpeditionSource Source;
-        internal string Call, Place, Mode, Bands;
+        internal string Call, Place, Mode, Bands, ReferenceProgram;
         internal double Frequency;
         internal int Dxcc;
         internal DateTime StartUtc, EndUtc, SpottedUtc;
 
-        internal bool Announced { get { return Source == ExpeditionSource.Ng3k; } }
+        internal bool Announced { get { return Source == ExpeditionSource.Ng3k || Source == ExpeditionSource.DxNews; } }
+        internal bool ClusterSpot
+        { get { return Source == ExpeditionSource.DxSpots || Source == ExpeditionSource.DxSummit || Source == ExpeditionSource.LogHx; } }
         internal string Band { get { return JtdxAdif.Band(Frequency); } }
 
         internal bool Current(DateTime now)
@@ -88,6 +93,17 @@ namespace JtdxAutoCq
             }
             else if (source == ExpeditionSource.WantedRda) rdaRanks = data.RdaRanks;
             else calls = Activities.ToLookup(item => item.Call);
+        }
+
+        internal void MergeLogHx(ExpeditionFeedData batch, DateTime now)
+        {
+            ExpeditionFeedData previous;
+            items.TryGetValue(ExpeditionSource.LogHx, out previous);
+            batch.Activities = batch.Activities.Concat(previous == null ? Enumerable.Empty<ExpeditionActivity>() : previous.Activities)
+                .Where(item => item.Current(now)).OrderByDescending(item => item.SpottedUtc)
+                .GroupBy(item => new { item.Call, item.Band, item.Mode, item.Place })
+                .Select(group => group.First()).Take(2000).ToArray();
+            Replace(ExpeditionSource.LogHx, batch);
         }
 
         internal int RdaRank(string key)
@@ -145,9 +161,10 @@ namespace JtdxAutoCq
 
         bool Current(ExpeditionActivity activity, DateTime now)
         {
-            if (!activity.Current(now)) return false;
-            if (activity.Announced || activity.Source == ExpeditionSource.DxSpots) return true;
+            if (activity.Source == ExpeditionSource.LogHx && !options.LogHxSpots || !activity.Current(now)) return false;
+            if (activity.Announced || activity.ClusterSpot && String.IsNullOrEmpty(activity.ReferenceProgram)) return true;
             return !catalog.ForCall(activity.Call).Any(item => item.Source == activity.Source
+                && item.ReferenceProgram == activity.ReferenceProgram
                 && item.Place != activity.Place && item.SpottedUtc > activity.SpottedUtc && item.Current(now));
         }
 
@@ -173,20 +190,33 @@ namespace JtdxAutoCq
             switch (item.Source)
             {
                 case ExpeditionSource.Ng3k:
-                    return options.DxTrips ? Description("DX-выезд · " + item.Place, "NG3K", 2000) : null;
+                case ExpeditionSource.DxNews:
+                    return options.DxTrips ? Description("DX-выезд · " + item.Place, ExpeditionFeeds.Name(item.Source), 2000) : null;
                 case ExpeditionSource.Pota:
                     return options.Parks ? Description("Парк " + item.Place, "POTA", 1000) : null;
                 case ExpeditionSource.Wwff:
                     return options.Nature ? Description("Природная территория " + item.Place, "WWFF", 1000) : null;
+                case ExpeditionSource.Sota:
+                    return options.Summits ? Description("Горная вершина " + item.Place, "SOTA / CQDX", 1000) : null;
+                case ExpeditionSource.Wwbota:
+                    return options.Bunkers ? Description("Бункер " + item.Place, "WWBOTA", 1000) : null;
                 case ExpeditionSource.Rda:
-                    int rank = catalog.RdaRank(item.Place);
-                    if (options.WantedRda && rank > 0)
-                        return Description("Редкий район " + item.Place, "Wanted RDA", 3000 - rank);
-                    if (options.PortableRda && (item.Call.EndsWith("/P", StringComparison.Ordinal)
-                        || item.Call.EndsWith("/M", StringComparison.Ordinal)))
-                        return Description("Полевой выезд · RDA " + item.Place, "Кластер RDA", 1000);
-                    break;
+                    return MatchRda(item);
             }
+            if (item.ReferenceProgram == "RDA") return MatchRda(item);
+            if (options.DxTrips && item.ReferenceProgram == "IOTA")
+                return Description("Островная активация " + item.Place, ExpeditionFeeds.Name(item.Source), 2000);
+            return null;
+        }
+
+        ExpeditionMatch MatchRda(ExpeditionActivity item)
+        {
+            int rank = catalog.RdaRank(item.Place);
+            if (options.WantedRda && rank > 0)
+                return Description("Редкий район " + item.Place, "Wanted RDA", 3000 - rank);
+            if (options.PortableRda && (item.Call.EndsWith("/P", StringComparison.Ordinal)
+                || item.Call.EndsWith("/M", StringComparison.Ordinal)))
+                return Description("Полевой выезд · RDA " + item.Place, ExpeditionFeeds.Name(item.Source), 1000);
             return null;
         }
 

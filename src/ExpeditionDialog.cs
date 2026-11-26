@@ -9,15 +9,14 @@ namespace JtdxAutoCq
 {
     internal sealed class ExpeditionDialog : OperatorDialog
     {
-        readonly CheckBox trips, parks, nature, portableRda, wantedRda, rareDx;
+        readonly CheckBox trips, parks, nature, portableRda, wantedRda, rareDx, summits, bunkers, logHxSpots;
         readonly NumericUpDown rank = new NumericUpDown { Minimum = 1, Maximum = 340, AccessibleName = "Порог редкости DXCC" };
-        readonly ComboBox band = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = "Диапазон личных целей" };
-        readonly Label radio, sources, selection;
+        readonly ComboBox listBand, wantedBand;
+        readonly Label radio, sources, selection, wantedBandLabel;
         readonly Button start, refresh, personal;
         readonly ListView results = new ListView { View = View.Details, FullRowSelect = true, MultiSelect = false, HideSelection = false, ShowItemToolTips = true };
         string[] wanted;
         RadioStatus currentRadio;
-        string renderedRows;
 
         internal ExpeditionDialog(ExpeditionOptions options, Func<ExpeditionDialog, string[], string[]> choose,
             Action<ExpeditionOptions> reload, Action<ExpeditionOptions> begin, Action stop, Action help)
@@ -32,21 +31,24 @@ namespace JtdxAutoCq
             nature = Option("Территории WWFF", 370, 165, options.Nature);
             portableRda = Option("Полевые RDA", 544, 145, options.PortableRda);
             wantedRda = Option("Редкие RDA", 700, 132, options.WantedRda);
+            summits = Option("Вершины SOTA", 836, 174, options.Summits);
             rareDx = Option("Редкие DXCC · топ", 20, 166, options.RareDx, 115);
             rank.Value = options.MaxDxRank;
             Place(rank, 188, 115, 61, 27);
-            personal = ButtonAt("", 276, 111, 187, () => {
+            personal = ButtonAt("", 276, 111, 155, () => {
                 string[] selected = choose(this, wanted);
                 if (selected != null) wanted = selected;
                 UpdateControls();
             });
-            LabelAt("Диапазон личных целей", 476, 119, 180, 23);
-            band.Items.Add("Все диапазоны");
-            band.Items.AddRange(JtdxAdif.BandNames.Cast<object>().ToArray());
-            band.SelectedIndex = options.WantedBand.Length == 0 ? 0 : band.Items.IndexOf(options.WantedBand);
-            Place(band, 658, 115, 140, 27);
-            sources = LabelAt("Ожидаю данные от источников…", 20, 158, 990, 23);
+            wantedBandLabel = LabelAt("Личные цели на", 443, 119, 120, 23);
+            wantedBand = BandPicker("Диапазон личных целей", options.WantedBand, 564);
+            LabelAt("Диапазон списка", 738, 119, 132, 23);
+            listBand = BandPicker("Диапазон списка", options.ListBand, 870);
+            bunkers = Option("Бункеры WWBOTA", 20, 186, options.Bunkers, 152);
+            logHxSpots = Option("Кластеры LogHX", 208, 162, options.LogHxSpots, 152);
+            sources = LabelAt("Ожидаю данные от источников…", 378, 155, 632, 23);
             sources.ForeColor = Color.FromArgb(79, 96, 112);
+            sources.AutoEllipsis = true;
 
             results.AccessibleName = "Экспедиции и споты";
             results.Columns.Add("Позывной", 106);
@@ -63,7 +65,7 @@ namespace JtdxAutoCq
             start = ButtonAt("Начать поиск", 817, 500, 193, () => {
                 if (active) stop(); else begin(Options);
             }, true);
-            foreach (CheckBox check in new[] { trips, parks, nature, portableRda, wantedRda, rareDx })
+            foreach (CheckBox check in new[] { trips, parks, nature, portableRda, wantedRda, rareDx, summits, bunkers, logHxSpots })
                 check.CheckedChanged += delegate { UpdateControls(); };
             UpdateControls();
             UpdateSelection();
@@ -76,13 +78,28 @@ namespace JtdxAutoCq
             return box;
         }
 
+        ComboBox BandPicker(string title, string value, int x)
+        {
+            var picker = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, AccessibleName = title };
+            picker.Items.Add("Все диапазоны");
+            picker.Items.AddRange(JtdxAdif.BandNames.Cast<object>().ToArray());
+            picker.SelectedIndex = value.Length == 0 ? 0 : picker.Items.IndexOf(value);
+            Place(picker, x, 115, 140, 27);
+            return picker;
+        }
+
+        static string SelectedBand(ComboBox picker)
+        { return picker.SelectedIndex > 0 ? (string)picker.SelectedItem : ""; }
+
         internal ExpeditionOptions Options
         {
             get
             {
                 return new ExpeditionOptions { DxTrips = trips.Checked, Parks = parks.Checked, Nature = nature.Checked,
                     PortableRda = portableRda.Checked, WantedRda = wantedRda.Checked, RareDx = rareDx.Checked,
-                    MaxDxRank = (int)rank.Value, WantedDxcc = wanted, WantedBand = band.SelectedIndex > 0 ? (string)band.SelectedItem : "" }.Copy();
+                    MaxDxRank = (int)rank.Value, WantedDxcc = wanted, WantedBand = SelectedBand(wantedBand),
+                    ListBand = SelectedBand(listBand), Summits = summits.Checked, Bunkers = bunkers.Checked,
+                    LogHxSpots = logHxSpots.Checked }.Copy();
             }
         }
 
@@ -90,7 +107,8 @@ namespace JtdxAutoCq
         void UpdateControls()
         {
             rank.Enabled = rareDx.Checked && !active;
-            band.Enabled = wanted.Length > 0 && !active;
+            wantedBand.Visible = wantedBandLabel.Visible = wanted.Length > 0;
+            wantedBand.Enabled = !active;
             personal.Text = wanted.Length == 0 ? "Мои DXCC…" : "Мои DXCC · " + wanted.Length;
             start.Enabled = active || ready && Options.HasTargets;
             refresh.Enabled = Options.HasTargets;
@@ -101,7 +119,7 @@ namespace JtdxAutoCq
             active = engine.Expeditions != null;
             ready = canStart;
             currentRadio = engine.Status;
-            foreach (Control control in new Control[] { trips, parks, nature, portableRda, wantedRda, rareDx, personal })
+            foreach (Control control in new Control[] { trips, parks, nature, portableRda, wantedRda, rareDx, summits, bunkers, logHxSpots, personal })
                 control.Enabled = !active;
             start.Text = active ? "Остановить поиск" : "Начать поиск";
             start.BackColor = active ? Color.FromArgb(137, 39, 36) : Color.FromArgb(0, 100, 91);
@@ -112,16 +130,18 @@ namespace JtdxAutoCq
 
             var search = engine.Expeditions ?? new ExpeditionSearch(Options, catalog, engine.DxccForCall);
             var rows = new List<ResultRow>();
-            foreach (ExpeditionActivity spot in catalog.Activities.Where(item => !item.Announced))
+            string filteredBand = SelectedBand(listBand);
+            foreach (ExpeditionActivity spot in catalog.Activities.Where(item => !item.Announced
+                && (filteredBand.Length == 0 || item.Band == filteredBand)))
             {
                 ExpeditionMatch match = search.Match(spot, now);
                 if (match == null) continue;
                 rows.Add(new ResultRow(spot.Call, spot.Band, spot.Mode, spot.Frequency, match, SeenText(spot.SpottedUtc, now, "Спот"), spot.SpottedUtc,
-                    spot.Source == ExpeditionSource.DxSpots ? "CQDX" : ExpeditionFeeds.Name(spot.Source)));
+                    ExpeditionFeeds.Name(spot.Source)));
             }
-            if (currentRadio != null)
+            string currentBand = currentRadio == null ? null : JtdxAdif.Band(currentRadio.Frequency);
+            if (currentBand != null && (filteredBand.Length == 0 || currentBand == filteredBand))
             {
-                string currentBand = JtdxAdif.Band(currentRadio.Frequency);
                 double maxAge = currentRadio.Mode == "FT4" ? 15.5 : 30.5;
                 foreach (CqStation station in engine.Cqs.Rows.Where(row => engine.Cqs.Fresh(row, now)
                     && (now - row.HeardUtc).TotalSeconds <= maxAge && engine.CanCall(row.Call)))
@@ -133,40 +153,82 @@ namespace JtdxAutoCq
                 }
             }
             var spotted = new HashSet<string>(rows.Select(row => row.Call));
-            foreach (ExpeditionActivity item in catalog.Activities.Where(item => item.Announced && item.EndUtc > now && !spotted.Contains(item.Call)))
+            foreach (ExpeditionActivity item in catalog.Activities.Where(item => item.Announced && item.EndUtc > now
+                && !spotted.Contains(item.Call) && (filteredBand.Length == 0
+                    || (item.Bands ?? "").Split(' ').Contains(filteredBand)))
+                .GroupBy(item => item.Call).Select(group => group.OrderBy(row => row.StartUtc > now)
+                    .ThenByDescending(row => !String.IsNullOrEmpty(row.Mode)).ThenBy(row => row.StartUtc).First()))
             {
                 ExpeditionMatch match = search.MatchActivity(item);
                 if (match == null) continue;
                 string when = (item.StartUtc <= now ? "По календарю " : "Анонс с ") + item.StartUtc.ToString("dd.MM", CultureInfo.InvariantCulture)
                     + "–" + item.EndUtc.AddDays(-1).ToString("dd.MM", CultureInfo.InvariantCulture);
-                rows.Add(new ResultRow(item.Call, null, item.Mode, 0, match, when, item.StartUtc, "NG3K") { Announced = true });
+                rows.Add(new ResultRow(item.Call, null, item.Mode, 0, match, when, item.StartUtc,
+                    ExpeditionFeeds.Name(item.Source)) { Announced = true });
             }
             ResultRow[] visible = rows.GroupBy(row => row.Key).Select(group => group.OrderByDescending(row => row.Local)
                 .ThenByDescending(row => row.Match.Priority).ThenByDescending(row => row.Time).First())
                 .OrderByDescending(row => row.Local).ThenBy(row => row.Announced).ThenByDescending(row => row.Match.Priority)
                 .ThenByDescending(row => row.Time).Take(240).ToArray();
-            string signature = String.Join("\n", visible.Select(row => String.Join("|", row.Fields())));
-            if (signature == renderedRows) { UpdateSelection(); return; }
-            renderedRows = signature;
+            UpdateResults(visible, engine.CanCall);
+            UpdateSelection();
+        }
 
-            var selected = results.SelectedItems.Count == 0 ? null : (ResultRow)results.SelectedItems[0].Tag;
+        void UpdateResults(ResultRow[] visible, Predicate<string> canCall)
+        {
+            ListViewItem[] previousItems = results.Items.Cast<ListViewItem>().ToArray();
+            string[] previousKeys = previousItems.Select(item => ((ResultRow)item.Tag).Key).ToArray();
+            ListViewItem restoredTop = null, restoredSelection = null;
             results.BeginUpdate();
             try
             {
-                results.Items.Clear();
-                foreach (ResultRow row in visible)
+                if (previousKeys.SequenceEqual(visible.Select(row => row.Key)))
                 {
-                    var entry = new ListViewItem(row.Fields()) {
-                        Tag = row, ToolTipText = row.Match.Reason + " · " + row.SourceText
-                    };
-                    if (row.Local) entry.BackColor = Color.FromArgb(225, 246, 238);
-                    if (!engine.CanCall(row.Call)) entry.ForeColor = SystemColors.GrayText;
-                    results.Items.Add(entry);
-                    if (selected != null && selected.Key == row.Key) entry.Selected = true;
+                    for (int i = 0; i < visible.Length; i++)
+                        UpdateEntry(previousItems[i], visible[i], canCall);
+                    return;
+                }
+
+                ListViewItem top = results.IsHandleCreated && previousItems.Length > 0 ? results.TopItem : null;
+                int topIndex = top == null ? -1 : top.Index;
+                string selectedKey = results.SelectedItems.Count == 0 ? null : ((ResultRow)results.SelectedItems[0].Tag).Key;
+                var entries = new Dictionary<string, ListViewItem>();
+                var ordered = new ListViewItem[visible.Length];
+                for (int i = 0; i < visible.Length; i++)
+                {
+                    ResultRow row = visible[i];
+                    var entry = new ListViewItem(row.Fields());
+                    UpdateEntry(entry, row, canCall);
+                    entries.Add(row.Key, entry);
+                    ordered[i] = entry;
+                }
+                results.Items.Clear();
+                results.Items.AddRange(ordered);
+                if (selectedKey != null) entries.TryGetValue(selectedKey, out restoredSelection);
+                if (topIndex >= 0 && ordered.Length > 0)
+                {
+                    // Keep the top visible station. If it expired, anchor to its nearest surviving neighbour.
+                    string anchor = previousKeys.Skip(topIndex).Concat(previousKeys.Take(topIndex).Reverse()).FirstOrDefault(entries.ContainsKey);
+                    restoredTop = anchor != null ? entries[anchor] : ordered[0];
                 }
             }
             finally { results.EndUpdate(); }
-            UpdateSelection();
+            if (restoredSelection != null) restoredSelection.Selected = true;
+            if (restoredTop != null) results.TopItem = restoredTop;
+        }
+
+        static void UpdateEntry(ListViewItem item, ResultRow row, Predicate<string> canCall)
+        {
+            string[] fields = row.Fields();
+            for (int i = 0; i < fields.Length; i++)
+                if (item.SubItems[i].Text != fields[i]) item.SubItems[i].Text = fields[i];
+            item.Tag = row;
+            string tip = row.Match.Reason + " · " + row.SourceText;
+            Color background = row.Local ? Color.FromArgb(225, 246, 238) : SystemColors.Window;
+            Color foreground = canCall(row.Call) ? SystemColors.WindowText : SystemColors.GrayText;
+            if (item.ToolTipText != tip) item.ToolTipText = tip;
+            if (item.BackColor != background) item.BackColor = background;
+            if (item.ForeColor != foreground) item.ForeColor = foreground;
         }
 
         void UpdateSelection()

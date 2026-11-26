@@ -32,7 +32,7 @@ static class RenderScreenshots
         {
             ((Timer)Field(main, "timer")).Stop();
             using (var window = (Form)Invoke(main, "ExpeditionDemoForm"))
-                Save(window, Path.Combine(directory, "expeditions-demo.png"));
+                Save(window, Path.Combine(directory, "expeditions-demo.png"), showOffscreen: true);
         }
     }
     [STAThread] static void Main(string[] args)

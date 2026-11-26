@@ -152,16 +152,20 @@ Stopping monitoring, including a timer stop, clears this list and its pauses. Cl
 ## Expeditions and rare stations
 
 1. Open **«Журнал и дипломы → Экспедиции и редкие станции»** (Logbook and awards → Expeditions and rare stations). You can browse spots and announcements right away.
-2. Tick the targets you want. **«Редкие DXCC»** (Rare DXCC) includes entries up to the selected Most Wanted rank. Use **«Мои DXCC…»** (My DXCC) to pick personal targets and choose a band next to it.
+2. Tick the targets you want. **«Редкие DXCC»** (Rare DXCC) includes entries up to the selected Most Wanted rank. Use **«Мои DXCC…»** (My DXCC) to pick personal targets. Their band selector sits next to that button.
 3. With JTDX connected and receiving, click **«Начать поиск»** (Start search). AutoCQ uses the session time set in its main window.
 
 ![Expedition and rare-station search with demo data](docs/expeditions-demo.png)
 
 The **«Активность»** (Activity) column distinguishes an announcement, a recent spot, and a decode from your JTDX. For an automatic call, AutoCQ waits for a suitable fresh decode on the current band in FT8 or FT4. Incoming calls have priority, and the DXCC exclusion list applies to station selection.
 
+Use **«Диапазон списка»** (List band) to browse 20 m, 40 m, or another band even during a search. The table shows spots and announcements for that band while the search continues on the band selected in JTDX. **«Все диапазоны»** (All bands) includes announcements with no published band.
+
 Select a station on another band to see its frequency and mode. After the current contact, stop the search, change bands in JTDX, and click **«Начать поиск»** again. If you close the search window, you can stop the active session from the main window with **«СТОП»** (Stop).
 
-The NG3K calendar supplies DX announcements. CQDX provides recent DX spots and the Club Log Most Wanted rankings. Field activations come from POTA, WWFF and the RDA cluster. Wanted RDA identifies rare Russian districts. The line above the table shows any sources that are temporarily unavailable. [NG3K](https://www.ng3k.com/Misc/adxoplain.html) · [Club Log](https://clublog.org/mostwanted.php) · [CQDX](https://cqdx.io/api/docs) · [POTA](https://pota.app/) · [WWFF](https://spots.wwff.co/info) · [RDA cluster](https://rdaward.ru/?p=cluster) · [Wanted RDA](https://rdaward.ru/?p=rda_wtd)
+To include your own clusters, open **«Окна → DX-кластеры»** (Windows → DX clusters) in LogHX and connect to your servers as usual. In AutoCQ, tick **«Кластеры LogHX»** (LogHX clusters). The search uses recent FT8 and FT4 spots received by LogHX.
+
+NG3K and 425 DX News supply announcements. DX Summit and CQDX supply general DX spots. CQDX also provides Club Log Most Wanted rankings and SOTA activations. POTA, WWFF, WWBOTA, and the RDA cluster add field activations. Wanted RDA identifies rare Russian districts. Source status appears above the table. [NG3K](https://www.ng3k.com/Misc/adxoplain.html) · [425 DX News](https://www.425dxn.org/index.php?op=wcal) · [DX Summit](https://www.dxsummit.fi/) · [Club Log](https://clublog.org/mostwanted.php) · [CQDX](https://cqdx.io/api/docs) · [POTA](https://pota.app/) · [WWFF](https://spots.wwff.co/info) · [WWBOTA](https://wwbota.net/cluster/) · [RDA cluster](https://rdaward.ru/?p=cluster) · [Wanted RDA](https://rdaward.ru/?p=rda_wtd)
 
 ## Main logbook and profiles
 

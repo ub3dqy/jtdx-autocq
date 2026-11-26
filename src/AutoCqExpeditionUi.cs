@@ -103,7 +103,10 @@ namespace JtdxAutoCq
             status.Loading = true;
             status.LastAttempt = now;
             var worker = new BackgroundWorker();
-            worker.DoWork += delegate(object sender, DoWorkEventArgs args) { args.Result = ExpeditionFeeds.Fetch(source); };
+            bool local = source == ExpeditionSource.LogHx;
+            worker.DoWork += delegate(object sender, DoWorkEventArgs args) {
+                args.Result = local ? LogHxSpotFeed.Read(DateTime.UtcNow) : ExpeditionFeeds.Fetch(source);
+            };
             worker.RunWorkerCompleted += delegate(object sender, RunWorkerCompletedEventArgs args) {
                 worker.Dispose();
                 if (IsDisposed || Disposing) return;
@@ -112,10 +115,13 @@ namespace JtdxAutoCq
                 DateTime received = DateTime.UtcNow;
                 if (!status.Failed)
                 {
-                    expeditionCatalog.Replace(source, (ExpeditionFeedData)args.Result);
+                    if (local) expeditionCatalog.MergeLogHx((ExpeditionFeedData)args.Result, received);
+                    else expeditionCatalog.Replace(source, (ExpeditionFeedData)args.Result);
                     status.LastSuccess = received;
                 }
-                status.NextAttempt = received + (status.Failed ? SourceRetryDelay(args.Error) : ExpeditionFeeds.Interval(source));
+                status.NextAttempt = received + (status.Failed
+                    ? local ? TimeSpan.FromSeconds(10) : SourceRetryDelay(args.Error)
+                    : ExpeditionFeeds.Interval(source));
             };
             worker.RunWorkerAsync();
         }
@@ -135,7 +141,7 @@ namespace JtdxAutoCq
 
         string ExpeditionSourceStatus(ExpeditionSource[] selected)
         {
-            if (demo) return "Демо-данные  ·  NG3K, Club Log / CQDX, POTA, WWFF и RDA";
+            if (demo) return "Демонстрационные данные";
             if (selected.Length == 0) return "Выберите, что искать. Список обновится автоматически.";
             var unavailable = selected.Where(source => expeditionFeeds[source].Failed && !expeditionFeeds[source].Loading)
                 .Select(ExpeditionFeeds.Name).ToArray();
@@ -153,6 +159,10 @@ namespace JtdxAutoCq
                     Mode = "FT8", StartUtc = now.Date.AddDays(-1), EndUtc = now.Date.AddDays(6) },
                 new ExpeditionActivity { Source = ExpeditionSource.Ng3k, Call = "T88BBB", Place = "Палау",
                     Mode = "FT8 FT4", StartUtc = now.Date.AddDays(3), EndUtc = now.Date.AddDays(8) },
+            } });
+            expeditionCatalog.Replace(ExpeditionSource.DxNews, new ExpeditionFeedData { Activities = new[] {
+                new ExpeditionActivity { Source = ExpeditionSource.DxNews, Call = "A35AAA", Place = "Тонга",
+                    StartUtc = now.Date.AddDays(4), EndUtc = now.Date.AddDays(11) },
             } });
             expeditionCatalog.Replace(ExpeditionSource.DxRanks, new ExpeditionFeedData { Entities = new[] {
                 new ExpeditionEntity { Dxcc = 173, Name = "Острова Гилберта", Prefix = "T30", Rank = 42 },
@@ -172,6 +182,18 @@ namespace JtdxAutoCq
             expeditionCatalog.Replace(ExpeditionSource.Wwff, new ExpeditionFeedData { Activities = new[] {
                 DemoSpot(ExpeditionSource.Wwff, "DL1AAA/P", "DLFF-0123", "FT8", 10136000, now.AddMinutes(-4)),
             } });
+            expeditionCatalog.Replace(ExpeditionSource.Sota, new ExpeditionFeedData { Activities = new[] {
+                DemoSpot(ExpeditionSource.Sota, "HB0AAA/P", "HB0/LI-004", "FT8", 7074000, now.AddMinutes(-5)),
+            } });
+            expeditionCatalog.Replace(ExpeditionSource.Wwbota, new ExpeditionFeedData { Activities = new[] {
+                DemoSpot(ExpeditionSource.Wwbota, "ON1AAA/P", "B/ON-0051", "FT4", 7047500, now.AddMinutes(-6)),
+            } });
+            ExpeditionActivity island = DemoSpot(ExpeditionSource.DxSummit, "V6BBB", "OC-011", "FT8", 18095000, now.AddMinutes(-2));
+            island.ReferenceProgram = "IOTA";
+            expeditionCatalog.Replace(ExpeditionSource.DxSummit, new ExpeditionFeedData { Activities = new[] { island } });
+            ExpeditionActivity district = DemoSpot(ExpeditionSource.LogHx, "R2AAA/P", "TB-02", "FT8", 7074000, now.AddMinutes(-3));
+            district.ReferenceProgram = "RDA";
+            expeditionCatalog.Replace(ExpeditionSource.LogHx, new ExpeditionFeedData { Activities = new[] { district } });
         }
 
         static ExpeditionActivity DemoSpot(ExpeditionSource source, string call, string place, string mode, double frequency, DateTime seen, int dxcc = 0)
@@ -184,7 +206,8 @@ namespace JtdxAutoCq
             engine.Cqs.Observe(new DecodedMessage { Message = "CQ V6AAA QJ57", IsNew = true, Mode = "~",
                 Milliseconds = (uint)now.TimeOfDay.TotalMilliseconds, Snr = -10, DeltaFrequency = 1128 },
                 engine.Status, now);
-            var form = new ExpeditionDialog(new ExpeditionOptions(), (dialog, values) => values, options => { }, options => { }, () => { }, () => { });
+            var form = new ExpeditionDialog(new ExpeditionOptions { LogHxSpots = true },
+                (dialog, values) => values, options => { }, options => { }, () => { }, () => { });
             form.Render(expeditionCatalog, engine, true, ExpeditionSourceStatus(new ExpeditionSource[0]), now);
             return form;
         }

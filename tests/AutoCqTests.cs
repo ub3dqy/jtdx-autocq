@@ -4,8 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text;
 using System.Threading;
+using System.Windows.Forms;
 using System.Xml.Serialization;
 using JtdxAutoCq;
 
@@ -132,6 +134,21 @@ class AutoCqTests
     static string Fixture()
     { return TestWorkspace.Create(); }
 
+    static ExpeditionDialog ExpeditionWindow(ExpeditionOptions options)
+    {
+        var form = new ExpeditionDialog(options, (dialog, values) => values, data => { }, data => { }, () => { }, () => { });
+        typeof(Control).GetMethod("CreateControl", BindingFlags.Instance | BindingFlags.NonPublic,
+            null, new[] { typeof(bool) }, null).Invoke(form, new object[] { true });
+        form.PerformLayout();
+        return form;
+    }
+
+    static ExpeditionActivity ParkSpot(string call, double frequency, DateTime spotted)
+    {
+        return new ExpeditionActivity { Source = ExpeditionSource.Pota, Call = call,
+            Place = "US-1234", Mode = "FT8", Frequency = frequency, SpottedUtc = spotted };
+    }
+
     [STAThread]
     static int Main(string[] args)
     {
@@ -146,6 +163,122 @@ class AutoCqTests
                 UpdateTests.RunAll(Run, args.Length > 1 ? args[1] : null);
                 BugReportTests.RunAll(Run);
                 OperatorToolsTests.RunAll(Run);
+                Run("Expedition ages, new rows and expired rows preserve the native list viewport", () => {
+                    var catalog = new ExpeditionCatalog();
+                    var engine = new AutoCqEngine();
+                    ExpeditionActivity[] spots = Enumerable.Range(0, 48).Select(index => ParkSpot(
+                        "W1T" + (char)('A' + index / 26) + (char)('A' + index % 26) + "/P",
+                        14074000, At.AddMilliseconds(-index * 100))).ToArray();
+                    catalog.Replace(ExpeditionSource.Pota, new ExpeditionFeedData { Activities = spots });
+                    using (var form = ExpeditionWindow(new ExpeditionOptions()))
+                    {
+                        var view = (ListView)typeof(ExpeditionDialog).GetField("results", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(form);
+                        form.Render(catalog, engine, false, "", At);
+                        ListViewItem top = view.Items[12];
+                        string selected = view.Items[14].Text, next = view.Items[13].Text, age = top.SubItems[4].Text;
+                        view.TopItem = top;
+                        view.Items[14].Selected = true;
+                        Assert(Object.ReferenceEquals(view.TopItem, top) && view.SelectedItems.Count == 1, "Could not set the test viewport");
+                        form.Render(catalog, engine, false, "", At.AddSeconds(2));
+                        Assert(Object.ReferenceEquals(view.TopItem, top) && view.TopItem.SubItems[4].Text != age
+                            && view.SelectedItems[0].Text == selected, "A timestamp change rebuilt or scrolled the list");
+
+                        var added = ParkSpot("W2ABC/P", 14074000, At.AddSeconds(1));
+                        catalog.Replace(ExpeditionSource.Pota, new ExpeditionFeedData { Activities = spots.Concat(new[] { added }).ToArray() });
+                        form.Render(catalog, engine, false, "", At.AddSeconds(3));
+                        Assert(view.Items[0].Text == added.Call && view.TopItem.Text == top.Text
+                            && view.SelectedItems[0].Text == selected, "An arrival above the viewport moved the visible station");
+
+                        catalog.Replace(ExpeditionSource.Pota, new ExpeditionFeedData { Activities = spots.Where(spot => spot.Call != top.Text).ToArray() });
+                        form.Render(catalog, engine, false, "", At.AddSeconds(4));
+                        Assert(view.TopItem.Text == next && view.SelectedItems[0].Text == selected, "An expired anchor did not retain its nearest station");
+                    }
+                });
+                Run("The expedition list band filter works without personal targets and during a search", () => {
+                    var catalog = new ExpeditionCatalog();
+                    var engine = new AutoCqEngine();
+                    engine.OnStatus(S(false, ""), At);
+                    catalog.Replace(ExpeditionSource.Pota, new ExpeditionFeedData { Activities = new[] {
+                        ParkSpot("W1AAA", 7074000, At), ParkSpot("W2ABC", 14074000, At),
+                    } });
+                    catalog.Replace(ExpeditionSource.Ng3k, new ExpeditionFeedData { Activities = new[] {
+                        new ExpeditionActivity { Source = ExpeditionSource.Ng3k, Call = "T88AAA", Place = "Fixture",
+                            Bands = "80m 40m", Mode = "FT8", StartUtc = At.AddDays(1), EndUtc = At.AddDays(5) },
+                        new ExpeditionActivity { Source = ExpeditionSource.Ng3k, Call = "T88BBB", Place = "Fixture",
+                            Mode = "FT8", StartUtc = At.AddDays(1), EndUtc = At.AddDays(5) },
+                    } });
+                    using (var form = ExpeditionWindow(new ExpeditionOptions { ListBand = "40m" }))
+                    {
+                        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                        var picker = (ComboBox)typeof(ExpeditionDialog).GetField("listBand", flags).GetValue(form);
+                        var view = (ListView)typeof(ExpeditionDialog).GetField("results", flags).GetValue(form);
+                        form.Render(catalog, engine, true, "", At);
+                        Assert(picker.Enabled && (string)picker.SelectedItem == "40m" && picker.Items.Contains("20m")
+                            && view.Items.Cast<ListViewItem>().Select(item => item.Text).SequenceEqual(new[] { "W1AAA", "T88AAA" }),
+                            "The band picker depended on personal targets or included unrelated results");
+                        engine.Start(At, null, new ExpeditionSearch(form.Options, catalog, call => null));
+                        Assert(engine.ExpeditionTarget("W2ABC", At) != null, "Browsing another band changed search eligibility on JTDX's band");
+                        picker.SelectedItem = "20m";
+                        form.Render(catalog, engine, false, "", At);
+                        Assert(picker.Enabled && view.Items.Count == 1 && view.Items[0].Text == "W2ABC"
+                            && engine.Status.Frequency == 14074000, "Band browsing was locked or changed the radio during a search");
+                        picker.SelectedIndex = 0;
+                        form.Render(catalog, engine, false, "", At);
+                        Assert(view.Items.Count == 4 && view.Items.Cast<ListViewItem>().Any(item => item.Text == "T88BBB"),
+                            "All bands did not restore both spots and the announcement without a band");
+                    }
+                });
+                Run("Additional spot sources keep the advertised frequencies, references and calendar dates", () => {
+                    const string news = @"[{""from"":""2025-11-07"",""to"":""2025-11-09"",""cal"":""V6AAA, V6BBB: Chuuk (OC-011)""},
+                        {""from"":""2025-11-07"",""to"":""2025-11-09"",""cal"":""W2ABC: special callsign""}]";
+                    var announcements = ExpeditionFeeds.Parse(ExpeditionSource.DxNews, news, At).Activities;
+                    Assert(announcements.Select(item => item.Call).SequenceEqual(new[] { "V6AAA", "V6BBB" })
+                        && announcements[0].Announced && announcements[0].EndUtc == At.Date.AddDays(3), "425 DX News dates or calls changed");
+                    const string dx = @"[{""dx_call"":""V6AAA"",""frequency"":14080,""time"":""2025-11-07T11:58:00"",
+                        ""info"":""FT4 IOTA OC-011""},{""dx_call"":""W2ABC"",""frequency"":14074.0,""time"":""2025-11-07T11:59:00"",
+                        ""info"":""CQ""}]";
+                    var spot = ExpeditionFeeds.Parse(ExpeditionSource.DxSummit, dx, At).Activities.Single();
+                    Assert(spot.Call == "V6AAA" && spot.Mode == "FT4" && spot.Place == "OC-011" && spot.ReferenceProgram == "IOTA"
+                        && spot.Frequency == 14080000 && spot.SpottedUtc == At.AddMinutes(-2), "DX Summit inferred a mode or lost the island reference");
+                    const string sota = @"{""activations"":[{""callsign"":""HB0AAA/P"",""type"":""sota"",""reference"":""HB0/LI-004"",
+                        ""frequency"":""14.074"",""mode"":""FT8"",""spotTime"":""2025-11-07T11:59:00Z""}]}";
+                    var summit = ExpeditionFeeds.Parse(ExpeditionSource.Sota, sota, At).Activities.Single();
+                    Assert(summit.Frequency == 14074000 && summit.Place == "HB0/LI-004", "SOTA frequency units or reference changed");
+                    const string bunkers = @"[{""call"":""ON1AAA/P"",""type"":""Live"",""freq"":7.0475,""mode"":""FT4"",
+                        ""time"":""2025-11-07T11:59:30Z"",""references"":[{""reference"":""B/ON-0051"",""dxcc"":209}]},
+                        {""call"":""ON2AAA/P"",""type"":""QRT"",""freq"":7.0475,""mode"":""FT4"",
+                        ""time"":""2025-11-07T11:59:40Z"",""references"":[{""reference"":""B/ON-0002""}]}]";
+                    var bunker = ExpeditionFeeds.Parse(ExpeditionSource.Wwbota, bunkers, At).Activities.Single();
+                    Assert(bunker.Frequency == 7047500 && bunker.Place == "B/ON-0051" && bunker.Dxcc == 209,
+                        "WWBOTA lost the activation or treated a QRT as live");
+                });
+                Run("LogHX cluster batches keep recent spots, expire them, and respect the source switch", () => {
+                    const int recordBytes = 267;
+                    byte[] packet = new byte[recordBytes * 2];
+                    Encoding.ASCII.GetBytes("R0AAA/P").CopyTo(packet, 0);
+                    Encoding.ASCII.GetBytes("FT8 RDA CK-04").CopyTo(packet, 44);
+                    Encoding.ASCII.GetBytes("DIGI").CopyTo(packet, 197);
+                    BitConverter.GetBytes(At.AddMinutes(-1).ToOADate()).CopyTo(packet, 230);
+                    BitConverter.GetBytes((uint)14074000).CopyTo(packet, 246);
+                    Array.Copy(packet, 0, packet, recordBytes, recordBytes);
+                    BitConverter.GetBytes(At.AddMinutes(-16).ToOADate()).CopyTo(packet, recordBytes + 230);
+                    var batch = LogHxSpotFeed.Parse(packet, At);
+                    ExpeditionActivity spot = batch.Activities.Single();
+                    Assert(spot.Call == "R0AAA/P" && spot.Band == "20m" && spot.Mode == "FT8" && spot.Place == "CK-04",
+                        "Packed LogHX record, frequency or time was misread");
+
+                    var catalog = new ExpeditionCatalog();
+                    catalog.MergeLogHx(batch, At);
+                    catalog.MergeLogHx(LogHxSpotFeed.Parse(packet, At), At.AddSeconds(2));
+                    catalog.MergeLogHx(new ExpeditionFeedData(), At.AddSeconds(3));
+                    catalog.Replace(ExpeditionSource.WantedRda, new ExpeditionFeedData { RdaRanks = new Dictionary<string, int> { { "CK-04", 1 } } });
+                    var enabled = new ExpeditionSearch(new ExpeditionOptions { LogHxSpots = true }, catalog, call => null);
+                    var disabled = new ExpeditionSearch(new ExpeditionOptions { LogHxSpots = false }, catalog, call => null);
+                    Assert(catalog.ForCall("R0AAA/P").Count() == 1 && enabled.Match("R0AAA/P", "20m", "FT8", At).Reason.Contains("Редкий район")
+                        && disabled.Match("R0AAA/P", "20m", "FT8", At) == null, "LogHX batching or its source switch did not apply");
+                    catalog.MergeLogHx(new ExpeditionFeedData(), At.AddMinutes(15));
+                    Assert(!catalog.ForCall("R0AAA/P").Any(), "An old LogHX spot was retained");
+                });
                 Run("DX activity announcements require an exact advertised call and valid UTC dates", () => {
                     const string html = "<h1>Announced DX Operations</h1>"
                         + "<p>Nov 7-9, 2025<br>DXCC: Micronesia<br>Callsign: <b>V6</b><br>Info: By JA1AAA as V6/JA1AAA; 40-10m; CW FT8</p>"
