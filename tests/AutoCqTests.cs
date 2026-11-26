@@ -1828,6 +1828,130 @@ class AutoCqTests
                             "The station queue stopped or missed the late reply");
                     }
                 });
+                Run("An untransmitted sign-off repeat does not stop CQ or monitoring", () => {
+                    foreach (string operation in new[] { "CQ", "monitoring", "awards", "expeditions" })
+                    foreach (string mode in new[] { "FT4", "FT8" })
+                    foreach (string signoff in new[] { "RR73", "73" })
+                    foreach (string outcome in new[] { "repeat", "final", "missing", "manual stop" })
+                    {
+                        const string peer = "R3PAA";
+                        bool monitoring = operation != "CQ", reverse = signoff == "73";
+                        var commands = new List<string>();
+                        var engine = new AutoCqEngine { UseNativeSelection = true, DxccForCall = call => "UA" };
+                        engine.Options.Wait73Periods = 2;
+                        engine.Options.MonitorEnabled = operation == "monitoring";
+                        engine.Options.MonitorDxcc = new[] { "UA" };
+                        engine.RequestCq = () => commands.Add("CQ");
+                        engine.RequestHalt = () => commands.Add("HALT");
+                        engine.RequestCallerReply = decode => commands.Add(decode.Message);
+                        RadioStatus initial = S(!monitoring, monitoring ? "" : peer);
+                        initial.Mode = mode; initial.TxFirst = false;
+                        engine.OnStatus(initial, At);
+                        AwardSearch awards = null;
+                        ExpeditionSearch expeditions = null;
+                        if (operation == "awards")
+                        {
+                            var program = HamlogAward.Gunsmiths.Create();
+                            program.Selected = true;
+                            awards = new AwardSearch(new AwardCatalog { Programs = new List<AwardProgram> { program } },
+                                "K1ABC", "20m", mode, engine.DxccForCall);
+                        }
+                        if (operation == "expeditions")
+                            expeditions = new ExpeditionSearch(new ExpeditionOptions(), new ExpeditionCatalog(), engine.DxccForCall);
+                        engine.Start(At, awards, expeditions);
+                        if (monitoring)
+                        {
+                            engine.OnLine(ManualSelection(At.AddSeconds(1), peer), At.AddSeconds(1));
+                            RadioStatus active = S(true, peer); active.Mode = mode; active.TxFirst = false;
+                            engine.OnStatus(active, At.AddSeconds(1.1));
+                        }
+
+                        double slot = mode == "FT4" ? 7.5 : 15;
+                        string marker = mode == "FT4" ? ":" : "~";
+                        DateTime start = At.AddSeconds(slot), missed = start.AddSeconds(2 * slot);
+                        if (reverse)
+                        {
+                            var acknowledgement = D(At, peer, "RR73"); acknowledgement.Mode = marker;
+                            engine.OnDecode(acknowledgement, start.AddMilliseconds(-800));
+                        }
+                        engine.OnLine(Tx(start, peer, signoff).Replace("FT8:", mode + ":"), start);
+                        engine.OnLine("QSO logged: " + peer, start.AddMilliseconds(50));
+                        if (reverse)
+                        {
+                            var acknowledgement = D(missed.AddSeconds(-slot), peer, "RR73"); acknowledgement.Mode = marker;
+                            engine.OnDecode(acknowledgement, missed.AddMilliseconds(-800));
+                        }
+                        // JTDX skips the TX slot. It is still connected and the same DX is selected.
+                        if (outcome != "final")
+                        {
+                            engine.Tick(missed.AddMilliseconds(150), true);
+                            Assert(engine.TerminalRepeatMessage == (reverse ? 5 : 4), "The first repeat was not authorized");
+                        }
+                        engine.Tick(missed.AddSeconds(slot).AddMilliseconds(400), true);
+                        Assert(engine.Armed && !engine.RepeatFinal73 && commands.Count == 0 && engine.SilentTerminalRepeats == 0,
+                            operation + " stopped, left TX authorized, or counted an unsent " + signoff + " in " + mode);
+
+                        DateTime boundary = missed.AddSeconds(2 * slot);
+                        if (outcome == "manual stop")
+                        {
+                            DateTime stopped = missed.AddSeconds(slot).AddMilliseconds(500);
+                            engine.OnLine("Halt Tx triggered at RX: Halt Tx button clicked", stopped);
+                            engine.Tick(boundary, true);
+                            Assert(!engine.Armed && commands.Count == 0, "An explicit Stop was treated as a missed repeat");
+                            continue;
+                        }
+                        if (outcome != "final")
+                        {
+                            DateTime decoded = boundary.AddMilliseconds(-600);
+                            engine.OnLine(DecodeFinished(decoded), decoded);
+                            engine.Tick(decoded, true);
+                            Assert(engine.TerminalRepeatMessage == (reverse ? 5 : 4) && commands.Count == 0,
+                                "The next TX slot was not available to the repeat");
+                            if (outcome == "repeat")
+                            {
+                                engine.OnLine(Tx(boundary, peer, signoff).Replace("FT8:", mode + ":"), boundary);
+                                boundary = boundary.AddSeconds(2 * slot);
+                                if (!reverse)
+                                {
+                                    decoded = boundary.AddMilliseconds(-600);
+                                    engine.OnLine(DecodeFinished(decoded), decoded); engine.Tick(decoded, true);
+                                    Assert(engine.TerminalRepeatMessage == 4 && engine.SilentTerminalRepeats == 1,
+                                        "A skipped slot used up a configured RR73 repeat");
+                                    engine.OnLine(Tx(boundary, peer, signoff).Replace("FT8:", mode + ":"), boundary);
+                                    boundary = boundary.AddSeconds(2 * slot);
+                                }
+                            }
+                            else
+                            {
+                                engine.Tick(boundary.AddSeconds(slot).AddMilliseconds(400), true);
+                                Assert(engine.Armed && !engine.RepeatFinal73 && commands.Count == 0,
+                                    "Two missed transmissions did not leave time for the final receive window");
+                                boundary = boundary.AddSeconds(2 * slot);
+                            }
+                        }
+
+                        DateTime receive = boundary.AddSeconds(-slot);
+                        var caller = D(receive, "DL2ZZB", "FN31"); caller.Mode = marker;
+                        engine.OnDecode(caller, boundary.AddMilliseconds(-900));
+                        if (outcome != "missing")
+                        {
+                            var final = D(receive, peer, "73"); final.Mode = marker;
+                            engine.OnDecode(final, boundary.AddMilliseconds(-800));
+                        }
+                        DateTime decodeEnd = boundary.AddMilliseconds(-600);
+                        engine.OnLine(DecodeFinished(decodeEnd), decodeEnd);
+                        engine.Tick(decodeEnd, true);
+                        Assert(engine.Armed && commands.SequenceEqual(new[] { "HALT" }) && !engine.RepeatFinal73,
+                            "The exchange did not finish after the final receive window");
+                        DateTime halted = boundary.AddMilliseconds(-350);
+                        engine.OnLine("Halt Tx triggered at RX: UDP request", halted);
+                        RadioStatus idle = S(false, ""); idle.Mode = mode; idle.TxFirst = false;
+                        engine.OnStatus(idle, halted); engine.Tick(halted, true);
+                        Assert(engine.Armed && commands.SequenceEqual(new[] { "HALT", caller.Message })
+                            && engine.LoggedCount == 1 && engine.Missing73Count == (!reverse && outcome == "missing" ? 1 : 0),
+                            "The session dropped the next caller, or assigned the wrong QSO outcome");
+                    }
+                });
                 Run("Repeated addressed RR73 permits another 73 until a quiet reply period", () => {
                     List<string> c; AutoCqEngine e = Active(out c);
                     e.UseNativeSelection = true;
