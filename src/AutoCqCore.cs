@@ -97,24 +97,27 @@ namespace JtdxAutoCq
             }
         }
         public static byte[] HoldNativeSelection(string id, uint schema, bool hold, bool managedSession = false,
-            bool listenAfter73 = false, bool repeatFinal73 = false, int repeatMessage = 0, RadioStatus repeatStatus = null)
+            bool listenAfter73 = false, bool repeatFinal73 = false, int repeatMessage = 0, RadioStatus radio = null,
+            string holdRetryForCall = null)
         {
             using (QtWriter w = new QtWriter(53, id, schema))
             {
                 int flags = (hold ? 1 : 0) | (managedSession ? 2 : 0);
                 if (managedSession && listenAfter73) flags |= 8 | (repeatFinal73 ? 4 : 0);
+                bool holdRetry = managedSession && !listenAfter73 && holdRetryForCall != null;
+                string call = null;
+                if (radio != null && (radio.Mode == "FT8" || radio.Mode == "FT4")
+                    && (holdRetry || (flags & 4) != 0 && (repeatMessage == 4 || repeatMessage == 5)))
+                    call = Callsign.Parse(holdRetry ? holdRetryForCall : radio.DxCall);
+                bool scoped = call != null && call.Length <= 24;
+                if (holdRetry && scoped) flags |= 16;
                 w.Byte((byte)flags);
-                if ((flags & 4) != 0 && (repeatMessage == 4 || repeatMessage == 5) && repeatStatus != null
-                    && (repeatStatus.Mode == "FT8" || repeatStatus.Mode == "FT4"))
+                if (scoped)
                 {
-                    string call = Callsign.Parse(repeatStatus.DxCall);
-                    if (call != null && call.Length <= 24)
-                    {
-                        w.Byte((byte)repeatMessage);
-                        w.Byte((byte)repeatStatus.Mode[2]);
-                        w.U64(repeatStatus.Frequency);
-                        foreach (char letter in call) w.Byte((byte)letter);
-                    }
+                    w.Byte(holdRetry ? (byte)0 : (byte)repeatMessage);
+                    w.Byte((byte)radio.Mode[2]);
+                    w.U64(radio.Frequency);
+                    foreach (char letter in call) w.Byte((byte)letter);
                 }
                 return w.Bytes();
             }
@@ -232,6 +235,12 @@ namespace JtdxAutoCq
                     || commandOutstanding && replyTarget != null);
             }
         }
+        bool InitialCallLimitReached
+        {
+            get { return lastInitialSlot >= 0 && initialTransmissions >= sessionCallAttempts && !attemptAnswered && waitingCall == null; }
+        }
+        // Arm the native PTT gate during the last allowed TX, ahead of the next TX boundary.
+        public string HoldRetryForCall { get { return Armed && InitialCallLimitReached ? attemptCall : null; } }
         ulong sessionFrequency;
         string sessionMode, loggedCall, lastContact;
         bool sessionPeriod, pending, commandOutstanding, everEnabled;
@@ -266,7 +275,7 @@ namespace JtdxAutoCq
         readonly Dictionary<string, DateTime> sentAcknowledgedReports = new Dictionary<string, DateTime>();
         readonly HashSet<string> workedCallers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         bool hunting, cqThreshold, cqTxSeen, cqTxEnded, cqHaltExpected, cqListening, completedCurrent;
-        bool cqHaltAcknowledged, periodSwitchHalt;
+        bool handoffHaltAcknowledged, periodSwitchHalt;
         bool? expectedPeriod;
         int cqCount;
         long lastCqSlot = -1;
@@ -454,7 +463,7 @@ namespace JtdxAutoCq
             if (wasEnabled && !status.TxEnabled)
             {
                 if (replyDuringCq && !cqListening) { pending = false; replyDuringCq = false; }
-                if (!pending || UseNativeSelection && cqListening && !cqHaltExpected && !cqHaltAcknowledged)
+                if (!pending || UseNativeSelection && cqListening && !cqHaltExpected && !handoffHaltAcknowledged)
                     unexplainedStop = now.AddMilliseconds(900);
             }
             if (status.Watchdog) { StopForRadioStatus(status, !permittedPeriod); return; }
@@ -663,9 +672,13 @@ namespace JtdxAutoCq
             if (halt < 0) return;
             string reason = line.Substring(halt);
             if (stoppingRetry != null && reason.IndexOf("UDP request", StringComparison.Ordinal) >= 0)
-            { ContinueAfterRetry(stoppingRetry, now); return; }
+            {
+                ContinueAfterRetry(stoppingRetry, now);
+                handoffHaltAcknowledged = true;
+                return;
+            }
             if (cqHaltExpected && reason.IndexOf("UDP request",StringComparison.Ordinal) >= 0)
-            { cqHaltExpected = false; cqHaltAcknowledged = cqListening; unexplainedStop = null; return; }
+            { cqHaltExpected = false; handoffHaltAcknowledged = cqListening; unexplainedStop = null; return; }
             bool finalStop = reason.IndexOf(": FIN, end of QSO", StringComparison.Ordinal) >= 0;
             bool normalEnd = reason.IndexOf("end of QSO", StringComparison.Ordinal) >= 0
                 || reason.IndexOf("S73, none received", StringComparison.Ordinal) >= 0
@@ -817,7 +830,7 @@ namespace JtdxAutoCq
             lastCqSlot = -1; lastCqTime = DateTime.MinValue;
             cqThreshold = cqTxSeen = cqTxEnded = cqListening = false;
             if (!keepPendingHalt) cqHaltExpected = false;
-            cqHaltAcknowledged = periodSwitchHalt = false;
+            handoffHaltAcknowledged = periodSwitchHalt = false;
         }
 
         TimeSpan SlotDuration
@@ -1546,9 +1559,9 @@ namespace JtdxAutoCq
                 RequestHalt();
                 return;
             }
-            bool finalAttemptDecoded = initialTransmissions >= sessionCallAttempts && !attemptAnswered && lastInitialSlot >= 0
-                && lastDecodeFinished >= SlotStart(lastInitialSlot + 1) && !pending && waitingCall == null;
-            if ((callLimitExceeded || finalAttemptDecoded) && Status != null && Status.TxEnabled && !Status.Decoding && !commandOutstanding
+            bool finalReplyWindowComplete = InitialCallLimitReached && !pending
+                && ReplyWindowComplete(SlotStart(lastInitialSlot + 2), now);
+            if ((callLimitExceeded || finalReplyWindowComplete) && Status != null && Status.TxEnabled && !Status.Decoding && !commandOutstanding
                 && attemptCall == CleanCall(Status.DxCall))
             {
                 stoppingRetry = attemptCall;
@@ -1614,7 +1627,7 @@ namespace JtdxAutoCq
                 return;
             }
             if ((finishing || switchPeriod) && cqListening && cqTxEnded && Status.TxEnabled && !Status.Transmitting
-                && !cqHaltExpected && !cqHaltAcknowledged && !unexplainedStop.HasValue && String.IsNullOrEmpty(Status.DxCall))
+                && !cqHaltExpected && !handoffHaltAcknowledged && !unexplainedStop.HasValue && String.IsNullOrEmpty(Status.DxCall))
             {
                 // Stop between frames and still accept replies to the last
                 // CQ that actually aired, including a delayed native CQ.
@@ -1629,13 +1642,13 @@ namespace JtdxAutoCq
             if ((now < due && (!cqListening || !ReplyWindowComplete(due, now)))
                 || Status.Transmitting || Status.Decoding || unexplainedStop.HasValue) return;
             if (UseNativeSelection && allowClearDx && Status.TxEnabled && String.IsNullOrEmpty(Status.DxCall)
-                && (Awaiting73 || finishing) && !cqHaltExpected && !terminalHaltRequested)
+                && (Awaiting73 || finishing) && !cqHaltExpected && !terminalHaltRequested && !handoffHaltAcknowledged)
             {
                 cqHaltExpected = true;
                 RequestHalt();
                 return;
             }
-            if (cqHaltExpected || ((terminalHaltRequested || cqHaltAcknowledged) && Status.TxEnabled)
+            if (cqHaltExpected || ((terminalHaltRequested || handoffHaltAcknowledged) && Status.TxEnabled)
                 || (Awaiting73 && !ReplyWindowComplete(waitUntil, now)) || reverseNeedsReply) return;
             if (!String.IsNullOrEmpty(Status.DxCall) && (!allowClearDx || CleanCall(Status.DxCall) != CleanCall(pendingOwner))) return;
             if (Monitoring)

@@ -933,6 +933,41 @@ static class TestNativeQueue
             Func<int, int, bool> bothSelect = (stage, expected) =>
                 select(chooseStage, stage) == expected && select(chooseText, stage) == expected;
 
+            foreach (string digitalMode in new[] { "FT8", "FT4" })
+            {
+                radio.Mode = digitalMode;
+                Marshal.WriteInt16(mode, 28, digitalMode[2]);
+                byte[] retryHold = JtdxAutoCq.QtPacket.HoldNativeSelection(
+                    "JTDX", 2, true, true, radio: radio, holdRetryForCall: radio.DxCall);
+                Marshal.WriteInt32(mainWindow, 0x4f4, 2);
+                Check(ptt(mainWindow) == 1, "An ordinary " + digitalMode + " report can key TX");
+                Send(control, retryHold);
+                Check(ptt(mainWindow) == 0 && bothSelect(2, 2),
+                    "An unanswered " + digitalMode + " retry cannot key TX with the decoder idle");
+                Marshal.WriteInt16(dx, 24, 'F');
+                Check(ptt(mainWindow) == 1, "The hold applies only to the unanswered DX");
+                Marshal.WriteInt16(dx, 24, 'D');
+                Marshal.WriteInt64(mainWindow, 0x340, (long)radio.Frequency + 1);
+                Check(ptt(mainWindow) == 1, "A change of dial frequency invalidates the hold");
+                Marshal.WriteInt64(mainWindow, 0x340, (long)radio.Frequency);
+                Marshal.WriteInt16(mode, 28, digitalMode == "FT4" ? '8' : '4');
+                Check(ptt(mainWindow) == 1, "The retry hold applies only to its own mode");
+                Marshal.WriteInt16(mode, 28, digitalMode[2]);
+                Marshal.WriteInt32(dx, 4, 0);
+                Check(ptt(mainWindow) == 1, "The retry hold cannot block CQ with no DX selected");
+                Marshal.WriteInt32(dx, 4, nativeCall.Length);
+                Marshal.WriteByte(mainWindow, 0x2e45, 1);
+                Check(ptt(mainWindow) == 1, "The retry hold preserves Tune");
+                Marshal.WriteByte(mainWindow, 0x2e45, 0);
+                Send(control, managed);
+                Check(ptt(mainWindow) == 1, "The current station can transmit after a valid reply releases the hold");
+                Send(control, retryHold);
+                Marshal.WriteInt64(image, stateRva, 0);
+                Check(ptt(mainWindow) == 1, "The retry hold expires with its AutoCQ lease");
+            }
+            radio.Mode = "FT8";
+            Marshal.WriteInt16(mode, 28, '8');
+
             Send(control, request(4));
             Check(ptt(mainWindow) == 1 && bothSelect(2, 4) && bothSelect(3, 4),
                 "Either native path restores Tx4 if AutoSeq selects a report before an authorized RR73 repeat");

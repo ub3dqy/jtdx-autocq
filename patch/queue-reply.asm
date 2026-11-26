@@ -130,11 +130,11 @@ reports equ report_epoch + 12
 %define report_rows 48
 %define report_size 64
 %define report_lifetime 300000
-repeat_frequency equ reports + report_rows * report_size
-repeat_length equ repeat_frequency + 8
-repeat_message equ repeat_length + 4
-repeat_mode equ repeat_message + 1
-repeat_call equ repeat_mode + 1
+scoped_tx_frequency equ reports + report_rows * report_size
+scoped_tx_length equ scoped_tx_frequency + 8
+scoped_tx_message equ scoped_tx_length + 4
+scoped_tx_mode equ scoped_tx_message + 1
+scoped_tx_call equ scoped_tx_mode + 1
 
 %macro state_load 2
     db %1
@@ -528,24 +528,26 @@ control_packet:
     jne .end
     cmp dword [rcx+16], 0x5844544a
     jne .end
-    cmp byte [rcx+20], 0
+    movzx eax, byte [rcx+20]
+    test al, al
     je .release
-    cmp byte [rcx+20], 15
+    cmp al, 19
     ja .end
-    test byte [rcx+20], 12
+    test al, 16
+    jnz .retry_hold
+    test al, 12
     jz .valid
-    test byte [rcx+20], 2
+    test al, 2
     jz .end
-    test byte [rcx+20], 4
+    test al, 4
     jz .valid
-    test byte [rcx+20], 8
+    test al, 8
     jz .end
 .valid:
     cmp edx, 21
     je .bare
     cmp edx, 34                   ; 21-byte lease, type, mode, dial frequency, ASCII DX
     jb .end
-    mov al, [rcx+20]
     and al, 14
     cmp al, 14                    ; managed and actively allowing a terminal repeat
     jne .end
@@ -553,21 +555,31 @@ control_packet:
     sub al, 4
     cmp al, 1
     ja .end
+    add al, 4
+    jmp .scope
+.retry_hold:
+    test al, 2                   ; held DX must be part of an active session
+    jz .end
+    cmp edx, 34
+    jb .end
+    mov al, [rcx+21]
+    test al, al                   ; zero marks a hold, rather than a TX stage
+    jnz .end
+.scope:
     mov r8b, [rcx+22]
     cmp r8b, '4'
-    je .store_repeat
+    je .store_scope
     cmp r8b, '8'
     jne .end
-.store_repeat:
-    add al, 4
-    mov [rel repeat_message], al
-    mov [rel repeat_mode], r8b
+.store_scope:
+    mov [rel scoped_tx_message], al
+    mov [rel scoped_tx_mode], r8b
     mov rax, [rcx+23]
     bswap rax
-    mov [rel repeat_frequency], rax
+    mov [rel scoped_tx_frequency], rax
     sub edx, 31
-    mov [rel repeat_length], edx
-    lea r9, [rel repeat_call]
+    mov [rel scoped_tx_length], edx
+    lea r9, [rel scoped_tx_call]
     xor eax, eax
 .copy_call:
     mov r8b, [rcx+rax+31]
@@ -577,12 +589,12 @@ control_packet:
     jb .copy_call
     jmp renew_lease
 .bare:
-    mov dword [rel repeat_length], 0
+    mov dword [rel scoped_tx_length], 0
     jmp renew_lease
 .release:
     cmp edx, 21
     jne .end
-    mov dword [rel repeat_length], 0
+    mov dword [rel scoped_tx_length], 0
     lea rax, [rel lease_expiry]
     mov qword [rax], 0
     mov byte [rel lease_flags], 0
@@ -700,6 +712,43 @@ select_lease:
 .return:
     ret
 
+; Only apply a scoped command to the same live DX, dial frequency and mode.
+%macro require_tx_scope 1
+    cmp dword [rel scoped_tx_length], 0
+    je %1
+    cmp byte [rbx+0x68b], 0       ; Hound/DXpedition
+    jne %1
+    call_tick
+    state_load {0x48,0x3b,0x05}, select_until
+    jae %1
+    mov rax, [rbx+0x340]
+    cmp [rel scoped_tx_frequency], rax
+    jne %1
+    mov rax, [rbx+0x2ae8]
+    cmp dword [rax+4], 3
+    jne %1
+    add rax, [rax+16]
+    cmp dword [rax], 0x00540046   ; UTF-16 "FT"
+    jne %1
+    movzx edx, byte [rel scoped_tx_mode]
+    cmp [rax+4], dx
+    jne %1
+    mov rax, [rbx+0x2a60]
+    mov edx, [rel scoped_tx_length]
+    cmp [rax+4], edx
+    jne %1
+    add rax, [rax+16]
+    lea r8, [rel scoped_tx_call]
+    xor ecx, ecx
+%%match_dx:
+    movzx r9d, byte [r8+rcx]
+    cmp [rax+rcx*2], r9w
+    jne %1
+    inc ecx
+    cmp ecx, edx
+    jb %%match_dx
+%endmacro
+
 ; guiUpdate is about to assert PTT. In FT8/FT4, wait for the decoder
 ; during addressed AutoCQ exchanges or before a native terminal repeat.
 ; The ordinary timing checks apply again on the next GUI tick.
@@ -717,6 +766,13 @@ defer_ptt:
     cmp word [rax+4], '4'
     jne .start
 .digital:
+    ; The last allowed call has already aired. Wait for AutoCQ to evaluate
+    ; the reply before starting PTT again, even without a decoder event.
+    test byte [rel lease_flags], 16
+    jz .terminal_hold
+    require_tx_scope .busy
+    jmp .wait
+.terminal_hold:
     ; During a managed sign-off, key only when the companion permits
     ; a repeat. While waiting for its packet, keep the slot available.
     test byte [rel lease_flags], 8
@@ -1267,41 +1323,11 @@ s73_reason: db 'S73, none received ', 0
 ; guiUpdate can choose the TX stage and read the selected text on
 ; separate paths. Protect both, as the text path can bypass the stage choice.
 %macro restore_signoff 0
-    cmp dword [rel repeat_length], 0
-    je %%done
+    test byte [rel lease_flags], 4
+    jz %%done
     cmp byte [rbx+0x2e45], 0       ; Tune
     jne %%done
-    cmp byte [rbx+0x68b], 0       ; Hound/DXpedition
-    jne %%done
-    call_tick
-    state_load {0x48,0x3b,0x05}, select_until
-    jae %%done
-    mov rax, [rbx+0x340]
-    cmp [rel repeat_frequency], rax
-    jne %%done
-    mov rax, [rbx+0x2ae8]
-    cmp dword [rax+4], 3
-    jne %%done
-    add rax, [rax+16]
-    cmp dword [rax], 0x00540046     ; UTF-16 "FT"
-    jne %%done
-    movzx edx, byte [rel repeat_mode]
-    cmp [rax+4], dx
-    jne %%done
-    mov rax, [rbx+0x2a60]
-    mov edx, [rel repeat_length]
-    cmp [rax+4], edx
-    jne %%done
-    add rax, [rax+16]
-    lea r8, [rel repeat_call]
-    xor ecx, ecx
-%%match_dx:
-    movzx r9d, byte [r8+rcx]
-    cmp [rax+rcx*2], r9w
-    jne %%done
-    inc ecx
-    cmp ecx, edx
-    jb %%match_dx
+    require_tx_scope %%done
     mov edx, [rbx+0x4f4]
     sub edx, 1
     cmp edx, 2                    ; Tx1 through Tx3
@@ -1309,7 +1335,7 @@ s73_reason: db 'S73, none received ', 0
     cmp edx, 6                    ; generated Tx7 from the second TX tab
     jne %%done
 %%restore:
-    movzx eax, byte [rel repeat_message]
+    movzx eax, byte [rel scoped_tx_message]
     mov [rbx+0x4f4], eax
 %%done:
 %endmacro

@@ -5,8 +5,8 @@ const { createHash } = require('node:crypto');
 const path = require('node:path');
 
 const expectedSha = '6b6718432edb55b3e3c8a5b884522bdc5ef5e466bf074e9dac09cc0b64ce399c';
-const expectedStubSha = '80a1ad4cfa7cf450484b838dbd6f8119d913842ffa7604af80b3d09e6ede10e4';
-const expectedOutputSha = 'a8938e621889aede44cbb4138a12a81a816f33549dcc3e20c084da57eb774fa7';
+const expectedStubSha = '56247cfa404cedd41882edeba49329bd5e088b0ade4e5b8a57fc544bdb04cc5d';
+const expectedOutputSha = '6c3b22546cf6fd18532d36651eb23a6f7aea22372427aa7c4c3b878d503aaac1';
 const [originalPath, stubPath, outputPath] = process.argv.slice(2);
 const sha = data => createHash('sha256').update(data).digest('hex');
 const align = (n, a) => Math.ceil(n / a) * a;

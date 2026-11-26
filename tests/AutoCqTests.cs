@@ -1126,6 +1126,78 @@ class AutoCqTests
                     e.OnLine("Halt Tx triggered at RX: m_singleshot, counter triggered ",At.AddSeconds(59));e.OnStatus(S(false,"W1AW"),At.AddSeconds(59));e.Tick(At.AddSeconds(60.1),true);
                     Assert(c.SequenceEqual(new[]{"CQ"}) && e.LoggedCount==0,"Failed caller blocked CQ");
                 });
+                Run("The last allowed call holds PTT until the reply window is evaluated", () => {
+                    foreach (string mode in new[] { "FT4", "FT8" })
+                    foreach (string outcome in new[] { "CQ", "next caller", "monitoring", "late report" })
+                    {
+                        var commands = new List<string>();
+                        var engine = new AutoCqEngine { UseNativeSelection = true };
+                        bool monitoring = outcome == "monitoring";
+                        engine.Options.MonitorEnabled = monitoring;
+                        engine.Options.MonitorCalls = new[] { "W1AW" };
+                        engine.RequestHalt = () => commands.Add("HALT");
+                        engine.RequestCq = () => commands.Add("CQ");
+                        engine.RequestCallerReply = decode => commands.Add("REPLY " + decode.Message.Split(' ')[1]);
+                        RadioStatus active = S(true, "W1AW"), idle = S(false, "W1AW"), initial = monitoring ? S(false, "") : active;
+                        active.Mode = idle.Mode = initial.Mode = mode;
+                        engine.OnStatus(initial, At);
+                        engine.Start(At);
+                        if (monitoring)
+                        {
+                            engine.OnLine(ManualSelection(At, "W1AW"), At);
+                            engine.OnStatus(active, At.AddMilliseconds(50));
+                        }
+
+                        double slot = mode == "FT4" ? 7.5 : 15;
+                        DateTime first = At.AddSeconds(2 * slot), second = first.AddSeconds(2 * slot);
+                        DateTime rx = second.AddSeconds(slot), next = rx.AddSeconds(slot);
+                        engine.OnLine(Tx(first, "W1AW", "-10").Replace("FT8:", mode + ":"), first);
+                        Assert(engine.HoldRetryForCall == null, "The first report prevented the allowed second attempt");
+                        if (outcome == "next caller")
+                        {
+                            DecodedMessage caller = D(first.AddSeconds(slot), "W2ABC", "FN20");
+                            caller.Mode = mode == "FT4" ? ":" : "~";
+                            engine.OnDecode(caller, second.AddMilliseconds(-200));
+                        }
+                        engine.OnLine(DecodeFinished(second.AddMilliseconds(-100)), second.AddMilliseconds(-100));
+                        engine.OnLine(Tx(second, "W1AW", "-11").Replace("FT8:", mode + ":"), second);
+                        engine.Tick(next.AddMilliseconds(-1), true);
+                        Assert(engine.HoldRetryForCall == "W1AW" && commands.Count == 0,
+                            "The gate must be armed before the next TX period, while RX stays open");
+
+                        if (outcome == "late report")
+                        {
+                            RadioStatus decoding = S(true, "W1AW");
+                            decoding.Mode = mode; decoding.Decoding = true;
+                            engine.OnStatus(decoding, rx);
+                            engine.Tick(next.AddMilliseconds(150), true);
+                            Assert(engine.HoldRetryForCall == "W1AW" && commands.Count == 0, "Late decoding was interrupted");
+                            DecodedMessage answer = D(rx, "W1AW", "R-05");
+                            answer.Mode = mode == "FT4" ? ":" : "~";
+                            engine.OnDecode(answer, next.AddMilliseconds(250));
+                            engine.OnLine(DecodeFinished(next.AddMilliseconds(300)), next.AddMilliseconds(300));
+                            engine.OnStatus(active, next.AddMilliseconds(300));
+                            engine.Tick(next.AddMilliseconds(350), true);
+                            Assert(engine.Armed && engine.HoldRetryForCall == null && commands.Count == 0,
+                                "A report from the current station did not release the gate and continue the QSO");
+                            continue;
+                        }
+
+                        engine.Tick(next, true);
+                        Assert(engine.HoldRetryForCall == "W1AW" && commands.SequenceEqual(new[] { "HALT" }),
+                            "Missing decoder completion led to a third attempt or a stalled session");
+                        engine.OnLine("Halt Tx triggered at RX: UDP request", next.AddMilliseconds(100));
+                        engine.Tick(next.AddMilliseconds(150), true);
+                        Assert(commands.SequenceEqual(new[] { "HALT" }),
+                            "The handoff began before JTDX confirmed receive in " + mode + " (" + outcome + ")");
+                        engine.OnStatus(idle, next.AddMilliseconds(200));
+                        engine.Tick(next.AddMilliseconds(200), true);
+                        string[] expected = monitoring ? new[] { "HALT" }
+                            : new[] { "HALT", outcome == "CQ" ? "CQ" : "REPLY W2ABC" };
+                        Assert(engine.Armed && engine.HoldRetryForCall == null && commands.SequenceEqual(expected),
+                            "A skipped decode blocked the handoff in " + mode + " (" + outcome + ")");
+                    }
+                });
                 Run("A late native report limit resumes CQ with a fresh TX confirmation", () => {
                     foreach (string mode in new[] { "FT4", "FT8" })
                     foreach (string outcome in new[] { "status first", "halt first", "already receiving", "incoming", "manual stop", "timeout", "monitoring" })
