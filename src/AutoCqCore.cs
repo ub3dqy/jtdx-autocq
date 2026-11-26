@@ -279,6 +279,8 @@ namespace JtdxAutoCq
         static readonly Regex ReplySelected = new Regex(@"double click on call processed: (\S+); EnableTx On\b", RegexOptions.CultureInvariant);
         static readonly Regex NoDecodeHalt = new Regex(@"^Halt Tx triggered at (?:RX|TX):\s*Called station not decoded\b", RegexOptions.CultureInvariant);
         static readonly Regex BusyTargetHalt = new Regex(@"^Halt Tx triggered at (?:RX|TX):\s*readFromStdout, not owner of the frequency or reply to other(?:\s|$)", RegexOptions.CultureInvariant);
+        static readonly Regex DxClearedAtRetryLimit = new Regex(@"\bDX Call (\S+) cleared, (?:RCQ/SCALL/SREPORT|RCALL/SREPORT|RREPORT/SRREPORT) count reached\s*$",
+            RegexOptions.CultureInvariant);
         static readonly Regex Report = new Regex(@"^R?[+-]\d{2}$", RegexOptions.CultureInvariant);
         static readonly Regex Grid = new Regex(@"^[A-R]{2}\d{2}(?:[A-X]{2})?$", RegexOptions.CultureInvariant);
         public bool Pending { get { return pending; } }
@@ -618,6 +620,20 @@ namespace JtdxAutoCq
                     completedCurrent = true;
                     if (waitingCall == null) BeginWaiting(CleanCall(call), now, RadioTime(line));
                     Notice("QSO в журнале: " + call + (Awaiting73 ? ". Ожидаю заключительное 73." : "."));
+                }
+            }
+            if (!pending && !commandOutstanding && waitingCall == null && stoppingRetry == null
+                && line.IndexOf(" count reached", StringComparison.Ordinal) >= 0)
+            {
+                Match cleared = DxClearedAtRetryLimit.Match(line);
+                if (cleared.Success && (RadioTime(line) ?? now) >= sessionStartedAt)
+                {
+                    string call = CleanCall(cleared.Groups[1].Value);
+                    if ((call == selectedQueuedCall || call == attemptCall) && call == CleanCall(lastContact))
+                    {
+                        ContinueAfterRetry(call, now);
+                        return;
+                    }
                 }
             }
             int halt = line.IndexOf("Halt Tx", StringComparison.Ordinal);
@@ -1434,7 +1450,7 @@ namespace JtdxAutoCq
             if (commandOutstanding && now >= commandDeadline)
             {
                 if (replyTarget != null) Waiting.Pause(replyTarget, CallerQueue.ReplyRejected, now);
-                Stop("JTDX не подтвердил " + (replyTarget == null ? "включение TX" : "ответ станции " + replyTarget) + ". Автомат выключен.", true); return;
+                Stop("JTDX не подтвердил " + (replyTarget == null ? "включение TX для CQ" : "ответ станции " + replyTarget) + ". Автомат выключен.", true); return;
             }
             DateTime? expectedRepeat = reverseNeedsReply ? waitUntil : terminalRepeatSlot;
             if (expectedRepeat.HasValue && (Awaiting73 || reverseNeedsReply) && now >= expectedRepeat.Value.Add(SlotDuration)
@@ -1538,7 +1554,8 @@ namespace JtdxAutoCq
             if (!pending || commandOutstanding || Status == null) return;
             if (now >= expires)
             {
-                Stop(cqListening ? "Не завершён переход после CQ: автомат выключен."
+                Stop(terminalHaltRequested ? "JTDX не подтвердил переход на приём. Автомат выключен."
+                    : cqListening ? "Не завершён переход после CQ: автомат выключен."
                     : "Не получено подтверждение завершения QSO: автомат выключен.", false);
                 return;
             }
@@ -1606,7 +1623,18 @@ namespace JtdxAutoCq
             cqListening = false;
             CqStation cq = next == null && direct == null ? NextCq(now, switchPeriod) : null;
             bool nativeCleared = UseNativeSelection && allowClearDx && String.IsNullOrEmpty(Status.DxCall);
-            if (Status.TxEnabled && !nativeCleared && (!replyDuringCq || (next == null && direct == null && cq == null)))
+            bool hasDirectedCall = next != null || direct != null || cq != null;
+            if (Status.TxEnabled && nativeCleared && !hasDirectedCall)
+            {
+                // TriggerCQ can leave an already enabled Status packet unchanged. Get a
+                // confirmed receive state first so the next command has a distinct TX acknowledgement.
+                terminalHaltRequested = cqHaltExpected = true;
+                expires = now.AddSeconds(6);
+                Notice("Жду подтверждения приёма перед новым CQ.");
+                RequestHalt();
+                return;
+            }
+            if (Status.TxEnabled && !nativeCleared && (!replyDuringCq || !hasDirectedCall))
             {
                 if (replyDuringCq)
                 {

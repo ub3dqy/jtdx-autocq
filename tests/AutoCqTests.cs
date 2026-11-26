@@ -1125,6 +1125,97 @@ class AutoCqTests
                     e.OnLine("Halt Tx triggered at RX: m_singleshot, counter triggered ",At.AddSeconds(59));e.OnStatus(S(false,"W1AW"),At.AddSeconds(59));e.Tick(At.AddSeconds(60.1),true);
                     Assert(c.SequenceEqual(new[]{"CQ"}) && e.LoggedCount==0,"Failed caller blocked CQ");
                 });
+                Run("A late native report limit resumes CQ with a fresh TX confirmation", () => {
+                    foreach (string mode in new[] { "FT4", "FT8" })
+                    foreach (string outcome in new[] { "status first", "halt first", "already receiving", "incoming", "manual stop", "timeout", "monitoring" })
+                    {
+                        var commands = new List<string>();
+                        var engine = new AutoCqEngine { UseNativeSelection = true };
+                        bool monitoring = outcome == "monitoring";
+                        engine.Options.MonitorEnabled = monitoring;
+                        engine.Options.MonitorCalls = new[] { "W1AW" };
+                        engine.RequestCallerReply = row => commands.Add(row.Message);
+                        engine.RequestCq = () => commands.Add("CQ");
+                        engine.RequestHalt = () => commands.Add("HALT");
+                        RadioStatus rx = S(false, "");
+                        RadioStatus dx = S(true, "W1AW");
+                        RadioStatus cleared = S(true, "");
+                        foreach (RadioStatus status in new[] { rx, dx, cleared })
+                        {
+                            status.Mode = mode;
+                            status.TxFirst = false;
+                        }
+                        double slot = mode == "FT4" ? 7.5 : 15;
+                        string marker = mode == "FT4" ? ":" : "~";
+                        DateTime firstTx = At.AddSeconds(slot), secondTx = firstTx.AddSeconds(2 * slot);
+                        engine.OnStatus(rx, At); engine.Start(At);
+                        var caller = D(At, "W1AW", "-20"); caller.Mode = marker;
+                        engine.OnDecode(caller, firstTx.AddMilliseconds(-800));
+                        engine.Tick(firstTx.AddMilliseconds(-600), true);
+                        Assert(commands.SequenceEqual(new[] { caller.Message }), "The test did not select its first caller");
+                        engine.OnStatus(dx, firstTx.AddMilliseconds(-400));
+                        engine.OnLine(Tx(firstTx, "W1AW", "R-03").Replace("FT8:", mode + ":"), firstTx);
+                        engine.OnLine(Tx(secondTx, "W1AW", "R-01").Replace("FT8:", mode + ":"), secondTx);
+
+                        // The scheduled TX boundary passes before JTDX finishes the decode and clears DX.
+                        DateTime afterDecode = secondTx.AddSeconds(2 * slot + 3.6);
+                        var incoming = D(secondTx.AddSeconds(slot), "W2ABC", "FN31"); incoming.Mode = marker;
+                        if (outcome == "incoming") engine.OnDecode(incoming, afterDecode.AddMilliseconds(-200));
+                        bool receiving = outcome == "already receiving" || monitoring;
+                        if (receiving || outcome == "status first")
+                            engine.OnStatus(receiving ? rx : cleared, afterDecode.AddMilliseconds(-100));
+                        engine.OnLine("DX Call W1AW cleared, RREPORT/SRREPORT count reached", afterDecode);
+                        if (!receiving && outcome != "status first")
+                            engine.OnStatus(cleared, afterDecode.AddMilliseconds(50));
+                        engine.OnLine(DecodeFinished(afterDecode.AddMilliseconds(70)), afterDecode.AddMilliseconds(70));
+                        engine.Tick(afterDecode.AddMilliseconds(150), true);
+                        Assert(engine.Armed && engine.LoggedCount == 0, "The native retry limit ended the session or logged a QSO");
+                        if (monitoring)
+                        {
+                            engine.Tick(afterDecode.AddSeconds(7), true);
+                            Assert(engine.Monitoring && commands.SequenceEqual(new[] { caller.Message }),
+                                "The native retry limit ended monitoring or started CQ");
+                            continue;
+                        }
+                        if (outcome == "incoming")
+                        {
+                            Assert(commands.SequenceEqual(new[] { caller.Message, incoming.Message }),
+                                "A new caller was delayed or passed over for CQ");
+                            continue;
+                        }
+                        if (!receiving)
+                        {
+                            Assert(commands.SequenceEqual(new[] { caller.Message, "HALT" }),
+                                "CQ was sent while TX was still enabled and could not produce a new acknowledgement");
+                            if (outcome == "timeout")
+                            {
+                                engine.Tick(afterDecode.AddSeconds(7), true);
+                                Assert(!engine.Armed && commands.Count == 2, "Missing receive confirmation rearmed TX");
+                                continue;
+                            }
+                            if (outcome == "manual stop")
+                            {
+                                engine.OnLine("Halt Tx triggered at RX: Halt Tx button clicked", afterDecode.AddMilliseconds(200));
+                                engine.OnStatus(rx, afterDecode.AddMilliseconds(250));
+                                engine.Tick(afterDecode.AddSeconds(8), true);
+                                Assert(!engine.Armed && commands.Count == 2, "A manual stop restarted CQ");
+                                continue;
+                            }
+                            if (outcome == "status first") engine.OnStatus(rx, afterDecode.AddMilliseconds(200));
+                            else engine.OnLine("Halt Tx triggered at RX: UDP request", afterDecode.AddMilliseconds(200));
+                            engine.Tick(afterDecode.AddMilliseconds(250), true);
+                            Assert(commands.Count == 2, "CQ resumed before both confirmations of receive");
+                            if (outcome == "status first") engine.OnLine("Halt Tx triggered at RX: UDP request", afterDecode.AddMilliseconds(300));
+                            else engine.OnStatus(rx, afterDecode.AddMilliseconds(300));
+                            engine.Tick(afterDecode.AddMilliseconds(350), true);
+                        }
+                        Assert(commands.SequenceEqual(receiving ? new[] { caller.Message, "CQ" } : new[] { caller.Message, "HALT", "CQ" })
+                            && !engine.CqTxFirst, "The next CQ was missed, repeated, or used the wrong TX phase");
+                        engine.OnStatus(cleared, afterDecode.AddMilliseconds(600));
+                        engine.Tick(afterDecode.AddSeconds(7), true);
+                        Assert(engine.Armed, "The session stopped before the next available TX slot");
+                    }
+                });
                 Run("An exhausted call waits for decode and then continues the queue", () => {
                     List<string> commands;
                     AutoCqEngine engine = Active(out commands);
