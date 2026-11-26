@@ -236,9 +236,10 @@ namespace JtdxAutoCq
         int initialTransmissions;
         DateTime waitUntil, lastRemoteFinalAt;
         DateTime? terminalRadioTime, firstTerminalSlot, lastTerminalSlot, receivedFinalAt, terminalRepeatSlot;
+        DateTime? lastTerminalAttemptSlot;
         bool terminalHaltRequested, sentTerminalAcknowledgement;
-        bool terminalReportReceived;
-        int silentTerminalRepeats;
+        bool terminalReportReceived, reportReplacedTerminalRepeat;
+        int silentTerminalRepeats, silentTerminalAttempts;
         bool reverse73, reverseNeedsReply, repeatSentInSilentWindow, lastRemoteFinalWas73;
         bool ReverseExchangePending
         {
@@ -648,7 +649,7 @@ namespace JtdxAutoCq
                 {
                     // The radio already halted. Keep the original receive
                     // opportunities and finish listening to the last frame.
-                    DateTime lastReply = lastTerminalSlot.Value.AddTicks(2 * SlotDuration.Ticks);
+                    DateTime lastReply = lastTerminalAttemptSlot.Value.AddTicks(2 * SlotDuration.Ticks);
                     DateTime nativeWait = firstTerminalSlot.Value.AddTicks(2 * SlotDuration.Ticks * sessionWaitPeriods);
                     waitUntil = lastReply > nativeWait ? lastReply : nativeWait;
                 }
@@ -711,7 +712,9 @@ namespace JtdxAutoCq
             waitingCall = null; received73 = false; missing73Recorded = false; terminalRadioTime = null;
             receivedFinalAt = null;
             firstTerminalSlot = lastTerminalSlot = null; terminalHaltRequested = sentTerminalAcknowledgement = false;
-            terminalRepeatSlot = null; terminalReportReceived = false; silentTerminalRepeats = 0;
+            terminalRepeatSlot = lastTerminalAttemptSlot = null;
+            terminalReportReceived = reportReplacedTerminalRepeat = false;
+            silentTerminalRepeats = silentTerminalAttempts = 0;
             reverse73 = reverseNeedsReply = repeatSentInSilentWindow = false;
             allowClearDx = false; pendingOwner = null; attemptCall = null; initialTransmissions = 0;
             attemptAnswered = lastRemoteFinalWas73 = false; lastRemoteFinalCall = null;
@@ -937,9 +940,10 @@ namespace JtdxAutoCq
         {
             if (waitingCall != peer)
             {
-                firstTerminalSlot = lastTerminalSlot = null;
+                firstTerminalSlot = lastTerminalSlot = lastTerminalAttemptSlot = null;
                 receivedFinalAt = terminalRepeatSlot = null;
-                terminalReportReceived = false; silentTerminalRepeats = 0;
+                terminalReportReceived = reportReplacedTerminalRepeat = false;
+                silentTerminalRepeats = silentTerminalAttempts = 0;
                 terminalHaltRequested = reverse73 = reverseNeedsReply = repeatSentInSilentWindow = false;
             }
             BeginWaiting(peer, now, radioTime);
@@ -948,16 +952,28 @@ namespace JtdxAutoCq
             sentTerminalAcknowledgement = acknowledgement;
             if (lastTerminalSlot == slot) return;
             bool repeat = lastTerminalSlot.HasValue;
+            bool alreadyCounted = lastTerminalAttemptSlot == slot;
             lastTerminalSlot = slot;
+            if (!lastTerminalAttemptSlot.HasValue || lastTerminalAttemptSlot.Value < slot)
+                lastTerminalAttemptSlot = slot;
             terminalRepeatSlot = null;
             if (!firstTerminalSlot.HasValue) firstTerminalSlot = slot;
             if (reverse73 || received73) return;
 
             // The original sign-off and a response to a new report do not use
             // up a retry. Count only subsequent transmissions after silence.
-            if (repeat && !terminalReportReceived) silentTerminalRepeats++;
+            if (repeat && !terminalReportReceived)
+            {
+                silentTerminalRepeats++;
+                if (!alreadyCounted) silentTerminalAttempts++;
+            }
             terminalReportReceived = false;
-            int remaining = Math.Max(0, sessionWaitPeriods - silentTerminalRepeats);
+            SetTerminalDeadline(lastTerminalAttemptSlot.Value);
+        }
+
+        void SetTerminalDeadline(DateTime slot)
+        {
+            int remaining = Math.Max(0, sessionWaitPeriods - silentTerminalAttempts);
             waitUntil = slot.AddTicks(2 * SlotDuration.Ticks * (remaining + 1));
         }
         SessionContact SessionRow(string call)
@@ -1043,6 +1059,11 @@ namespace JtdxAutoCq
                         : peer + " передал RR73; наше 73 завершает обмен.", radioTime ?? now);
                 }
             }
+            else if (peer == waitingCall && Awaiting73 && terminalRepeatSlot.HasValue && Report.IsMatch(payload)
+                && terminalRepeatSlot.Value == SlotStart(SlotNumber(radioTime ?? now)))
+            {
+                reportReplacedTerminalRepeat = true;
+            }
             else if (callsignPair || Report.IsMatch(payload) || Grid.IsMatch(payload))
             {
                 if (attemptCall != peer)
@@ -1090,7 +1111,7 @@ namespace JtdxAutoCq
             if (freshReply && Awaiting73 && Report.IsMatch(payload) && !terminalReportReceived)
             {
                 terminalReportReceived = true;
-                silentTerminalRepeats = 0;
+                silentTerminalRepeats = silentTerminalAttempts = 0;
                 DateTime nextTx = SlotStart(SlotNumber(radioTime.Value) + 1);
                 waitUntil = nextTx.AddTicks(2 * SlotDuration.Ticks * (sessionWaitPeriods + 1));
                 Notice("Повторный рапорт от " + peer + ". Повторяю завершающее сообщение.");
@@ -1142,17 +1163,20 @@ namespace JtdxAutoCq
             bool exchangeDone = received73 && (!firstTerminalSlot.HasValue || now >= firstTerminalSlot.Value.Add(SlotDuration))
                 && (!reverse73 || (!reverseNeedsReply && ReplyWindowComplete(waitUntil, now)));
             bool canManageRepeat = lastTerminalSlot.HasValue && !reverse73 && Status.TxEnabled && call == waitingCall;
-            DateTime nextTx = canManageRepeat ? lastTerminalSlot.Value.AddTicks(2 * SlotDuration.Ticks) : waitUntil;
+            DateTime nextTx = canManageRepeat ? lastTerminalAttemptSlot.Value.AddTicks(2 * SlotDuration.Ticks) : waitUntil;
             bool replyComplete = ReplyWindowComplete(nextTx, now) && !Status.Decoding;
-            bool overrun = canManageRepeat && silentTerminalRepeats > sessionWaitPeriods && !terminalReportReceived;
+            bool overrun = canManageRepeat && silentTerminalAttempts > sessionWaitPeriods && !terminalReportReceived;
             bool timedOut = Awaiting73 && (overrun || replyComplete && (!canManageRepeat
-                || silentTerminalRepeats >= sessionWaitPeriods && !terminalReportReceived));
+                || silentTerminalAttempts >= sessionWaitPeriods && !terminalReportReceived));
             bool completed = (exchangeDone || timedOut) && !Status.Decoding
                 && (!Status.Transmitting || overrun || repeatSentInSilentWindow);
             if (!completed)
             {
                 if (canManageRepeat && Awaiting73 && replyComplete && !Status.Transmitting && !terminalRepeatSlot.HasValue)
+                {
                     terminalRepeatSlot = nextTx;
+                    reportReplacedTerminalRepeat = false;
+                }
                 return false;
             }
 
@@ -1343,7 +1367,19 @@ namespace JtdxAutoCq
             { Stop("JTDX не подтвердил повтор 73 для " + waitingCall + ". Автомат выключен.", true); return; }
             if (terminalRepeatSlot.HasValue && Awaiting73 && now >= terminalRepeatSlot.Value.Add(SlotDuration)
                 && Status != null && !Status.Decoding && !Status.Transmitting)
-            { Stop("JTDX не подтвердил завершающую передачу для " + waitingCall + ". Автомат выключен.", true); return; }
+            {
+                if (!reportReplacedTerminalRepeat)
+                { Stop("JTDX не подтвердил завершающую передачу для " + waitingCall + ". Автомат выключен.", true); return; }
+
+                // JTDX transmitted to the right station. Let it receive the reply
+                // and use the remaining sign-off attempts after that RX period.
+                lastTerminalAttemptSlot = terminalRepeatSlot;
+                terminalRepeatSlot = null;
+                terminalReportReceived = reportReplacedTerminalRepeat = false;
+                silentTerminalAttempts++;
+                SetTerminalDeadline(lastTerminalAttemptSlot.Value);
+                Notice("JTDX передал рапорт вместо завершающего сообщения для " + waitingCall + ". Дослушиваю ответ.");
+            }
             if (callLimitExceeded && (attemptAnswered || attemptCall != CleanCall(Status == null ? null : Status.DxCall)
                 || waitingCall != null || pending && allowClearDx))
                 callLimitExceeded = false;
@@ -1569,20 +1605,34 @@ namespace JtdxAutoCq
             string current = Path.Combine(directory, DateTime.UtcNow.ToString("yyyyMM") + "_ALL.TXT");
             if (current != file) { file = current; offset = 0; remainder = ""; }
             if (!File.Exists(file)) return;
-            using (FileStream s = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            byte[] bytes;
+            int count;
+            try
             {
-                if (s.Length < offset) { offset = 0; remainder = ""; }
-                if (s.Length == offset) return;
-                s.Position = offset;
-                // Bound work per UI tick, even if debug logging is unusually busy.
-                byte[] bytes = new byte[(int)Math.Min(262144, s.Length - offset)];
-                int n = s.Read(bytes, 0, bytes.Length); offset += n;
-                string text = remainder + Encoding.UTF8.GetString(bytes, 0, n);
-                int end = text.LastIndexOf('\n');
-                if (end < 0) { remainder = text.Length < 65536 ? text : ""; return; }
-                foreach (string line in text.Substring(0, end).Split('\n')) onLine(line.TrimEnd('\r'));
-                remainder = text.Substring(end + 1);
+                using (FileStream s = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                {
+                    long length = s.Length;
+                    if (length < offset) { offset = 0; remainder = ""; }
+                    if (length == offset) return;
+                    s.Position = offset;
+                    // Bound each read and release the file before invoking callbacks.
+                    bytes = new byte[(int)Math.Min(262144, length - offset)];
+                    count = s.Read(bytes, 0, bytes.Length);
+                }
             }
+            catch (IOException e)
+            {
+                int error = e.HResult & 0xffff;
+                // Retry on the next tick if JTDX is recreating the file or a writer holds it.
+                if (error == 2 || error == 3 || error == 32 || error == 33) return;
+                throw;
+            }
+            offset += count;
+            string text = remainder + Encoding.UTF8.GetString(bytes, 0, count);
+            int end = text.LastIndexOf('\n');
+            if (end < 0) { remainder = text.Length < 65536 ? text : ""; return; }
+            foreach (string line in text.Substring(0, end).Split('\n')) onLine(line.TrimEnd('\r'));
+            remainder = text.Substring(end + 1);
         }
     }
 

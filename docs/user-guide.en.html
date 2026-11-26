@@ -38,7 +38,7 @@
 <h3>When the other station repeats its report</h3>
 <p>Say you send RR73 and the other station sends its report again. AutoCQ sends another RR73. Each new report resets the retry counter. With the setting at 2, the first quiet receive period is followed by up to two extra retries, with a chance to reply after each.</p>
 <p>A final 73, RR73 or RRR completes the exchange and the session continues. If another report arrives after the last retry, AutoCQ sends another sign-off and starts counting again.</p>
-<p>When a repeat is due, AutoCQ keeps the sign-off for the current station even if JTDX has selected a signal report again.</p>
+<p>A report your contact sends to another station leaves your RR73 retry in place. If JTDX still sends an ordinary report, AutoCQ listens through the reply period and continues the session within your retry limit.</p>
 <p><img loading="lazy" src="signoff-retry-demo.png" alt="DL1AAA sends another report and the unanswered retry count returns to zero"></p>
 <h2>5. The station queue</h2>
 <p>Incoming callers are queued automatically. Among stations calling in the same period, those not yet worked on the current band and mode come first. DXCC priorities and queue order then apply.</p>

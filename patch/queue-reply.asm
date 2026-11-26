@@ -113,6 +113,7 @@ entry qso_message_time_end
 entry prepare_received_report
 entry prepare_received_report_end
 entry restore_terminal_tx
+entry restore_terminal_text
 
 ; Mutable state begins after the two code pages, in a non-executable section.
 select_until equ 0x142d19000
@@ -1263,58 +1264,67 @@ kernel_dll: db 'kernel32.dll', 0
 clock_export: db 'GetTickCount64', 0
 auto_counter_reason: db 'AutoCQ, counter triggered ', 0
 s73_reason: db 'S73, none received ', 0
-; guiUpdate is about to pick the text for the keyed frame. Its AutoSeq
-; can switch back to a report after PTT starts. Use a standard sign-off
-; message for the exact DX and dial frequency authorized by AutoCQ.
-restore_terminal_tx:
+; guiUpdate can choose the TX stage and read the selected text on
+; separate paths. Protect both, as the text path can bypass the stage choice.
+%macro restore_signoff 0
     cmp dword [rel repeat_length], 0
-    je .original
+    je %%done
     cmp byte [rbx+0x2e45], 0       ; Tune
-    jne .original
+    jne %%done
     cmp byte [rbx+0x68b], 0       ; Hound/DXpedition
-    jne .original
+    jne %%done
     call_tick
     state_load {0x48,0x3b,0x05}, select_until
-    jae .original
+    jae %%done
     mov rax, [rbx+0x340]
     cmp [rel repeat_frequency], rax
-    jne .original
+    jne %%done
     mov rax, [rbx+0x2ae8]
     cmp dword [rax+4], 3
-    jne .original
+    jne %%done
     add rax, [rax+16]
     cmp dword [rax], 0x00540046     ; UTF-16 "FT"
-    jne .original
+    jne %%done
     movzx edx, byte [rel repeat_mode]
     cmp [rax+4], dx
-    jne .original
+    jne %%done
     mov rax, [rbx+0x2a60]
     mov edx, [rel repeat_length]
     cmp [rax+4], edx
-    jne .original
+    jne %%done
     add rax, [rax+16]
     lea r8, [rel repeat_call]
     xor ecx, ecx
-.match_dx:
+%%match_dx:
     movzx r9d, byte [r8+rcx]
     cmp [rax+rcx*2], r9w
-    jne .original
+    jne %%done
     inc ecx
     cmp ecx, edx
-    jb .match_dx
+    jb %%match_dx
     mov edx, [rbx+0x4f4]
     sub edx, 1
     cmp edx, 2                    ; Tx1 through Tx3
-    jbe .restore
+    jbe %%restore
     cmp edx, 6                    ; generated Tx7 from the second TX tab
-    jne .original
-.restore:
+    jne %%done
+%%restore:
     movzx eax, byte [rel repeat_message]
     mov [rbx+0x4f4], eax
-.original:
+%%done:
+%endmacro
+
+restore_terminal_tx:
+    restore_signoff
     cmp dword [rbx+0x4f4], 6
     ja 0x14010d930
     jmp 0x14010e9f2
+
+restore_terminal_text:
+    restore_signoff
+    cmp dword [rbx+0x4f4], 8
+    ja 0x140112c90
+    jmp 0x14010eb38
 
 lease_expiry equ $$ + (select_until - 0x142d17000)
 text_section_end:

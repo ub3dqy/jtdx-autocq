@@ -69,7 +69,7 @@ Say you send RR73 and the other station sends its report again. AutoCQ sends ano
 
 A final 73, RR73 or RRR completes the exchange and the session continues. If another report arrives after the last retry, AutoCQ sends another sign-off and starts counting again.
 
-When a repeat is due, AutoCQ keeps the sign-off for the current station even if JTDX has selected a signal report again.
+A report your contact sends to another station leaves your RR73 retry in place. If JTDX still sends an ordinary report, AutoCQ listens through the reply period and continues the session within your retry limit.
 
 ![DL1AAA sends another report and the unanswered retry count returns to zero](docs/signoff-retry-demo.png)
 

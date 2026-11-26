@@ -433,6 +433,26 @@ class AutoCqTests
                     File.AppendAllText(file,"Tx triggered at RX: FIN, end of QSO, Autolog 14.074 MHz\r\n");tail.Read(lines.Add);
                     Assert(lines.Count==2 && lines[1].StartsWith("Halt Tx"),"Split write lost");
                 });
+                Run("A busy radio log is retried and the reader releases it before processing", () => {
+                    string folder = Fixture();
+                    string path = Path.Combine(folder, DateTime.UtcNow.ToString("yyyyMM") + "_ALL.TXT");
+                    File.WriteAllText(path, "");
+                    var tail = new LogTail(folder);
+                    var lines = new List<string>();
+                    using (var writer = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.None))
+                    using (var text = new StreamWriter(writer))
+                    {
+                        text.WriteLine("QSO logged: W1AW");
+                        text.Flush();
+                        tail.Read(lines.Add);
+                        Assert(lines.Count == 0, "Read from an exclusively held radio log");
+                    }
+                    tail.Read(line => {
+                        using (var writer = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.None))
+                            lines.Add(line);
+                    });
+                    Assert(lines.SequenceEqual(new[] { "QSO logged: W1AW" }), "Lost or repeated the delayed line");
+                });
                 Run("Settings backup, crash recovery and selective restoration", () => {
                     string p=Fixture(),profile=Path.Combine(p,"profile"),state=Path.Combine(p,"state");Directory.CreateDirectory(profile);
                     string file=Path.Combine(profile,"JTDX.ini");File.WriteAllText(file,"[Configuration]\r\nUDPServer=127.0.0.1\r\nUDPServerPort=2237\r\nAcceptUDPRequests=false\r\nUnrelated=before\r\n[Common]\r\nCallMode=2\r\n");
@@ -1505,6 +1525,49 @@ class AutoCqTests
                     engine.OnLine(Tx(firstTx.AddSeconds(30), "W1AW", "RR73"), firstTx.AddSeconds(30));
                     Assert(engine.Armed && engine.SilentTerminalRepeats == 1 && engine.TerminalRepeatMessage == 0,
                         "The retry was not counted or the authorization outlived the frame");
+                });
+                Run("A substituted report leaves time for a final reply and the session continues", () => {
+                    foreach (int replaced in new[] { 1, 2 })
+                    foreach (bool acknowledged in new[] { false, true })
+                    {
+                        List<string> commands;
+                        AutoCqEngine engine = Active(out commands);
+                        engine.UseNativeSelection = true;
+                        engine.RequestCallerReply = d => commands.Add("REPLY " + d.Message.Split(' ')[1]);
+                        engine.OnLine(Tx(At, "W1AW", "RR73"), At);
+                        engine.OnLine("QSO logged: W1AW", At.AddMilliseconds(50));
+                        for (int attempt = 1; attempt <= 2; attempt++)
+                        {
+                            DateTime tx = At.AddSeconds(30 * attempt);
+                            DateTime replyEnd = tx.AddMilliseconds(-600);
+                            DecodedMessage other = D(tx.AddSeconds(-15), "W1AW", "R-16");
+                            other.Message = "W3ABC W1AW R-16";
+                            engine.OnDecode(other, replyEnd.AddMilliseconds(-50));
+                            engine.OnLine(DecodeFinished(replyEnd), replyEnd);
+                            engine.Tick(replyEnd, true);
+                            Assert(engine.TerminalRepeatMessage == 4, "A report to another station removed the RR73 request");
+
+                            // Exercise recovery even if JTDX selects the wrong message.
+                            engine.OnLine(Tx(tx, "W1AW", attempt == replaced ? "-10" : "RR73"), tx);
+                            engine.Tick(tx.AddSeconds(15.1), true);
+                            Assert(engine.Armed && engine.Awaiting73 && !engine.RepeatFinal73 && commands.Count == 0,
+                                "The changed TX stopped the session or interrupted reception");
+                        }
+                        Assert(engine.SilentTerminalRepeats == 1, "A report was counted as an RR73 transmission");
+                        DateTime finalReplyEnd = At.AddSeconds(89.4);
+                        engine.OnDecode(D(At.AddSeconds(75), "W2ABC", "FN20"), finalReplyEnd.AddMilliseconds(-100));
+                        if (acknowledged)
+                            engine.OnLine(Rx(At.AddSeconds(75), "W1AW", "73"), finalReplyEnd.AddMilliseconds(-50));
+                        engine.OnLine(DecodeFinished(finalReplyEnd), finalReplyEnd);
+                        engine.Tick(finalReplyEnd, true);
+                        Assert(commands.SequenceEqual(new[] { "HALT" }), "The silent attempt limit did not end this exchange");
+                        engine.OnLine("Halt Tx triggered at RX: UDP request", finalReplyEnd.AddMilliseconds(100));
+                        engine.OnStatus(S(false, ""), finalReplyEnd.AddMilliseconds(100));
+                        engine.Tick(finalReplyEnd.AddMilliseconds(100), true);
+                        Assert(engine.Armed && commands.SequenceEqual(new[] { "HALT", "REPLY W2ABC" })
+                            && engine.ConfirmedCount == (acknowledged ? 1 : 0) && engine.Missing73Count == (acknowledged ? 0 : 1),
+                            "The station queue stopped or missed the late reply");
+                    }
                 });
                 Run("Repeated addressed RR73 permits another 73 until a quiet reply period", () => {
                     List<string> c; AutoCqEngine e = Active(out c);
