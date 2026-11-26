@@ -78,6 +78,16 @@
 <p><img loading="lazy" src="monitor-timeouts-demo.png" alt="Time remaining before a station can be called again"></p>
 <p>The pause lasts five minutes after the unsuccessful attempt. When it expires, the row disappears and a new fresh message can make that station eligible again. Expiry alone does not start a transmission. Use «Снять отметку попытки» in the left-pane tab to retry sooner.</p>
 <p>Stopping monitoring, including a timer stop, clears this list and its pauses. Clearing the monitoring-mode checkbox also resets them. Other entries and completed contacts are preserved.</p>
+<h2 id="expeditions">Expeditions and rare stations</h2>
+<ol>
+<li>Open <strong>«Журнал и дипломы → Экспедиции и редкие станции»</strong> (Logbook and awards → Expeditions and rare stations). You can browse spots and announcements right away.</li>
+<li>Choose what to search for. Set the <strong>«Редкие DXCC»</strong> (Rare DXCC) rank threshold, or select personal entities and a band through <strong>«Мои DXCC…»</strong> (My DXCC).</li>
+<li>With JTDX connected and receiving, click <strong>«Начать поиск»</strong> (Start search). The session time comes from the main window.</li>
+</ol>
+<figure><img src="expeditions-demo.png" alt="Expedition and rare station search window"><figcaption>Announcements, spots, and local JTDX decodes in the demo.</figcaption></figure>
+<p>The <strong>«Активность»</strong> (Activity) column shows when the station was spotted and whether your JTDX has heard it. For automatic calls AutoCQ waits for a suitable fresh decode on the current band in FT8 or FT4. Incoming callers take priority, subject to your DXCC exclusions.</p>
+<p>Select a spot for its frequency and mode. To switch bands, finish your current contact, stop the search, tune in JTDX, and click <strong>«Начать поиск»</strong> again. After closing the search window, use <strong>«СТОП»</strong> (Stop) in the main window.</p>
+<p>The feeds come from NG3K, CQDX, Club Log, POTA, WWFF, and the RDA cluster and Wanted RDA lists. If a source is unavailable, AutoCQ names it above the table. <a href="https://www.ng3k.com/Misc/adxoplain.html">NG3K</a> · <a href="https://cqdx.io/api/docs">CQDX</a> · <a href="https://clublog.org/mostwanted.php">Club Log</a> · <a href="https://pota.app/">POTA</a> · <a href="https://spots.wwff.co/info">WWFF</a> · <a href="https://rdaward.ru/?p=cluster">RDA cluster</a> · <a href="https://rdaward.ru/?p=rda_wtd">Wanted RDA</a></p>
 <h2>Main logbook and profiles</h2>
 <p><strong>«Журнал и дипломы»</strong> (Logbook and awards) sits next to the station list. Open <strong>«Основной журнал»</strong> (Main logbook) to see which history AutoCQ uses. When AutoCQ can identify the open LogHX logbook, it offers that file automatically. If the source is JTDX and the complete history lives elsewhere, click <strong>«Выбрать файл»</strong> (Choose file) and select your LogHX logbook (.lhx2) or an ADIF export (.adi, .adif). AutoCQ reads a copy of the LogHX database while the logger stays open.</p>
 <p><img loading="lazy" src="logbook-source-demo.png" alt="Choosing the main logbook"></p>

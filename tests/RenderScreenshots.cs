@@ -26,10 +26,21 @@ static class RenderScreenshots
         using(var bitmap=new Bitmap(form.Width,form.Height)){form.DrawToBitmap(bitmap,new Rectangle(0,0,form.Width,form.Height));bitmap.Save(path,ImageFormat.Png);}
         if (showOffscreen) form.Hide();
     }
+    static void SaveExpeditions(string directory)
+    {
+        using (var main = new MainForm(true))
+        {
+            ((Timer)Field(main, "timer")).Stop();
+            using (var window = (Form)Invoke(main, "ExpeditionDemoForm"))
+                Save(window, Path.Combine(directory, "expeditions-demo.png"));
+        }
+    }
     [STAThread] static void Main(string[] args)
     {
         Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
         string directory=Path.GetFullPath(args[0]);Directory.CreateDirectory(directory);
+        SaveExpeditions(directory);
+        if (args.Length > 1 && args[1] == "expeditions") return;
         string version=typeof(MainForm).Assembly.GetName().Version.ToString(3);
         using(var form=new MainForm(true))
         {

@@ -16,8 +16,8 @@ using System.Xml;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.41.0")]
-[assembly: AssemblyFileVersion("0.9.41.0")]
+[assembly: AssemblyVersion("0.9.42.0")]
+[assembly: AssemblyFileVersion("0.9.42.0")]
 [assembly: AssemblyTitle(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyProduct(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyCompany(JtdxAutoCq.AppBrand.Author)]
@@ -202,7 +202,7 @@ namespace JtdxAutoCq
 
     public sealed partial class MainForm : Form
     {
-        const string ModuleVersion = "0.9.41";
+        const string ModuleVersion = "0.9.42";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = JtdxPatcher.PatchedHash;
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -475,11 +475,14 @@ namespace JtdxAutoCq
         { OpenGuide(false); }
 
         internal static void OpenGuide(bool awards)
+        { OpenGuide(awards ? "hamlog-awards" : "", awards ? "поиск-для-дипломов-hamlog" : ""); }
+
+        internal static void OpenGuide(string htmlSection, string markdownSection)
         {
             string local = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "docs", "user-guide.ru.html");
             string target = File.Exists(local)
-                ? awards ? new Uri(local).AbsoluteUri + "#hamlog-awards" : local
-                : UpdateClient.RepositoryUrl + "/blob/main/USER-GUIDE.md" + (awards ? "#поиск-для-дипломов-hamlog" : "");
+                ? htmlSection.Length == 0 ? local : new Uri(local).AbsoluteUri + "#" + htmlSection
+                : UpdateClient.RepositoryUrl + "/blob/main/USER-GUIDE.md" + (markdownSection.Length == 0 ? "" : "#" + markdownSection);
             Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
         }
         void ShowBugReport()
@@ -963,7 +966,7 @@ namespace JtdxAutoCq
             replayRequested = nativeStatusSeen = false; engine.Waiting.Invalidate(); engine.Cqs.Invalidate();
             Log("Прежние настройки восстановлены. JTDX снова готов к запуску.");
         }
-        void StartRadioSession(AwardCatalog awards)
+        void StartRadioSession(AwardCatalog awards, ExpeditionSearch expeditions = null)
         {
             AwardSearch search = null;
             if (awards != null)
@@ -976,7 +979,7 @@ namespace JtdxAutoCq
                     throw new InvalidOperationException("Для диплома дальних связей укажите свой QTH-локатор в настройках JTDX.");
             }
             if (engine.Options.ExcludedDxcc.Length > 0 || engine.HasPriorityCountries
-                || search == null && engine.Options.MonitorEnabled && engine.Options.MonitorDxcc.Length > 0
+                || search == null && expeditions == null && engine.Options.MonitorEnabled && engine.Options.MonitorDxcc.Length > 0
                 || search != null && search.NeedsDxcc)
                 CountryTable();
             if (!demo)
@@ -1012,7 +1015,7 @@ namespace JtdxAutoCq
                 }
                 tail.Reset(); direction = settings.Direction();
             }
-            engine.Start(DateTime.UtcNow, search);
+            engine.Start(DateTime.UtcNow, search, expeditions);
             UpdateNativeSelection(DateTime.UtcNow);
             UpdateUi();
         }
@@ -1213,7 +1216,8 @@ namespace JtdxAutoCq
             runMinutes.Enabled = cqAttempts.Enabled = searchEnabled.Enabled = priorityAfter73.Enabled =
                 switchMinutes.Enabled = queueMinutes.Enabled = !engine.Armed;
             exclusions.Enabled = priorities.Enabled = monitor.Enabled = monitorSetup.Enabled = !engine.Armed;
-            start.Text = engine.Awards != null ? "Поиск для дипломов"
+            start.Text = engine.Expeditions != null ? "Поиск экспедиций"
+                : engine.Awards != null ? "Поиск для дипломов"
                 : monitor.Checked ? "2. Включить мониторинг" : "2. Включить автомат";
             int targetCount = engine.Options.MonitorDxcc.Length + engine.Options.MonitorCalls.Length + engine.Options.MonitorMasks.Length;
             monitorSetup.Text = targetCount == 0 ? "Цели мониторинга" : "Цели мониторинга  ·  " + targetCount;
@@ -1250,6 +1254,7 @@ namespace JtdxAutoCq
             }
             counts.Text = "QSO в журнале  " + engine.LoggedCount + "    ·    73 получено  " + engine.ConfirmedCount + "    ·    Без 73  " + engine.Missing73Count
                 + (engine.Awards != null ? "    ·    Дипломов в поиске  " + engine.Awards.Available(DateTime.UtcNow)
+                    : engine.Expeditions != null ? "    ·    Поиск экспедиций"
                     : engine.Monitoring ? "    ·    Целей мониторинга  " + targetCount
                     : "    ·    Очередь  " + engine.Waiting.Rows.Count + "    ·    CQ без ответа  " + engine.UnansweredCqs + "/" + engine.Options.CqAttemptsBeforeSearch);
             if(engine.Finishing)
@@ -1257,7 +1262,8 @@ namespace JtdxAutoCq
             else if(engine.Armed)
             {
                 TimeSpan remaining=engine.SessionDeadline-DateTime.UtcNow;if(remaining<TimeSpan.Zero)remaining=TimeSpan.Zero;
-                sessionInfo.Text=String.Format("{0} {1:00}:{2:00}:{3:00}", engine.Awards != null ? "Дипломы" : engine.Monitoring ? "Мониторинг" : "Осталось",
+                sessionInfo.Text=String.Format("{0} {1:00}:{2:00}:{3:00}", engine.Expeditions != null ? "Экспедиции"
+                    : engine.Awards != null ? "Дипломы" : engine.Monitoring ? "Мониторинг" : "Осталось",
                     (int)remaining.TotalHours,remaining.Minutes,remaining.Seconds);sessionInfo.ForeColor=Mint;
             }
             else{sessionInfo.Text="AutoCQ выключен";sessionInfo.ForeColor=counts.ForeColor;}

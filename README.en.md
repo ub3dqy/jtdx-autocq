@@ -18,6 +18,7 @@ You could let it work for an hour, answering callers and looking for another sta
 - **Make a manual call while monitoring.** Choose an interesting station outside the target list. After that contact, AutoCQ resumes monitoring with the same settings and time remaining.
 - **Watch for wanted stations.** Match DXCC entities, callsigns and patterns against fresh CQ, 73, RRR or RR73. Return to receive after the contact or attempt limit.
 - **Find stations for HAMLOG awards.** Pick the awards you want and AutoCQ listens for stations that fit their published rules.
+- **Find expeditions and rare stations.** See announcements and recent spots for DX trips, field activations, rare RDA districts, and wanted DXCC entities. [Start a search](USER-GUIDE.en.md#expeditions-and-rare-stations)
 - **Answer incoming calls in every mode.** A station calling you takes priority over the next CQ or outgoing call. Fresh calls from stations you have already worked can join the queue. AutoCQ skips stations on your DXCC exclusion list.
 - **Update from the application.** Notify you about new releases and show download percentage, transferred size, speed and estimated time remaining. Install when you choose.
 - **Show monitoring retry pauses.** List unanswered stations with a countdown to their next eligible attempt. Stopping monitoring clears the list.
@@ -62,6 +63,14 @@ If JTDX ends a call because the frequency is occupied or the other station answe
 Spotted an interesting station outside your targets? While monitoring is listening, double-click its message in JTDX. You can also select it in AutoCQ's **«Станции из левого окна JTDX»** tab and click **«Позвать выбранную»** (Call selected). After the contact or the unanswered-call limit, monitoring resumes with the original settings and time remaining. The manual choice applies once; DXCC exclusions still apply.
 
 ![Calling a station manually while monitoring remains active](docs/monitor-manual-demo.png)
+
+## Expeditions and rare stations
+
+Open **«Журнал и дипломы → Экспедиции и редкие станции»** (Logbook and awards → Expeditions and rare stations). Choose what you want to find, such as DX trips, POTA parks, WWFF areas, or rare RDA districts. Each row shows why the station matches, where the information came from, its frequency, and when it was spotted. Set a rarity threshold or choose your own DXCC targets and band.
+
+Click **«Начать поиск»** (Start search) while JTDX is receiving. AutoCQ calls a match after JTDX decodes it on the current band. Spots from other bands help you decide where to tune in JTDX. [Details and sources](USER-GUIDE.en.md#expeditions-and-rare-stations)
+
+![Expedition, field activation, and rare station search in the AutoCQ demo](docs/expeditions-demo.png)
 
 ## Main logbook, profiles and session results
 

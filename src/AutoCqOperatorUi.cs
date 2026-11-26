@@ -18,6 +18,7 @@ namespace JtdxAutoCq
 
         void InitializeOperatorTools()
         {
+            InitializeExpeditions();
             whyCq.Text = "Почему пропущена?";
             whyCq.SetBounds(469, 571, 208, 30);
             whyCq.Enabled = false;
@@ -36,6 +37,7 @@ namespace JtdxAutoCq
             var targets = menu.Items.Add("Подбор целей DXCC", null, delegate { Guard(ChooseDxccFromLogbook); });
             var awards = menu.Items.Add("Дипломы HAMLOG", null, delegate { Guard(ShowAwards); });
             var awardMonitor = menu.Items.Add("Мониторинг дипломов", null, delegate { Guard(() => StartRadioSession(preferences.Awards)); });
+            menu.Items.Add("Экспедиции и редкие станции", null, delegate { Guard(ShowExpeditions); });
             menu.Items.Add("Итоги сеанса", null, delegate { Guard(ShowSessionSummary); });
             menu.Opening += delegate {
                 source.Enabled = !engine.Armed && !startingWithHistory;

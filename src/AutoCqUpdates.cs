@@ -21,6 +21,7 @@ namespace JtdxAutoCq
         public string LogbookPath = "";
         public List<OperatorProfile> Profiles = new List<OperatorProfile>();
         public AwardCatalog Awards = new AwardCatalog();
+        public ExpeditionOptions ExpeditionSearch = new ExpeditionOptions();
         public OperatingSession LastSession;
     }
     public sealed class AppPreferencesStore
@@ -36,6 +37,7 @@ namespace JtdxAutoCq
                 {
                     var preferences = (AppPreferences)new XmlSerializer(typeof(AppPreferences)).Deserialize(input);
                     if (preferences.Awards == null) preferences.Awards = new AwardCatalog();
+                    preferences.ExpeditionSearch = (preferences.ExpeditionSearch ?? new ExpeditionOptions()).Copy();
                     preferences.Awards.NormalizeBuiltInPrograms();
                     return preferences;
                 }

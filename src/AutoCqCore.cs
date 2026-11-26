@@ -165,8 +165,9 @@ namespace JtdxAutoCq
     public sealed class AutoCqEngine
     {
         public bool Armed { get; private set; }
-        public bool Monitoring { get { return Armed && (monitorTargets != null || Awards != null); } }
+        public bool Monitoring { get { return Armed && (monitorTargets != null || Awards != null || Expeditions != null); } }
         internal AwardSearch Awards { get; private set; }
+        internal ExpeditionSearch Expeditions { get; private set; }
         public string ManualMonitorCall { get { return manualMonitorCall ?? ""; } }
         public string IncomingMonitorCall { get { return incomingMonitorCall ?? ""; } }
         public RadioStatus Status { get; private set; }
@@ -279,7 +280,7 @@ namespace JtdxAutoCq
         public void Start(DateTime now)
         { Start(now, null); }
 
-        internal void Start(DateTime now, AwardSearch awards)
+        internal void Start(DateTime now, AwardSearch awards, ExpeditionSearch expeditions = null)
         {
             if (Status == null) throw new InvalidOperationException("Ожидается состояние JTDX.");
             if (Status.Mode != "FT8" && Status.Mode != "FT4") throw new InvalidOperationException("Поддерживаются FT8 и FT4.");
@@ -291,26 +292,29 @@ namespace JtdxAutoCq
             SessionDeadline = now.AddMinutes(Options.RunMinutes);
             sessionStartedAt = now;
             unconfirmedManualCall = null;
-            if (Options.MonitorEnabled || awards != null)
+            if (Options.MonitorEnabled || awards != null || expeditions != null)
             {
-                if (awards == null && Options.MonitorDxcc.Length + Options.MonitorCalls.Length + Options.MonitorMasks.Length == 0)
+                if (awards == null && expeditions == null && Options.MonitorDxcc.Length + Options.MonitorCalls.Length + Options.MonitorMasks.Length == 0)
                     throw new InvalidOperationException("Добавьте хотя бы одну цель мониторинга.");
+                if (expeditions != null && !expeditions.HasTargets)
+                    throw new InvalidOperationException("Выберите, какие экспедиции и станции искать.");
                 if (Status.TxEnabled || Status.Transmitting)
                     throw new InvalidOperationException("Выключите передачу в JTDX для запуска мониторинга.");
                 string band = JtdxAdif.Band(Status.Frequency);
-                if ((awards != null || Options.MonitorOnePerBand) && band == null)
+                if ((awards != null || expeditions != null || Options.MonitorOnePerBand) && band == null)
                     throw new InvalidOperationException("Не удалось определить диапазон JTDX для мониторинга.");
                 if (awards != null)
                 {
                     if (awards.Available(now) == 0)
                         throw new InvalidOperationException("Для текущего диапазона и вида работы выберите действующий диплом с правилами поиска.");
                 }
-                else monitorTargets = new MonitorTargets(Options, DxccForCall, Options.MonitorOnePerBand
+                else if (expeditions == null) monitorTargets = new MonitorTargets(Options, DxccForCall, Options.MonitorOnePerBand
                         ? WorkedCallsOnBand(band, CleanCall(Status.DeCall)) : null);
             }
             else if (!Status.TxEnabled && !String.IsNullOrEmpty(Status.DxCall) && NextManual() == null)
                 throw new InvalidOperationException("Очистите DX в JTDX для начала CQ или сначала запустите выбранную связь.");
             Awards = awards;
+            Expeditions = expeditions;
             sessionFrequency = Status.Frequency; sessionMode = Status.Mode; sessionPeriod = Status.TxFirst;
             workedCallers.Clear();
             string callerBand = JtdxAdif.Band(sessionFrequency);
@@ -327,7 +331,9 @@ namespace JtdxAutoCq
             };
             sentAcknowledgedReports.Clear();
             unexplainedStop = null;
-            if (Awards != null)
+            if (Expeditions != null)
+                Notice("Поиск экспедиций и редких станций включён на " + Options.RunMinutes + " мин. Слушаю эфир и отвечаю на входящие вызовы.");
+            else if (Awards != null)
                 Notice("Мониторинг включён на " + Options.RunMinutes + " мин. Ищу станции для выбранных дипломов и отвечаю на входящие вызовы.");
             else if (Monitoring)
                 Notice("Мониторинг включён на " + Options.RunMinutes + " мин. Ищу цели и отвечаю на входящие вызовы.");
@@ -352,6 +358,7 @@ namespace JtdxAutoCq
             manualCq = null; hunting = finishing = false; ResetCqRound();
             monitorTargets = null;
             Awards = null;
+            Expeditions = null;
             unconfirmedManualCall = null;
             ResetContact();
             sentAcknowledgedReports.Clear();
@@ -1231,8 +1238,24 @@ namespace JtdxAutoCq
 
         public bool IsMonitorCandidate(CqStation row, DateTime now)
         {
-            return Monitoring && IsMonitorMessage(row, now)
-                && (Awards == null ? monitorTargets.CanTry(row.Call) : Awards.MatchCount(row.Call, now, Cqs.LocatorFor(row.Call, now)) > 0);
+            if (!Monitoring || !IsMonitorMessage(row, now)) return false;
+            if (Expeditions != null) return ExpeditionTarget(row.Call, now) != null;
+            return Awards == null ? monitorTargets.CanTry(row.Call) : Awards.MatchCount(row.Call, now, Cqs.LocatorFor(row.Call, now)) > 0;
+        }
+
+        internal ExpeditionMatch ExpeditionTarget(string call, DateTime now)
+        {
+            return Expeditions == null ? null : Expeditions.Match(call, JtdxAdif.Band(sessionFrequency), sessionMode, now);
+        }
+
+        int MonitorPriority(CqStation row, DateTime now)
+        {
+            if (Expeditions != null)
+            {
+                ExpeditionMatch match = ExpeditionTarget(row.Call, now);
+                return match == null ? 0 : match.Priority;
+            }
+            return Awards == null ? 0 : Awards.MatchCount(row.Call, now, Cqs.LocatorFor(row.Call, now));
         }
 
         bool IsMonitorMessage(CqStation row, DateTime now)
@@ -1257,7 +1280,12 @@ namespace JtdxAutoCq
             if (finishing) return "Время сеанса вышло. AutoCQ заканчивает текущую связь и очередь.";
             if (Monitoring)
             {
-                if (Awards != null)
+                if (Expeditions != null)
+                {
+                    if (row.Worked) return "Связь с этой станцией уже проведена на текущем диапазоне.";
+                    if (ExpeditionTarget(call, now) == null) return "Станция пока не подходит под цели поиска экспедиций.";
+                }
+                else if (Awards != null)
                 {
                     if (Awards.MatchCount(call, now, Cqs.LocatorFor(call, now)) == 0) return Awards.Reason(call, now, Cqs.LocatorFor(call, now));
                 }
@@ -1282,6 +1310,7 @@ namespace JtdxAutoCq
                 return "Сейчас идёт обмен с " + Status.DxCall + ". Выбор продолжится после связи.";
             WaitingStation next = Status == null ? null : NextCaller(now);
             if (next != null) return "Сначала AutoCQ ответит на входящий вызов " + next.Call + ".";
+            if (Expeditions != null) return ExpeditionTarget(call, now).Reason + ".";
             if (Awards != null) return Awards.Reason(call, now, Cqs.LocatorFor(call, now));
             return "Станция подходит. AutoCQ проверит свежесть сообщения при следующем выборе.";
         }
@@ -1314,8 +1343,8 @@ namespace JtdxAutoCq
                 station = null; manual = false; manualCq = null;
             }
             if (!manual) station = Cqs.Next(now, CanCall, includeSignoffs: true,
-                eligible: row => IsMonitorCandidate(row, now), allowWorked: true,
-                priority: Awards == null ? (Func<CqStation, int>)null : row => Awards.MatchCount(row.Call, now, Cqs.LocatorFor(row.Call, now)));
+                eligible: row => IsMonitorCandidate(row, now), allowWorked: Expeditions == null,
+                priority: row => MonitorPriority(row, now));
             if (station == null) return;
             loggedCall = null; ResetContact();
             manualCq = null;
@@ -1325,8 +1354,10 @@ namespace JtdxAutoCq
             replyTarget = selectedQueuedCall = lastContact = station.Call;
             Cqs.Attempt(station.Call, now);
             ReplyCommands++;
+            ExpeditionMatch expedition = manual ? null : ExpeditionTarget(station.Call, now);
             Notice((manual ? "Ручной вызов " : "Цель мониторинга ") + station.Call + ". Вызываю по " + (station.Signoff ?? "CQ") + "."
                 + (manual ? " После связи или лимита вызовов продолжу мониторинг."
+                    : expedition != null ? " " + expedition.Reason + "."
                     : Awards == null ? "" : " " + Awards.Reason(station.Call, now, Cqs.LocatorFor(station.Call, now))));
             RequestReply(station.Decode.Copy());
         }

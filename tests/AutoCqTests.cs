@@ -146,6 +146,132 @@ class AutoCqTests
                 UpdateTests.RunAll(Run, args.Length > 1 ? args[1] : null);
                 BugReportTests.RunAll(Run);
                 OperatorToolsTests.RunAll(Run);
+                Run("DX activity announcements require an exact advertised call and valid UTC dates", () => {
+                    const string html = "<h1>Announced DX Operations</h1>"
+                        + "<p>Nov 7-9, 2025<br>DXCC: Micronesia<br>Callsign: <b>V6</b><br>Info: By JA1AAA as V6/JA1AAA; 40-10m; CW FT8</p>"
+                        + "<p>Dec 29, 2025-Jan 3, 2026<br>DXCC: Palau<br>Callsign: T88AAA<br>Info: 20-10m; FT4</p>"
+                        + "<p>Nov 7-8, 2025<br>DXCC: Palau<br>Callsign: T88ABC<br>Info: HF; SSB only</p>";
+                    var data = ExpeditionFeeds.Parse(ExpeditionSource.Ng3k, html, At);
+                    var catalog = new ExpeditionCatalog();
+                    catalog.Replace(ExpeditionSource.Ng3k, data);
+                    var search = new ExpeditionSearch(new ExpeditionOptions(), catalog, call => null);
+                    Assert(data.Activities.Select(row => row.Call).SequenceEqual(new[] { "V6/JA1AAA", "T88AAA" }),
+                        "A prefix, home call or an SSB-only announcement became a digital target");
+                    Assert(search.Match("V6/JA1AAA", "20m", "FT8", At) != null
+                        && search.Match("V6/JA1AAA", "20m", "FT4", At) == null
+                        && search.Match("V6/JA1AAA", "80m", "FT8", At) == null
+                        && search.Match("V6/JA1AAA", "20m", "FT8", At.AddDays(3)) == null
+                        && search.Match("T88AAA", "20m", "FT4", At) == null
+                        && search.Match("T88AAA", "20m", "FT4", new DateTime(2026, 1, 3, 23, 59, 0, DateTimeKind.Utc)) != null,
+                        "Announcement dates, modes or ranges were ignored");
+                });
+                Run("POTA, WWFF and CQDX preserve spot timestamps, frequency units and exact calls", () => {
+                    const string parks = @"[null,{""activator"":""W2ABC/P"",""frequency"":""14074.0"",""reference"":""US-1234"",
+                        ""mode"":""FT8"",""spotTime"":""2025-11-07T11:58:00""},
+                        {""activator"":""W3ABC"",""frequency"":""7074"",""reference"":""US-2345"",
+                        ""mode"":""FT8"",""spotTime"":""2025-11-07T11:20:00""}]";
+                    long epoch = (long)(At - new DateTime(1970, 1, 1)).TotalSeconds;
+                    string nature = @"[{""activator"":""DL1AAA/P"",""frequency_khz"":10136.0,""reference"":""DLFF-0123"",
+                        ""mode"":""FT8"",""spot_time"":" + (epoch - 180) + "}]";
+                    string cluster = @"{""groups"":[{""dxCall"":""V6AAA"",""frequency"":14080425,""mode"":""FT4"",
+                        ""dxDxcc"":173,""lastSeen"":" + (epoch - 98) + "}]}";
+                    ExpeditionActivity park = ExpeditionFeeds.Parse(ExpeditionSource.Pota, parks, At).Activities.Single();
+                    ExpeditionActivity area = ExpeditionFeeds.Parse(ExpeditionSource.Wwff, nature, At).Activities.Single();
+                    ExpeditionActivity dx = ExpeditionFeeds.Parse(ExpeditionSource.DxSpots, cluster, At).Activities.Single();
+                    Assert(park.Call == "W2ABC/P" && park.Band == "20m" && park.SpottedUtc == At.AddMinutes(-2)
+                        && area.Place == "DLFF-0123" && area.Frequency == 10136000 && area.SpottedUtc == At.AddMinutes(-3)
+                        && dx.Mode == "FT4" && dx.Frequency == 14080425 && dx.Dxcc == 173,
+                        "One of the feeds changed the band, time, callsign, or program reference");
+                });
+                Run("RDA matches the activator, applies the Wanted lists, and expires the previous location", () => {
+                    const string html = "<h1>RDA CLUSTER</h1><div class=\"activator_0\"><A class=\"rdalnkc\">RØAAA/P</A></div><table>"
+                        + "<tr><td></td><td>23:58</td><td></td><td>$</td><td>R2AAA</td><td>14074.0</td><td>CK-04</td><td>DIGI</td><td>FT8</td></tr>"
+                        + "<tr><td></td><td>00:02</td><td></td><td>$</td><td>R2AAA</td><td>7074.0</td><td>KK-10</td><td>DIGI</td><td>FT8</td></tr></table>";
+                    DateTime now = At.Date.AddMinutes(3);
+                    var data = ExpeditionFeeds.Parse(ExpeditionSource.Rda, html, now);
+                    Assert(data.Activities.Length == 2 && data.Activities.All(row => row.Call == "R0AAA/P")
+                        && data.Activities[1].SpottedUtc == now.AddMinutes(-5), "RDA spotter or wrong date used for the activator");
+                    var catalog = new ExpeditionCatalog();
+                    catalog.Replace(ExpeditionSource.Rda, data);
+                    string wantedPage = "<table>" + String.Join("", Enumerable.Range(1, 100).Select(rank =>
+                        "<tr><td>" + rank + "</td><td>" + (rank == 1 ? "CK-04" : "AA-" + (rank - 1).ToString("00"))
+                        + "</td><td>District</td><td>0</td><td></td><td></td></tr>")) + "</table>";
+                    catalog.Replace(ExpeditionSource.WantedRda, ExpeditionFeeds.Parse(ExpeditionSource.WantedRda, wantedPage, now));
+                    var search = new ExpeditionSearch(new ExpeditionOptions(), catalog, call => null);
+                    Assert(search.Match("R0AAA/P", "20m", "FT8", now) == null
+                        && search.Match("R0AAA/P", "40m", "FT8", now).Reason.Contains("KK-10")
+                        && search.Match("R0AAA", "40m", "FT8", now) == null
+                        && search.Match("R0AAA/P", "40m", "FT8", now.AddMinutes(15)) == null,
+                        "Old location, bare call, or expired spot was eligible");
+                    catalog.Replace(ExpeditionSource.Rda, new ExpeditionFeedData { Activities = new[] { data.Activities[1] } });
+                    Assert(search.Match("R0AAA/P", "20m", "FT8", now).Reason.Contains("Редкий район"), "Wanted RDA could not be selected");
+                });
+                Run("Rare DXCC and personal band matching work with local calls and a refreshed ranking", () => {
+                    var catalog = new ExpeditionCatalog();
+                    string ranks = @"{""entities"":[{""adifNumber"":247,""prefix"":""1S"",""entityName"":""Spratly"",
+                        ""rarityRank"":12,""isDeleted"":false},{""adifNumber"":400,""prefix"":""W"",""rarityRank"":1,""isDeleted"":true}]}";
+                    catalog.Replace(ExpeditionSource.DxRanks, ExpeditionFeeds.Parse(ExpeditionSource.DxRanks, ranks, At));
+                    var options = new ExpeditionOptions { MaxDxRank = 15, WantedDxcc = new[] { "JA" }, WantedBand = "40m" };
+                    var search = new ExpeditionSearch(options, catalog, call => call.StartsWith("JA") ? "JA" : call == "9M0AAA" ? "1S" : "W");
+                    Assert(search.Match("9M0AAA", "20m", "FT8", At).Reason.Contains("#12")
+                        && search.Match("W2ABC", "20m", "FT8", At) == null
+                        && search.Match("JA1AAA", "20m", "FT8", At) == null
+                        && search.Match("JA1AAA", "40m", "FT8", At).Reason.Contains("Ваша цель"), "Ranking or band constraint was lost");
+                    options.MaxDxRank = 1;
+                    Assert(search.Match("9M0AAA", "20m", "FT8", At) != null, "The configuration of a running search changed");
+                    catalog.Replace(ExpeditionSource.DxRanks, new ExpeditionFeedData());
+                    Assert(search.Match("9M0AAA", "20m", "FT8", At) == null, "An updated source left old eligibility active");
+                });
+                Run("Expedition monitoring uses fresh FT8 or FT4 decodes and gives incoming calls priority", () => {
+                    foreach (string mode in new[] { "FT8", "FT4" })
+                    foreach (bool incoming in new[] { false, true })
+                    {
+                        var commands = new List<string>();
+                        var engine = new AutoCqEngine { UseNativeSelection = true, CanCall = call => call != "T88ABC" };
+                        engine.RequestReply = message => commands.Add("REPLY " + message.Message);
+                        engine.RequestCallerReply = message => commands.Add("CALLER " + message.Message);
+                        engine.RequestCq = () => commands.Add("CQ");
+                        var status = S(false, ""); status.Mode = mode;
+                        engine.OnStatus(status, At);
+                        var catalog = new ExpeditionCatalog();
+                        catalog.Replace(ExpeditionSource.Pota, new ExpeditionFeedData { Activities = new[] {
+                            new ExpeditionActivity { Source = ExpeditionSource.Pota, Call = "W2ABC/P", Place = "US-1234", Mode = mode,
+                                Frequency = 7074000, SpottedUtc = At.AddMinutes(-1) },
+                            new ExpeditionActivity { Source = ExpeditionSource.Pota, Call = "W3ABC/P", Place = "US-2345", Mode = mode,
+                                Frequency = 14074000, SpottedUtc = At.AddMinutes(-20) },
+                        } });
+                        catalog.Replace(ExpeditionSource.Ng3k, new ExpeditionFeedData { Activities = new[] { "V6AAA", "T88ABC" }
+                            .Select(call => new ExpeditionActivity { Source = ExpeditionSource.Ng3k, Call = call, Place = "Fixture",
+                                StartUtc = At.Date, EndUtc = At.AddDays(1), Mode = mode }).ToArray() });
+                        engine.Start(At, null, new ExpeditionSearch(new ExpeditionOptions(), catalog, call => null));
+                        double slot = mode == "FT8" ? 15 : 7.5;
+                        DateTime heard = At.AddSeconds(slot), decoded = At.AddSeconds(2 * slot - 0.4);
+                        engine.Tick(At.AddSeconds(2), true);
+                        foreach (string call in new[] { "W2ABC/P", "W3ABC/P", "T88ABC" })
+                        {
+                            var cq = CqD(heard, call); cq.Mode = mode == "FT8" ? "~" : ":"; cq.IsNew = false;
+                            engine.OnDecode(cq, decoded);
+                        }
+                        engine.Tick(decoded, true);
+                        Assert(engine.Armed && engine.Monitoring && engine.HoldNativeSelection && commands.Count == 0,
+                            "A spot, wrong band, stale classification or excluded call caused TX");
+                        var target = CqD(heard, "V6AAA"); target.Mode = mode == "FT8" ? "~" : ":";
+                        engine.OnDecode(target, decoded);
+                        engine.Tick(decoded, true);
+                        Assert(commands.Count == 0, "An expedition decode outside JTDX's visible replay caused a call");
+                        target.IsNew = false;
+                        engine.OnDecode(target, decoded);
+                        if (incoming)
+                        {
+                            var caller = D(heard, "K2ABC", "FN20"); caller.Mode = target.Mode;
+                            engine.OnDecode(caller, decoded);
+                        }
+                        engine.Tick(decoded, true);
+                        Assert(commands.SequenceEqual(new[] { incoming ? "CALLER K1ABC K2ABC FN20" : "REPLY CQ V6AAA FN20" }),
+                            mode + " did not choose the expected " + (incoming ? "incoming caller" : "expedition")
+                                + ". Commands: " + String.Join(", ", commands));
+                    }
+                });
                 Run("Initial CQ is sent once and requires TX acknowledgement", () => {
                     AutoCqEngine e = new AutoCqEngine(); int cq = 0; e.RequestCq = () => cq++;
                     e.OnStatus(S(false, ""), At); e.Start(At); e.Tick(At.AddSeconds(1), true); e.Tick(At.AddSeconds(2), true);
