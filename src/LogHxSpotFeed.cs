@@ -17,24 +17,42 @@ namespace JtdxAutoCq
 
         internal static ExpeditionFeedData Read(DateTime now)
         {
-            string path = FindFile();
+            bool serverRunning;
+            string path = FindFile(out serverRunning);
+            return ReadBatch(path, now, serverRunning);
+        }
+
+        internal static ExpeditionFeedData ReadBatch(string path, DateTime now, bool serverRunning)
+        {
             byte[] bytes;
-            using (var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-            using (var reader = new BinaryReader(input))
+            try
             {
-                long length = input.Length;
-                if (length > MaxBytes || length % RecordSize != 0)
-                    throw new InvalidDataException("Не удалось прочитать пакет спотов LogHX.");
-                bytes = reader.ReadBytes((int)length);
-                if (bytes.Length != length || input.Length != length)
-                    throw new IOException("LogHX обновляет список спотов.");
+                using (var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                using (var reader = new BinaryReader(input))
+                {
+                    long length = input.Length;
+                    if (length > MaxBytes || length % RecordSize != 0)
+                        throw new InvalidDataException("Не удалось прочитать пакет спотов LogHX.");
+                    bytes = reader.ReadBytes((int)length);
+                    if (bytes.Length != length || input.Length != length)
+                        throw new IOException("LogHX обновляет список спотов.");
+                }
+            }
+            catch (FileNotFoundException)
+            {
+                if (!serverRunning) throw;
+                // LogHX removes the file after consuming a batch. Poll for the next one.
+                return new ExpeditionFeedData();
             }
             return Parse(bytes, now);
         }
 
-        static string FindFile()
+        static string FindFile(out bool serverRunning)
         {
-            Process[] processes = Process.GetProcessesByName("SpotMachineServer").Concat(Process.GetProcessesByName("LogHX3")).ToArray();
+            Process[] servers = Process.GetProcessesByName("SpotMachineServer");
+            serverRunning = servers.Length > 0;
+            Process[] processes = servers.Concat(Process.GetProcessesByName("LogHX3")).ToArray();
+            string batchPath = null;
             try
             {
                 foreach (Process process in processes)
@@ -43,15 +61,17 @@ namespace JtdxAutoCq
                     {
                         string folder = Path.GetDirectoryName(MainForm.RunningExecutable(process.Id));
                         if (String.IsNullOrEmpty(folder)) continue;
-                        string path = Path.Combine(folder, "Temp", "SpotsDataList.hx");
+                        string temp = Path.Combine(folder, "Temp");
+                        string path = Path.Combine(temp, "SpotsDataList.hx");
                         if (File.Exists(path)) return path;
+                        if (batchPath == null && Directory.Exists(temp)) batchPath = path;
                     }
                     catch (Win32Exception) { }
                     catch (InvalidOperationException) { }
                 }
             }
             finally { foreach (Process process in processes) process.Dispose(); }
-            return Path.Combine(Path.GetPathRoot(Environment.SystemDirectory), "LogHX", "Temp", "SpotsDataList.hx");
+            return batchPath ?? Path.Combine(Path.GetPathRoot(Environment.SystemDirectory), "LogHX", "Temp", "SpotsDataList.hx");
         }
 
         internal static ExpeditionFeedData Parse(byte[] bytes, DateTime now)

@@ -262,7 +262,10 @@ class AutoCqTests
                     BitConverter.GetBytes((uint)14074000).CopyTo(packet, 246);
                     Array.Copy(packet, 0, packet, recordBytes, recordBytes);
                     BitConverter.GetBytes(At.AddMinutes(-16).ToOADate()).CopyTo(packet, recordBytes + 230);
-                    var batch = LogHxSpotFeed.Parse(packet, At);
+                    string folder = TestWorkspace.Create();
+                    string path = Path.Combine(folder, "SpotsDataList.hx");
+                    File.WriteAllBytes(path, packet);
+                    var batch = LogHxSpotFeed.ReadBatch(path, At, true);
                     ExpeditionActivity spot = batch.Activities.Single();
                     Assert(spot.Call == "R0AAA/P" && spot.Band == "20m" && spot.Mode == "FT8" && spot.Place == "CK-04",
                         "Packed LogHX record, frequency or time was misread");
@@ -276,8 +279,26 @@ class AutoCqTests
                     var disabled = new ExpeditionSearch(new ExpeditionOptions { LogHxSpots = false }, catalog, call => null);
                     Assert(catalog.ForCall("R0AAA/P").Count() == 1 && enabled.Match("R0AAA/P", "20m", "FT8", At).Reason.Contains("Редкий район")
                         && disabled.Match("R0AAA/P", "20m", "FT8", At) == null, "LogHX batching or its source switch did not apply");
-                    catalog.MergeLogHx(new ExpeditionFeedData(), At.AddMinutes(15));
+                    File.Delete(path);
+                    var gap = LogHxSpotFeed.ReadBatch(path, At, true);
+                    Assert(gap.Activities.Length == 0, "A batch gap was treated as new spots");
+                    catalog.MergeLogHx(gap, At);
+                    Assert(catalog.ForCall("R0AAA/P").Count() == 1, "A gap discarded a fresh cached spot");
+                    File.WriteAllBytes(path, packet);
+                    Assert(LogHxSpotFeed.ReadBatch(path, At, true).Activities.Length == 1, "The next LogHX batch was missed");
+                    File.Delete(path);
+                    bool missing = false;
+                    try { LogHxSpotFeed.ReadBatch(path, At, false); }
+                    catch (FileNotFoundException) { missing = true; }
+                    Assert(missing, "An absent LogHX server and batch looked like a live feed");
+                    catalog.MergeLogHx(gap, At.AddMinutes(15));
                     Assert(!catalog.ForCall("R0AAA/P").Any(), "An old LogHX spot was retained");
+                });
+                Run("Expedition source failures distinguish a network timeout from a missing LogHX file", () => {
+                    Assert(MainForm.DescribeFeedFailure(new WebException("Timeout", WebExceptionStatus.Timeout)) == "тайм-аут"
+                        && MainForm.DescribeFeedFailure(new FileNotFoundException()) == "файл спотов не найден"
+                        && MainForm.DescribeFeedFailure(new InvalidDataException()) == "ошибка формата данных",
+                        "The source failed without an actionable reason");
                 });
                 Run("DX activity announcements require an exact advertised call and valid UTC dates", () => {
                     const string html = "<h1>Announced DX Operations</h1>"

@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Runtime.Serialization;
 using System.Windows.Forms;
 
 namespace JtdxAutoCq
@@ -17,7 +18,8 @@ namespace JtdxAutoCq
 
         sealed class FeedStatus
         {
-            internal bool Loading, Failed;
+            internal bool Loading;
+            internal string Failure;
             internal DateTime LastAttempt, LastSuccess, NextAttempt;
         }
 
@@ -97,7 +99,7 @@ namespace JtdxAutoCq
                 status = new FeedStatus();
                 expeditionFeeds.Add(source, status);
             }
-            bool mayRefreshNow = refresh && !status.Failed && ExpeditionFeeds.Interval(source) == TimeSpan.FromMinutes(2)
+            bool mayRefreshNow = refresh && status.Failure == null && ExpeditionFeeds.Interval(source) == TimeSpan.FromMinutes(2)
                 && now - status.LastAttempt >= TimeSpan.FromMinutes(2);
             if (status.Loading || now < status.NextAttempt && !mayRefreshNow) return;
             status.Loading = true;
@@ -111,19 +113,43 @@ namespace JtdxAutoCq
                 worker.Dispose();
                 if (IsDisposed || Disposing) return;
                 status.Loading = false;
-                status.Failed = args.Error != null;
+                string failure = args.Error == null ? null : DescribeFeedFailure(args.Error);
+                if (failure != status.Failure)
+                {
+                    string name = ExpeditionFeeds.Name(source);
+                    DiagnosticEvent(failure == null ? "Источник " + name + " снова доступен."
+                        : "Источник " + name + " недоступен (" + failure + ").");
+                    status.Failure = failure;
+                }
                 DateTime received = DateTime.UtcNow;
-                if (!status.Failed)
+                if (failure == null)
                 {
                     if (local) expeditionCatalog.MergeLogHx((ExpeditionFeedData)args.Result, received);
                     else expeditionCatalog.Replace(source, (ExpeditionFeedData)args.Result);
                     status.LastSuccess = received;
                 }
-                status.NextAttempt = received + (status.Failed
+                status.NextAttempt = received + (failure != null
                     ? local ? TimeSpan.FromSeconds(10) : SourceRetryDelay(args.Error)
                     : ExpeditionFeeds.Interval(source));
             };
             worker.RunWorkerAsync();
+        }
+
+        internal static string DescribeFeedFailure(Exception error)
+        {
+            var network = error as WebException;
+            if (network != null)
+            {
+                if (network.Status == WebExceptionStatus.Timeout) return "тайм-аут";
+                var response = network.Response as HttpWebResponse;
+                if (response != null) return "HTTP " + (int)response.StatusCode;
+                if (network.Status == WebExceptionStatus.NameResolutionFailure) return "ошибка DNS";
+                return "ошибка соединения";
+            }
+            if (error is DirectoryNotFoundException || error is FileNotFoundException) return "файл спотов не найден";
+            if (error is UnauthorizedAccessException) return "нет доступа";
+            if (error is InvalidDataException || error is SerializationException) return "ошибка формата данных";
+            return "ошибка чтения";
         }
 
         static TimeSpan SourceRetryDelay(Exception error)
@@ -143,8 +169,8 @@ namespace JtdxAutoCq
         {
             if (demo) return "Демонстрационные данные";
             if (selected.Length == 0) return "Выберите, что искать. Список обновится автоматически.";
-            var unavailable = selected.Where(source => expeditionFeeds[source].Failed && !expeditionFeeds[source].Loading)
-                .Select(ExpeditionFeeds.Name).ToArray();
+            var unavailable = selected.Where(source => expeditionFeeds[source].Failure != null && !expeditionFeeds[source].Loading)
+                .Select(source => ExpeditionFeeds.Name(source) + " (" + expeditionFeeds[source].Failure + ")").ToArray();
             var loading = selected.Where(source => expeditionFeeds[source].Loading).Select(ExpeditionFeeds.Name).ToArray();
             DateTime last = selected.Max(source => expeditionFeeds[source].LastSuccess);
             return (last == DateTime.MinValue ? "" : "Обновлено " + last.ToLocalTime().ToString("HH:mm:ss") + "   ")
