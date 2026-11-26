@@ -235,7 +235,9 @@ namespace JtdxAutoCq
         ulong sessionFrequency;
         string sessionMode, loggedCall, lastContact;
         bool sessionPeriod, pending, commandOutstanding, everEnabled;
-        DateTime due, expires, loggedAt, commandDeadline;
+        static readonly TimeSpan CommandConfirmationTimeout = TimeSpan.FromSeconds(6);
+        DateTime due, expires, loggedAt, commandIssuedAt, commandDeadline;
+        string expectedReplyMessage;
         string waitingCall, pendingOwner, attemptCall, lastRemoteFinalCall, resumedAcknowledgementCall;
         string stoppingRetry;
         bool received73, missing73Recorded, allowClearDx, attemptAnswered;
@@ -516,6 +518,7 @@ namespace JtdxAutoCq
                     SetSessionPeriod(status.TxFirst, now);
                     commandOutstanding = pending = false;
                     replyTarget = replyPreviousCall = null;
+                    expectedReplyMessage = null;
                     expectedPeriod = null;
                 }
             }
@@ -592,6 +595,8 @@ namespace JtdxAutoCq
             if (!Armed) return;
             if (line.EndsWith("  Decoding finished", StringComparison.Ordinal))
                 lastDecodeFinished = RadioTime(line) ?? now;
+            if (commandOutstanding && expectedReplyMessage != null)
+                ObserveReplyReceipt(line);
             if(commandOutstanding && replyTarget!=null && line.IndexOf("UDP Reply request ignored, decode not found",StringComparison.Ordinal)>=0
                 && Regex.IsMatch(line,@"(?:[ <])"+Regex.Escape(replyTarget)+@"(?:[ >]|$)"))
             {
@@ -746,6 +751,33 @@ namespace JtdxAutoCq
             Notice(reason);
         }
 
+        void BeginCommand(DateTime now, DecodedMessage decode = null)
+        {
+            commandOutstanding = true;
+            commandIssuedAt = now;
+            commandDeadline = now + CommandConfirmationTimeout;
+            expectedReplyMessage = decode == null || String.IsNullOrWhiteSpace(decode.Message) ? null : decode.Message.Trim();
+        }
+
+        void ObserveReplyReceipt(string line)
+        {
+            const string marker = "UDP Reply request received: ";
+            int start = line.IndexOf(marker, StringComparison.Ordinal);
+            if (start < 0 || !String.Equals(line.Substring(start + marker.Length).Trim(), expectedReplyMessage,
+                StringComparison.OrdinalIgnoreCase)) return;
+
+            DateTime? received = RadioTime(line);
+            // The log records milliseconds. Allow its rounding at the send boundary.
+            if (!received.HasValue || received.Value < commandIssuedAt.AddMilliseconds(-1) || received.Value > commandDeadline) return;
+
+            // JTDX logged receipt, but TX is enabled only after it processes the reply.
+            // Give it one more TX/RX cycle. A duplicate receipt cannot extend this deadline.
+            expectedReplyMessage = null;
+            commandDeadline = commandDeadline.AddTicks(2 * SlotDuration.Ticks);
+            Diagnostic("JTDX получил команду вызова " + replyTarget + ". Ожидаю подтверждение TX до "
+                + commandDeadline.ToLocalTime().ToString("HH:mm:ss") + ".");
+        }
+
         static string CleanCall(string call) { return Callsign.Clean(call); }
         static string[] Words(string text) { return text.ToUpperInvariant().Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries); }
         static DateTime? RadioTime(string line)
@@ -772,6 +804,7 @@ namespace JtdxAutoCq
             callLimitExceeded = yieldingToCaller = false; stoppingRetry = null;
             lastAttemptReplySlot = -1;
             resumedAcknowledgementCall = null;
+            expectedReplyMessage = null;
             replyTarget = null; selectedQueuedCall = null; replyDuringCq = false; lastInitialSlot = -1;
             replyPreviousCall = CleanCall(previousCall);
             expectedPeriod = null; activeSearchCall = null; completedCurrent = false;
@@ -869,7 +902,8 @@ namespace JtdxAutoCq
             unconfirmedManualCall = null;
             manualMonitorCall = selectedQueuedCall = lastContact = call;
             Cqs.Retry(call); Cqs.Attempt(call, now);
-            commandOutstanding = true; commandDeadline = now.AddSeconds(6); replyTarget = call;
+            BeginCommand(now);
+            replyTarget = call;
             if (Status.TxEnabled && CleanCall(Status.DxCall) == call)
             {
                 SetSessionPeriod(Status.TxFirst, now);
@@ -1399,7 +1433,7 @@ namespace JtdxAutoCq
             if (caller != null)
             {
                 loggedCall = null; ResetContact(previousCall ?? Status.DxCall);
-                commandOutstanding = true; commandDeadline = now.AddSeconds(6);
+                BeginCommand(now, caller.Decode);
                 ReplyToQueuedCaller(caller);
                 return;
             }
@@ -1423,7 +1457,7 @@ namespace JtdxAutoCq
             loggedCall = null; ResetContact(previousCall ?? Status.DxCall);
             manualCq = null;
             if (manual) manualMonitorCall = station.Call;
-            commandOutstanding = true; commandDeadline = now.AddSeconds(6);
+            BeginCommand(now, station.Decode);
             expectedPeriod = CallerQueue.ReplyFirst(station.Decode, sessionMode);
             replyTarget = selectedQueuedCall = lastContact = station.Call;
             Cqs.Attempt(station.Call, now);
@@ -1670,8 +1704,8 @@ namespace JtdxAutoCq
                 Stop("Время вышло. Текущая связь и доступная очередь завершены; автомат выключен.", false);
                 return;
             }
-            commandOutstanding = true; commandDeadline = now.AddSeconds(6);
             loggedCall = null; lastContact = null; ResetContact(waitingCall ?? pendingOwner ?? Status.DxCall);
+            BeginCommand(now, next != null ? next.Decode : cq == null ? null : cq.Decode);
             if (next != null)
             {
                 ReplyToQueuedCaller(next);

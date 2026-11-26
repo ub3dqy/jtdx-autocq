@@ -3078,6 +3078,90 @@ class AutoCqTests
                             operation + " mishandled " + outcome + " during the handoff in " + mode);
                     }
                 });
+                Run("A receipt from JTDX allows a late reply confirmation once per command", () => {
+                    foreach (string mode in new[] { "FT4", "FT8" })
+                    foreach (string route in new[] { "band list", "incoming", "monitoring target", "awards", "expeditions" })
+                    foreach (string outcome in new[] { "confirmed", "no receipt", "wrong message", "old receipt", "duplicate",
+                        "manual stop", "connection lost", "rejected" })
+                    {
+                        AwardSearch awards = null;
+                        ExpeditionSearch expeditions = null;
+                        if (route == "awards")
+                        {
+                            var program = HamlogAward.Gunsmiths.Create();
+                            program.Selected = true;
+                            var catalog = new AwardCatalog { Programs = new List<AwardProgram> { program } };
+                            awards = new AwardSearch(catalog, "K1ABC", "20m", mode, call => null);
+                        }
+                        if (route == "expeditions")
+                            expeditions = new ExpeditionSearch(new ExpeditionOptions(), new ExpeditionCatalog(), call => null);
+                        bool monitoring = route == "monitoring target" || awards != null || expeditions != null;
+                        List<string> commands;
+                        AutoCqEngine engine = TerminalHaltRace(out commands, monitoring, mode, true, awards, expeditions);
+                        engine.RequestReply = engine.RequestCallerReply = d => commands.Add(d.Message);
+                        var diagnostics = new List<string>();
+                        engine.Diagnostic = diagnostics.Add;
+                        if (route == "band list")
+                        {
+                            engine.Options.PriorityDxcc = new[] { "K" };
+                            engine.Options.PriorityAfter73 = true;
+                            engine.IsPriorityCall = call => call == "W2ABC";
+                        }
+                        string peer = route == "monitoring target" ? "JA2ZZB" : "W2ABC";
+                        double slot = mode == "FT4" ? 7.5 : 15;
+                        DateTime boundary = At.AddSeconds(4 * slot);
+                        var decode = D(boundary.AddSeconds(-slot), peer, "FN20");
+                        decode.Mode = mode == "FT4" ? ":" : "~";
+                        if (route == "band list" || route == "monitoring target")
+                        {
+                            decode.IsNew = false;
+                            decode.Message = "W3ABC " + peer + " RR73";
+                        }
+                        engine.OnDecode(decode, boundary.AddSeconds(0.85));
+                        engine.OnLine("Halt Tx triggered at RX: UDP request", boundary.AddSeconds(0.9));
+                        RadioStatus idle = S(false, ""); idle.Mode = mode;
+                        engine.OnStatus(idle, boundary.AddSeconds(0.94));
+                        DateTime sent = boundary.AddSeconds(1).AddTicks(5000);
+                        engine.Tick(sent, true);
+                        Assert(commands.SequenceEqual(new[] { "HALT", decode.Message }), "The test did not send the requested reply");
+
+                        string echo = outcome == "wrong message" ? decode.Message + " OTHER" : decode.Message;
+                        DateTime received = outcome == "old receipt" ? sent.AddSeconds(-2) : sent;
+                        DateTime afterOrdinaryTimeout = sent.AddSeconds(7.54);
+                        DateTime readAt = route == "band list" && outcome == "confirmed" ? afterOrdinaryTimeout : sent.AddMilliseconds(80);
+                        if (outcome != "no receipt")
+                            engine.OnLine(received.ToString("yyyyMMdd_HHmmss.fff") + "(0)  UDP Reply request received: " + echo + "    ",
+                                readAt);
+                        if (outcome == "duplicate")
+                            engine.OnLine(sent.AddSeconds(5).ToString("yyyyMMdd_HHmmss.fff") + "(0)  UDP Reply request received: " + echo,
+                                sent.AddSeconds(5.1));
+                        engine.Tick(afterOrdinaryTimeout, true);
+                        if (outcome == "no receipt" || outcome == "wrong message" || outcome == "old receipt")
+                        {
+                            Assert(!engine.Armed && commands.Last() == "HALT" && diagnostics.Count == 0,
+                                "A missing or unrelated receipt extended the command timeout");
+                            continue;
+                        }
+                        Assert(engine.Armed && commands.Count == 2 && diagnostics.Count == 1 && diagnostics[0].Contains(peer),
+                            route + " stopped or repeated the command despite its receipt in " + mode);
+                        DateTime late = sent.AddSeconds(7.577);
+                        if (outcome == "confirmed")
+                        {
+                            RadioStatus selected = S(true, peer); selected.Mode = mode;
+                            engine.OnStatus(selected, late);
+                            DateTime nextTx = boundary.AddSeconds(2 * slot);
+                            engine.OnLine(Tx(nextTx, peer, "-12").Replace("FT8:", mode + ":"), nextTx);
+                        }
+                        if (outcome == "manual stop")
+                            engine.OnLine("Halt Tx triggered at RX: Halt Tx button clicked", late);
+                        if (outcome == "rejected")
+                            engine.OnLine("UDP Reply request ignored, decode not found: " + decode.Message, late);
+                        if (outcome == "connection lost") engine.Tick(late, false);
+                        engine.Tick(sent.AddSeconds(2 * slot + 6.2), true);
+                        Assert(engine.Armed == (outcome == "confirmed" || outcome == "rejected"),
+                            route + " mishandled " + outcome + " after a reply receipt in " + mode);
+                    }
+                });
                 Run("Terminal Halt acknowledgement handling still honours manual and external stops", () => {
                     foreach (string reason in new[] { "Halt Tx button clicked", "TX halted via Escape button" })
                     {
