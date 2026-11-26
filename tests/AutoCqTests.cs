@@ -2963,6 +2963,101 @@ class AutoCqTests
                     Assert(e.Monitoring && e.Cqs.MonitorTimeouts(At.AddSeconds(29.4)).Single().Call == "JA2ZZB" && commands.Count == 1,
                         "A target rejected during selection ended monitoring or left the failed call active");
                 });
+                Run("An interrupted RR73 exchange continues CQ, monitoring and awards in FT8 and FT4", () => {
+                    foreach (string operation in new[] { "CQ", "monitoring", "awards" })
+                    foreach (string mode in new[] { "FT8", "FT4" })
+                    foreach (bool statusFirst in new[] { false, true })
+                    foreach (string outcome in new[] { "caller", "quiet", "final" })
+                    {
+                        const string peer = "R3PAA";
+                        var commands = new List<string>();
+                        var engine = new AutoCqEngine {
+                            UseNativeSelection = true,
+                            DxccForCall = call => call.StartsWith("R") ? "UA" : null
+                        };
+                        engine.Options.MonitorEnabled = operation == "monitoring";
+                        engine.Options.MonitorDxcc = new[] { "UA" };
+                        engine.RequestCq = () => commands.Add("CQ");
+                        engine.RequestHalt = () => commands.Add("HALT");
+                        engine.RequestCallerReply = decode => commands.Add("CALLER " + decode.Message);
+                        RadioStatus initial = S(operation == "CQ", operation == "CQ" ? peer : "");
+                        initial.Mode = mode;
+                        engine.OnStatus(initial, At);
+                        AwardSearch search = null;
+                        if (operation == "awards")
+                        {
+                            var program = HamlogAward.Gunsmiths.Create();
+                            program.Selected = true;
+                            var catalog = new AwardCatalog { Programs = new List<AwardProgram> { program } };
+                            search = new AwardSearch(catalog, "K1ABC", "20m", mode, engine.DxccForCall);
+                        }
+                        engine.Start(At, search);
+                        DateTime deadline = engine.SessionDeadline;
+                        if (operation != "CQ")
+                        {
+                            engine.OnLine(ManualSelection(At.AddSeconds(1), peer), At.AddSeconds(1));
+                            RadioStatus selected = S(true, peer); selected.Mode = mode;
+                            engine.OnStatus(selected, At.AddSeconds(1.1));
+                        }
+
+                        double slot = mode == "FT4" ? 7.5 : 15;
+                        string marker = mode == "FT4" ? ":" : "~";
+                        DateTime first = At.AddSeconds(2 * slot);
+                        DateTime repeat = first.AddSeconds(2 * slot);
+                        engine.OnLine(Tx(first, peer, "RR73").Replace("FT8:", mode + ":"), first);
+                        engine.OnLine("QSO logged: " + peer, first.AddMilliseconds(50));
+                        DecodedMessage peerReport = D(first.AddSeconds(slot), peer, "R-20"); peerReport.Mode = marker;
+                        engine.OnDecode(peerReport, repeat.AddMilliseconds(-800));
+                        engine.OnLine(DecodeFinished(repeat.AddMilliseconds(-600)), repeat.AddMilliseconds(-600));
+                        engine.Tick(repeat.AddMilliseconds(-500), true);
+                        Assert(engine.TerminalRepeatMessage == 4, "The addressed report did not authorize RR73");
+                        engine.OnLine(Tx(repeat, peer, "RR73").Replace("FT8:", mode + ":"), repeat);
+
+                        DateTime rx = repeat.AddSeconds(slot), boundary = repeat.AddSeconds(2 * slot);
+                        DecodedMessage elsewhere = D(rx, peer, "-13");
+                        elsewhere.Mode = marker; elsewhere.Message = "W3ABC " + peer + " -13";
+                        engine.OnDecode(elsewhere, boundary.AddMilliseconds(-850));
+                        var receiving = S(false, peer); receiving.Mode = mode; receiving.Decoding = true;
+                        if (statusFirst) engine.OnStatus(receiving, boundary.AddMilliseconds(-800));
+                        engine.OnLine("Halt Tx triggered at RX: readFromStdout, not owner of the frequency or reply to other",
+                            boundary.AddMilliseconds(-750));
+                        if (!statusFirst) engine.OnStatus(receiving, boundary.AddMilliseconds(-700));
+                        engine.Tick(boundary.AddMilliseconds(-600), true);
+                        Assert(engine.Armed && engine.Awaiting73 && commands.Count == 0,
+                            operation + " stopped or started another TX before RX completed");
+
+                        if (outcome != "quiet")
+                        {
+                            DecodedMessage response = outcome == "final" ? D(rx, peer, "73") : D(rx, "W2ABC", "FN20");
+                            response.Mode = marker;
+                            engine.OnDecode(response, boundary.AddMilliseconds(-450));
+                        }
+                        engine.OnLine(DecodeFinished(boundary.AddMilliseconds(-330)), boundary.AddMilliseconds(-330));
+                        RadioStatus idle = S(false, ""); idle.Mode = mode;
+                        engine.OnStatus(idle, boundary.AddMilliseconds(-250));
+                        engine.Tick(boundary.AddMilliseconds(-200), true);
+                        string[] expected = outcome == "caller" ? new[] { "CALLER K1ABC W2ABC FN20" }
+                            : operation == "CQ" ? new[] { "CQ" } : new string[0];
+                        Assert(engine.Armed && engine.Monitoring == (operation != "CQ") && engine.SessionDeadline == deadline
+                            && engine.LoggedCount == 1 && engine.ConfirmedCount == (outcome == "final" ? 1 : 0)
+                            && engine.Missing73Count == (outcome == "final" ? 0 : 1) && commands.SequenceEqual(expected),
+                            operation + " did not preserve the QSO result or continue the session in " + mode);
+                    }
+                });
+                Run("A busy call selected by JTDX can end before the first transmission in CQ mode", () => {
+                    List<string> commands;
+                    AutoCqEngine engine = Active(out commands);
+                    engine.UseNativeSelection = true;
+                    DateTime end = At.AddSeconds(14);
+                    const string busy = "Halt Tx triggered at RX: readFromStdout, not owner of the frequency or reply to other";
+                    engine.OnStatus(S(false, "W1AW"), end);
+                    engine.OnLine(busy, end.AddMilliseconds(100));
+                    engine.OnStatus(S(false, ""), end.AddMilliseconds(200));
+                    engine.OnLine(busy, end.AddMilliseconds(250));
+                    engine.Tick(end.AddMilliseconds(300), true);
+                    Assert(engine.Armed && commands.SequenceEqual(new[] { "CQ" }),
+                        "The busy target or its duplicate stop ended the CQ session");
+                });
                 Run("Monitoring returns to RX at the limit and can then select a different target", () => {
                     List<string> commands;
                     AutoCqEngine engine = MonitorActive(out commands);

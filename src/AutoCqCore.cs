@@ -624,14 +624,17 @@ namespace JtdxAutoCq
                 && now >= receivedFinalAt.Value && now - receivedFinalAt.Value <= SlotDuration + SlotDuration;
             // The native decoder ends this attempt if the frequency is in use
             // or the DX replies elsewhere. JTDX has disabled TX for this call.
-            string monitoredContact = waitingCall ?? selectedQueuedCall ?? attemptCall;
-            bool busyStop = Monitoring && BusyTargetHalt.IsMatch(reason);
-            bool busyTarget = busyStop && monitoredContact != null && monitoredContact == lastContact;
+            bool busyStop = BusyTargetHalt.IsMatch(reason);
+            string currentContact = waitingCall ?? selectedQueuedCall ?? attemptCall;
+            if (busyStop && currentContact == null && !pending && Status != null
+                && (Status.TxEnabled || unexplainedStop.HasValue))
+                currentContact = Callsign.Parse(Status.DxCall);
+            bool busyTarget = busyStop && currentContact != null && currentContact == CleanCall(lastContact);
             bool noDecode = NoDecodeHalt.IsMatch(reason);
             bool counter = reason.IndexOf("counter triggered", StringComparison.Ordinal) >= 0;
             bool nativeRetryEnd = reason.IndexOf("m_houndMode", StringComparison.Ordinal) < 0 && (counter || noDecode);
             // JTDX can report a second retry stop after the attempt was released.
-            if (Monitoring && monitoredContact == null && (busyStop || nativeRetryEnd)) return;
+            if (currentContact == null && (busyStop || Monitoring && nativeRetryEnd)) return;
             bool retryEnd = busyTarget || nativeRetryEnd && (counter || !String.IsNullOrEmpty(lastContact));
             if ((everEnabled || busyTarget) && ((normalEnd && loggedRecently) || (finalStop && confirmedRecently) || retryEnd))
             {
@@ -654,9 +657,10 @@ namespace JtdxAutoCq
                     waitUntil = lastReply > nativeWait ? lastReply : nativeWait;
                 }
                 allowClearDx = true; pendingOwner = waitingCall ?? lastContact;
-                Schedule(now, Awaiting73 ? "Дослушиваю заключительное 73 от " + waitingCall + "."
+                string continuation = Awaiting73 ? "Дослушиваю заключительное 73 от " + waitingCall + "."
                     : Monitoring ? "Обмен с целью завершён. Возвращаюсь на приём."
-                    : retryEnd ? "JTDX завершил вызов. Выбираю следующую станцию или CQ." : "Завершение подтверждено: следующая станция или CQ");
+                    : retryEnd ? "JTDX завершил вызов. Выбираю следующую станцию или CQ." : "Завершение подтверждено: следующая станция или CQ";
+                Schedule(now, busyTarget ? "JTDX прервал передачу для " + currentContact + ". " + continuation : continuation);
                 // FIN/counter is an explicit native acknowledgement. Tick still
                 // waits for RX, completed decoding and the final-73 condition.
                 due=now;
@@ -669,7 +673,7 @@ namespace JtdxAutoCq
             string next = Monitoring ? "Возвращаюсь на приём." : "Выбираю следующую станцию или CQ.";
             string station = String.IsNullOrEmpty(call) ? "" : " " + call;
             string notice = "JTDX завершил вызов" + station + ". " + next;
-            if (busyTarget) notice = "JTDX прервал вызов " + call + ". Продолжаю мониторинг.";
+            if (busyTarget) notice = "JTDX прервал вызов" + station + ". " + next;
             else if (yieldingToCaller) notice = "Нет ответа от " + call + ". Отвечаю станции, которая зовёт нас сейчас.";
             else if (noDecode) notice = "JTDX не декодировал станцию " + call + ". " + next;
             else if (attemptCall == call && initialTransmissions >= sessionCallAttempts && !attemptAnswered)
