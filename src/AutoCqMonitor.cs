@@ -126,18 +126,19 @@ namespace JtdxAutoCq
                 && (mode == null || String.Equals(qso.Mode, mode, StringComparison.OrdinalIgnoreCase))).Select(qso => qso.Call));
         }
 
-        internal static List<LogbookQso> Contacts(string file)
+        internal static List<LogbookQso> Contacts(string file, bool preserveRecords = false)
         {
             if (!File.Exists(file)) return new List<LogbookQso>();
             using (var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
             using (var reader = new StreamReader(stream))
-                return ContactsFromText(reader.ReadToEnd());
+                return ContactsFromText(reader.ReadToEnd(), preserveRecords);
         }
 
-        internal static List<LogbookQso> ContactsFromText(string text)
+        internal static List<LogbookQso> ContactsFromText(string text, bool preserveRecords = false)
         {
             var contacts = new List<LogbookQso>();
             var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            int recordStart = -1;
             for (Match tag = Tag.Match(text); tag.Success;)
             {
                 string name = tag.Groups[1].Value.ToUpperInvariant();
@@ -147,14 +148,21 @@ namespace JtdxAutoCq
                     if (name == "EOR")
                     {
                         LogbookQso contact = Contact(fields);
-                        if (contact != null) contacts.Add(contact);
+                        if (contact != null)
+                        {
+                            if (preserveRecords && recordStart >= 0)
+                                contact.RawAdif = text.Substring(recordStart, next - recordStart);
+                            contacts.Add(contact);
+                        }
                     }
                     fields.Clear();
+                    recordStart = -1;
                 }
                 else if (tag.Groups[2].Success)
                 {
                     int count;
                     if (!Int32.TryParse(tag.Groups[2].Value, out count) || count > text.Length - next) break;
+                    if (preserveRecords && recordStart < 0) recordStart = tag.Index;
                     if (ContactFields.Contains(name))
                         fields[name] = text.Substring(next, count).Trim();
                     next += count;

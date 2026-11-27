@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -35,12 +36,43 @@ static class RenderScreenshots
                 Save(window, Path.Combine(directory, "expeditions-demo.png"), showOffscreen: true);
         }
     }
+    static void SaveOperatorTools(string directory)
+    {
+        using (var main = new MainForm(true))
+        {
+            ((Timer)Field(main, "timer")).Stop();
+            var engine = (AutoCqEngine)Field(main, "engine");
+            var now = DateTime.UtcNow;
+            engine.Start(now);
+            engine.RequestPause(now);
+            engine.Tick(now.AddSeconds(1), true);
+            if (!engine.Paused) throw new Exception("The pause demo did not enter the paused state.");
+            Invoke(main, "UpdateUi");
+            Save(main, Path.Combine(directory, "pause-qso-demo.png"));
+            var demos = new Dictionary<string, string> {
+                { "TraceDemoForm", "session-trace-demo.png" },
+                { "ListeningDemoForm", "listening-demo.png" },
+                { "PropagationDemoForm", "propagation-demo.png" },
+                { "DecodeDiagnosticsDemoForm", "decode-diagnostics-demo.png" },
+                { "RecoveryDemoForm", "log-recovery-demo.png" }
+            };
+            foreach (var demo in demos)
+                using (var window = (Form)Invoke(main, demo.Key))
+                    Save(window, Path.Combine(directory, demo.Value), showOffscreen: true);
+        }
+    }
     [STAThread] static void Main(string[] args)
     {
         Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);
         string directory=Path.GetFullPath(args[0]);Directory.CreateDirectory(directory);
+        if (args.Length > 1 && args[1] == "operator-tools")
+        {
+            SaveOperatorTools(directory);
+            return;
+        }
         SaveExpeditions(directory);
         if (args.Length > 1 && args[1] == "expeditions") return;
+        SaveOperatorTools(directory);
         string version=typeof(MainForm).Assembly.GetName().Version.ToString(3);
         using(var form=new MainForm(true))
         {

@@ -35,7 +35,19 @@ function render(source) {
         'Поиск для дипломов HAMLOG': 'hamlog-awards',
         'Search for HAMLOG award contacts': 'hamlog-awards',
         'Экспедиции и редкие станции': 'expeditions',
-        'Expeditions and rare stations': 'expeditions'
+        'Expeditions and rare stations': 'expeditions',
+        'Пауза после QSO': 'pause-qso',
+        'Pause after a QSO': 'pause-qso',
+        'Дежурный приём': 'listening-watch',
+        'Listening watch': 'listening-watch',
+        'Где меня слышат': 'propagation',
+        'Where am I heard?': 'propagation',
+        'Декодирование JTDX': 'decode-diagnostics',
+        'JTDX decoding': 'decode-diagnostics',
+        'Разбор сеанса': 'session-trace',
+        'Review a session': 'session-trace',
+        'Экспорт связей в LogHX': 'log-recovery',
+        'Export contacts to LogHX': 'log-recovery'
       };
       const id = anchors[heading[2]] ? ' id="' + anchors[heading[2]] + '"' : '';
       out.push('<h' + n + id + '>' + inline(heading[2]) + '</h' + n + '>');

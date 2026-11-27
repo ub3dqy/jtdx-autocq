@@ -91,6 +91,15 @@ The same menu lets you save settings under a name and check **«Итоги се�
 
 ![Finding DXCC targets using the main logbook](docs/dxcc-targets-demo.png)
 
+## Listening, pausing and reviewing a session
+
+- **Pause after a QSO.** Finish the current exchange, leave JTDX receiving, and resume with the same time remaining and queue. [How to pause](USER-GUIDE.en.md#pause-after-a-qso)
+- **Listening watch.** Get alerts for wanted callsigns, locators and expeditions from JTDX decodes and spot feeds. [Set up the listening watch](USER-GUIDE.en.md#listening-watch)
+- **Where am I heard?** See which receivers reported your FT8 and FT4 signals in the last hour. [PSK Reporter reception reports](USER-GUIDE.en.md#where-am-i-heard)
+- **JTDX decoding.** Compare decode duration, finish timing and lost audio blocks after changing a setting. [Compare measurements](USER-GUIDE.en.md#jtdx-decoding)
+- **Review a session.** See AutoCQ commands and JTDX transmissions in order, save the trace, and compare settings offline. [Review a recorded session](USER-GUIDE.en.md#review-a-session)
+- **Export contacts to LogHX.** Save verified JTDX records in a separate ADIF file for import into LogHX. [Recover missing contacts](USER-GUIDE.en.md#export-contacts-to-loghx)
+
 ## Updates
 
 Version 0.9.6 introduces **«Обновления»** (Updates). AutoCQ checks GitHub at startup and daily while open. A new version highlights the button and shows a notification. You can disable automatic checks.

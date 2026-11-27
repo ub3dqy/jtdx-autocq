@@ -168,6 +168,8 @@ namespace JtdxAutoCq
     public sealed class AutoCqEngine
     {
         public bool Armed { get; private set; }
+        public bool PauseRequested { get; private set; }
+        public bool Paused { get; private set; }
         public bool Monitoring { get { return Armed && (monitorTargets != null || Awards != null || Expeditions != null); } }
         internal AwardSearch Awards { get; private set; }
         internal ExpeditionSearch Expeditions { get; private set; }
@@ -229,7 +231,7 @@ namespace JtdxAutoCq
         {
             get
             {
-                return Armed && (Monitoring || CallerRulesActive || NextManual() != null || finishing || Awaiting73 || stoppingRetry != null
+                return Armed && (PauseRequested || Paused || Monitoring || CallerRulesActive || NextManual() != null || finishing || Awaiting73 || stoppingRetry != null
                     || terminalHaltRequested || periodSwitchHalt || activeSearchCall != null || ReverseExchangePending
                     || selectedQueuedCall != null || attemptCall != null && !attemptAnswered
                     || commandOutstanding && replyTarget != null);
@@ -282,6 +284,9 @@ namespace JtdxAutoCq
         DateTime lastCqTime;
         string manualCq, activeSearchCall;
         bool finishing;
+        bool pauseHaltPending, pauseHaltAcknowledged, pauseReceiveConfirmed;
+        DateTime pauseHaltIssuedAt, pausedAt;
+        TimeSpan pausedRemaining;
         MonitorTargets monitorTargets;
         SessionContact sessionContact;
         string manualMonitorCall, incomingMonitorCall, unconfirmedManualCall;
@@ -333,6 +338,7 @@ namespace JtdxAutoCq
             }
             else if (!Status.TxEnabled && !String.IsNullOrEmpty(Status.DxCall) && NextManual() == null)
                 throw new InvalidOperationException("Очистите DX в JTDX для начала CQ или сначала запустите выбранную связь.");
+            ResetPause();
             Awards = awards;
             Expeditions = expeditions;
             sessionFrequency = Status.Frequency; sessionMode = Status.Mode; sessionPeriod = Status.TxFirst;
@@ -374,6 +380,7 @@ namespace JtdxAutoCq
             OperatingSession finished = Armed ? Session : null;
             if(Monitoring)Cqs.ClearMonitorTimeouts();
             Armed = false; pending = false; commandOutstanding = false; loggedCall = null;
+            ResetPause();
             unexplainedStop = null;
             manualCq = null; hunting = finishing = false; ResetCqRound();
             monitorTargets = null;
@@ -392,11 +399,107 @@ namespace JtdxAutoCq
             }
         }
 
+        public TimeSpan RemainingTime(DateTime now)
+        {
+            if (!Armed) return TimeSpan.Zero;
+            if (Paused) return pausedRemaining;
+            return now < SessionDeadline ? SessionDeadline - now : TimeSpan.Zero;
+        }
+
+        public void RequestPause(DateTime now)
+        {
+            if (!Armed) throw new InvalidOperationException("Автомат выключен.");
+            if (PauseRequested || Paused) return;
+            if (finishing || now >= SessionDeadline)
+                throw new InvalidOperationException("Время сеанса вышло. Завершаю текущую работу.");
+            PauseRequested = true;
+            Notice("Поставлю автомат на паузу после текущей связи или вызова.");
+        }
+
+        public void Resume(DateTime now)
+        {
+            if (!Armed || !Paused) throw new InvalidOperationException("Дождитесь перехода автомата на паузу.");
+            if (Status == null || Status.TxEnabled || Status.Transmitting)
+                throw new InvalidOperationException("Для продолжения нужен режим приёма JTDX.");
+            SessionDeadline = now.Add(pausedRemaining);
+            Waiting.ResumeLifetimes(pausedAt, now, SlotDuration + SlotDuration);
+            if (now > pausedAt) lastResponseAt = lastResponseAt.Add(now - pausedAt);
+            ResetPause();
+            if (Monitoring) Notice("Продолжаю мониторинг.");
+            else
+            {
+                allowClearDx = true;
+                pendingOwner = Status.DxCall;
+                Schedule(now, "Продолжаю автоматическую работу.");
+                due = now;
+            }
+        }
+
+        void ResetPause()
+        {
+            PauseRequested = Paused = false;
+            pauseHaltPending = pauseHaltAcknowledged = pauseReceiveConfirmed = false;
+            pausedRemaining = TimeSpan.Zero;
+        }
+
+        // Enter only after the current exchange or the current CQ frame has ended.
+        void PauseAtReceiveBoundary(DateTime now)
+        {
+            CompleteConfirmedContact();
+            RecordMissing73();
+            if (Status.TxEnabled || commandOutstanding)
+            {
+                pauseHaltPending = true;
+                pauseHaltIssuedAt = now;
+                Notice("Жду подтверждения приёма от JTDX для паузы.");
+                RequestHalt();
+            }
+            else EnterPaused(now);
+        }
+
+        void EnterPaused(DateTime now)
+        {
+            if (now >= SessionDeadline)
+            {
+                Stop("Время сеанса вышло. Автомат выключен.", false);
+                return;
+            }
+            pausedAt = now;
+            pausedRemaining = SessionDeadline - now;
+            pending = commandOutstanding = false;
+            pauseHaltPending = PauseRequested = false;
+            Paused = true;
+            unexplainedStop = null;
+            loggedCall = null;
+            hunting = false;
+            ResetContact();
+            ResetCqRound();
+            Notice("Автомат на паузе. JTDX на приёме.");
+        }
+
         public void OnStatus(RadioStatus status, DateTime now)
         {
             string previousCall = Status == null ? "" : CleanCall(Status.DxCall);
             string nextCall = CleanCall(status.DxCall);
             bool radioChanged = status.Frequency != sessionFrequency || status.Mode != sessionMode;
+            if (Paused || pauseHaltPending)
+            {
+                Status = status;
+                Waiting.SetContext(status);
+                Cqs.SetContext(status);
+                bool validPeriod = status.TxFirst == sessionPeriod
+                    || pauseHaltPending && commandOutstanding && replyTarget == null && status.TxFirst == expectedPeriod;
+                if (radioChanged || !validPeriod || status.Watchdog)
+                    StopForRadioStatus(status, !validPeriod);
+                else if (Paused && (status.TxEnabled || status.Transmitting))
+                    Stop("JTDX включил передачу во время паузы. Автомат выключен.", true);
+                else if (pauseHaltPending)
+                {
+                    SetSessionPeriod(status.TxFirst, now);
+                    pauseReceiveConfirmed = !status.TxEnabled && !status.Transmitting;
+                }
+                return;
+            }
             // The TX log can reach the companion before the queued status for
             // the previous DX. Wait for the status acknowledging our new reply.
             if (Armed && commandOutstanding && replyTarget != null && waitingCall == replyTarget
@@ -417,7 +520,7 @@ namespace JtdxAutoCq
                 && waitingCall == null && (!pending || UseNativeSelection && (replyDuringCq || cqListening || allowClearDx))
                 && !commandOutstanding && selectedQueuedCall == null && (!UseNativeSelection || status.TxEnabled);
             bool confirmedCurrent = received73 && (completedCurrent || receivedFinalAt.HasValue);
-            bool nativeHandoff = UseNativeSelection && !Monitoring && !CallerRulesActive && activeSearchCall == null && !ReverseExchangePending
+            bool nativeHandoff = !PauseRequested && UseNativeSelection && !Monitoring && !CallerRulesActive && activeSearchCall == null && !ReverseExchangePending
                 && status.TxEnabled && !terminalHaltRequested && stoppingRetry == null
                 && previousCall != nextCall && nextCall.Length > 0
                 && !commandOutstanding && (selectedQueuedCall == null || confirmedCurrent) && !finishing
@@ -428,7 +531,7 @@ namespace JtdxAutoCq
             Cqs.SetContext(status);
             if (!Armed) return;
             bool adoptNativeSelection = !radioChanged
-                && (nativeHandoff || nativeIdleSelection && !Monitoring && !CallerRulesActive);
+                && (nativeHandoff || !PauseRequested && nativeIdleSelection && !Monitoring && !CallerRulesActive);
             bool permittedPeriod = adoptNativeSelection || status.TxFirst == sessionPeriod
                 || commandOutstanding && (expectedPeriod.HasValue && status.TxFirst == expectedPeriod.Value
                     || !expectedPeriod.HasValue && nextCall == manualMonitorCall);
@@ -602,6 +705,22 @@ namespace JtdxAutoCq
                     monitorTargets.Complete(worked);
             }
             if (!Armed) return;
+            if (Paused || pauseHaltPending)
+            {
+                if (line.IndexOf("Halt Tx", StringComparison.Ordinal) >= 0)
+                {
+                    if (line.IndexOf("UDP request", StringComparison.Ordinal) >= 0)
+                    {
+                        if (pauseHaltPending && (RadioTime(line) ?? now) >= pauseHaltIssuedAt.AddMilliseconds(-1))
+                            pauseHaltAcknowledged = true;
+                    }
+                    else if (line.IndexOf("button", StringComparison.OrdinalIgnoreCase) >= 0)
+                        Stop("Передача остановлена в JTDX. Автомат выключен.", false);
+                }
+                else if (Paused && TxMessage.IsMatch(line) && (RadioTime(line) ?? now) >= pausedAt)
+                    Stop("JTDX начал передачу во время паузы. Автомат выключен.", true);
+                return;
+            }
             if (line.EndsWith("  Decoding finished", StringComparison.Ordinal))
                 lastDecodeFinished = RadioTime(line) ?? now;
             if (commandOutstanding && expectedReplyMessage != null)
@@ -888,6 +1007,7 @@ namespace JtdxAutoCq
         public void SelectCq(string call,DateTime now)
         {
             if(!Armed)throw new InvalidOperationException("Автомат выключен.");
+            if (PauseRequested || Paused) throw new InvalidOperationException("Продолжите работу автомата перед ручным вызовом.");
             if(finishing || now >= SessionDeadline)throw new InvalidOperationException("Время вышло: завершается текущая связь и очередь. Новый поиск не запускается.");
             if(!CanCall(call))throw new InvalidOperationException("Станция входит в исключения DXCC.");
             CqStation row=Cqs.Find(call);
@@ -902,7 +1022,7 @@ namespace JtdxAutoCq
         {
             call = Callsign.Parse(call);
             if (Status == null || call == null || call == selectedQueuedCall || call == pendingOwner || call == replyTarget || call == waitingCall
-                || call == CleanCall(Status.DeCall) || !CanCall(call) || finishing || now >= SessionDeadline
+                || call == CleanCall(Status.DeCall) || !CanCall(call) || finishing || PauseRequested || now >= SessionDeadline
                 || !selectedAt.HasValue || selectedAt.Value < sessionStartedAt
                 || selectedAt.Value > now.AddSeconds(1) || now - selectedAt.Value > TimeSpan.FromSeconds(3)) return;
             if (unconfirmedManualCall != null && call != unconfirmedManualCall) return;
@@ -1336,7 +1456,7 @@ namespace JtdxAutoCq
         {
             Waiting.Observe(decode, Status, waitingCall ?? selectedQueuedCall, now,!finishing);
             Cqs.Observe(decode, Status, now, !UseNativeSelection || !decode.IsNew);
-            if (!Armed || Status == null || decode.OffAir || !decode.IsNew || String.IsNullOrEmpty(decode.Message)) return;
+            if (!Armed || Paused || pauseHaltPending || Status == null || decode.OffAir || !decode.IsNew || String.IsNullOrEmpty(decode.Message)) return;
             if ((sessionMode == "FT8" && decode.Mode != "~")
                 || (sessionMode == "FT4" && decode.Mode != ":" && decode.Mode != "+")) return;
             DateTime heard = decode.UtcTime(now);
@@ -1492,17 +1612,26 @@ namespace JtdxAutoCq
 
         public void Tick(DateTime now, bool connectionFresh)
         {
-            ExpireWaiting(now);
+            if (!Paused) ExpireWaiting(now);
             if (!Armed) return;
+            if (!connectionFresh) { Stop("Потеряна связь с JTDX: автомат выключен.", true); return; }
+            if (Paused) return;
+            if (pauseHaltPending)
+            {
+                if (pauseHaltAcknowledged && pauseReceiveConfirmed) EnterPaused(now);
+                else if (now >= pauseHaltIssuedAt + CommandConfirmationTimeout)
+                    Stop("JTDX не подтвердил переход на приём. Автомат выключен.", true);
+                return;
+            }
             if (now >= SessionDeadline && !finishing)
             {
+                PauseRequested = false;
                 finishing=true;hunting=false;manualCq=null;
                 Notice(Monitoring ? "Время вышло. Завершаю QSO и входящие вызовы, принятые до окончания времени." :
                     "Время вышло. Завершаю текущую связь и очередь; станции «Нет ответа» пропускаю.");
                 if(commandOutstanding && replyTarget==null && Status!=null && !Status.Transmitting && String.IsNullOrEmpty(Status.DxCall) && lastCqTime==DateTime.MinValue)
                 {commandOutstanding=false;expectedPeriod=null;pending=false;}
             }
-            if (!connectionFresh) { Stop("Потеряна связь с JTDX: автомат выключен.", true); return; }
             if (unconfirmedManualCall != null)
             {
                 if (now >= manualSelectionDeadline)
@@ -1521,6 +1650,15 @@ namespace JtdxAutoCq
             }
             if (unexplainedStop.HasValue && now >= unexplainedStop.Value)
             { Stop("JTDX остановлен без подтверждённого автоматического завершения. Автомат выключен.", false); return; }
+            if (PauseRequested && Status != null && !unexplainedStop.HasValue && !cqHaltExpected
+                && waitingCall == null && selectedQueuedCall == null && replyTarget == null
+                && (!Status.TxEnabled || String.IsNullOrEmpty(Status.DxCall)))
+            {
+                // A CQ log can arrive before its transmitting status.
+                bool cqMayBeOnAir = lastCqTime != DateTime.MinValue && !cqTxEnded && now < lastCqTime.Add(SlotDuration);
+                if (!Status.Transmitting && !cqMayBeOnAir) PauseAtReceiveBoundary(now);
+                return;
+            }
             if (commandOutstanding && now >= commandDeadline)
             {
                 if (replyTarget != null) Waiting.Pause(replyTarget, CallerQueue.ReplyRejected, now);
@@ -1658,6 +1796,11 @@ namespace JtdxAutoCq
             if (cqHaltExpected || ((terminalHaltRequested || handoffHaltAcknowledged) && Status.TxEnabled)
                 || (Awaiting73 && !ReplyWindowComplete(waitUntil, now)) || reverseNeedsReply) return;
             if (!String.IsNullOrEmpty(Status.DxCall) && (!allowClearDx || CleanCall(Status.DxCall) != CleanCall(pendingOwner))) return;
+            if (PauseRequested)
+            {
+                PauseAtReceiveBoundary(now);
+                return;
+            }
             if (Monitoring)
             {
                 if (Status.TxEnabled)

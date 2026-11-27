@@ -79,6 +79,7 @@ namespace JtdxAutoCq
         public ulong Frequency;
         [XmlElement("FirstHeardUtc")] public DateTime QueuedUtc;
         public DateTime LastHeardUtc, PausedUtc;
+        internal TimeSpan ExpiryOffset;
         public DecodedMessage Decode;
         public bool AddedByOperator;
         [XmlIgnore] public bool Available;
@@ -166,13 +167,31 @@ namespace JtdxAutoCq
             currentCall = Callsign.Clean(currentCall);
             int expired = rows.RemoveAll(row =>
             {
-                if (row.Call == currentCall || row.Call == selectedCall || now - row.QueuedUtc < lifetime)
+                if (row.Call == currentCall || row.Call == selectedCall || now - row.QueuedUtc - row.ExpiryOffset < lifetime)
                     return false;
                 removedThrough[row.Call] = row.LastHeardUtc;
                 heard.Remove(row.Call);
                 return true;
             });
             if (expired > 0) Changed();
+        }
+
+        internal void ResumeLifetimes(DateTime start, DateTime end, TimeSpan freshDecode)
+        {
+            bool changed = false;
+            foreach (WaitingStation row in rows)
+            {
+                DateTime from = row.QueuedUtc > start ? row.QueuedUtc : start;
+                if (end > from) row.ExpiryOffset += end - from;
+                if (row.Available && end - row.LastHeardUtc > freshDecode)
+                {
+                    row.Available = false;
+                    changed = true;
+                }
+            }
+            foreach (string call in heard.Where(item => end - item.Value.LastHeardUtc > freshDecode).Select(item => item.Key).ToArray())
+                heard.Remove(call);
+            if (changed) Changed();
         }
         internal static bool IsCaller(string payload)
         {
@@ -280,6 +299,7 @@ namespace JtdxAutoCq
             if (rows.Any(r => r.Call == newCall)) throw new InvalidOperationException("Этот позывной уже есть в очереди.");
             Add(newCall); WaitingStation added = rows[rows.Count - 1]; rows.RemoveAt(rows.Count - 1);
             added.QueuedUtc = rows[index].QueuedUtc;
+            added.ExpiryOffset = rows[index].ExpiryOffset;
             DateTime removed=rows[index].LastHeardUtc;rows[index] = added;removedThrough[oldCall]=removed; Changed();
         }
         public void Remove(string call)

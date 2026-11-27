@@ -22,6 +22,7 @@ namespace JtdxAutoCq
         public List<OperatorProfile> Profiles = new List<OperatorProfile>();
         public AwardCatalog Awards = new AwardCatalog();
         public ExpeditionOptions ExpeditionSearch = new ExpeditionOptions();
+        public ListeningOptions Listening = new ListeningOptions();
         public OperatingSession LastSession;
     }
     public sealed class AppPreferencesStore
@@ -38,6 +39,7 @@ namespace JtdxAutoCq
                     var preferences = (AppPreferences)new XmlSerializer(typeof(AppPreferences)).Deserialize(input);
                     if (preferences.Awards == null) preferences.Awards = new AwardCatalog();
                     preferences.ExpeditionSearch = (preferences.ExpeditionSearch ?? new ExpeditionOptions()).Copy();
+                    if (preferences.Listening == null) preferences.Listening = new ListeningOptions();
                     preferences.Awards.NormalizeBuiltInPrograms();
                     return preferences;
                 }

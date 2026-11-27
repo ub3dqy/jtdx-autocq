@@ -35,26 +35,30 @@ namespace JtdxAutoCq
         }
 
         internal HashSet<SessionContact> FindIn(LogbookHistory history)
+        { return new HashSet<SessionContact>(MatchLogbook(history).Keys); }
+
+        internal Dictionary<SessionContact, LogbookQso> MatchLogbook(LogbookHistory history, bool loggedOnly = false)
         {
-            var matched = new HashSet<SessionContact>();
+            var matched = new Dictionary<SessionContact, LogbookQso>();
             var used = new HashSet<LogbookQso>();
             var byCall = history.Records.Where(qso => qso.BelongsTo(OwnCall) && qso.Band == Band && qso.Mode == Mode)
                 .ToLookup(qso => qso.Call);
             var pairs =
                 from contact in Contacts
-                where contact.TimeUtc.HasValue
+                let contactTime = loggedOnly ? contact.LoggedUtc : contact.TimeUtc
+                where contactTime.HasValue
                 from record in byCall[contact.Call]
                 let time = record.EndedUtc ?? record.StartedUtc
                 where time.HasValue && time.Value >= StartedUtc.AddSeconds(-59)
-                let distance = Math.Abs((time.Value - contact.TimeUtc.Value).TotalSeconds)
+                let distance = Math.Abs((time.Value - contactTime.Value).TotalSeconds)
                 where distance <= 90
                 let differentMinute = history.IsLogHx
-                    && time.Value.Ticks / TimeSpan.TicksPerMinute != contact.TimeUtc.Value.Ticks / TimeSpan.TicksPerMinute
+                    && time.Value.Ticks / TimeSpan.TicksPerMinute != contactTime.Value.Ticks / TimeSpan.TicksPerMinute
                 orderby differentMinute, distance
                 select new { Contact = contact, Record = record };
             foreach (var pair in pairs)
             {
-                if (!matched.Contains(pair.Contact) && used.Add(pair.Record)) matched.Add(pair.Contact);
+                if (!matched.ContainsKey(pair.Contact) && used.Add(pair.Record)) matched.Add(pair.Contact, pair.Record);
             }
             return matched;
         }

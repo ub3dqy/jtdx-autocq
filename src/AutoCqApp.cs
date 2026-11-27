@@ -16,8 +16,8 @@ using System.Xml;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyVersion("0.9.53.0")]
-[assembly: AssemblyFileVersion("0.9.53.0")]
+[assembly: AssemblyVersion("0.9.54.0")]
+[assembly: AssemblyFileVersion("0.9.54.0")]
 [assembly: AssemblyTitle(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyProduct(JtdxAutoCq.AppBrand.DisplayName)]
 [assembly: AssemblyCompany(JtdxAutoCq.AppBrand.Author)]
@@ -202,7 +202,7 @@ namespace JtdxAutoCq
 
     public sealed partial class MainForm : Form
     {
-        const string ModuleVersion = "0.9.53";
+        const string ModuleVersion = "0.9.54";
         public const string DefaultJtdxPath = @"C:\JTDX64\160-32A-rc10\bin\jtdx.exe";
         const string NativeQueueHash = JtdxPatcher.PatchedHash;
         static readonly Color Navy = Color.FromArgb(17, 31, 53);
@@ -367,13 +367,15 @@ namespace JtdxAutoCq
             optionsHint.Font = new Font("Segoe UI", 9F); optionsHint.ForeColor = Slate;
             optionsHint.SetBounds(14, 128, 880, 21); optionsPanel.Controls.Add(optionsHint);
 
-            open.Text = "1. Подготовить"; open.SetBounds(26, 361, 284, 40);
-            start.Text = "2. Включить автомат"; start.SetBounds(338, 361, 284, 40);
-            stop.Text = "СТОП — Halt TX"; stop.SetBounds(650, 361, 284, 40);
+            open.Text = "1. Подготовить"; open.SetBounds(26, 361, 200, 40);
+            start.Text = "2. Включить автомат"; start.SetBounds(235, 361, 239, 40);
+            pauseAfterQso.Text = "Пауза после QSO"; pauseAfterQso.SetBounds(483, 361, 221, 40);
+            stop.Text = "СТОП — Halt TX"; stop.SetBounds(713, 361, 221, 40);
             StyleButton(open, Color.White, Ink, Color.FromArgb(201, 213, 224));
             StyleButton(start, Teal, Color.White, Teal);
+            StyleButton(pauseAfterQso, Color.White, Ink, Color.FromArgb(201, 213, 224));
             StyleButton(stop, Color.FromArgb(254, 232, 231), Color.FromArgb(139, 29, 27), Color.FromArgb(221, 160, 155));
-            Controls.AddRange(new Control[] { open, start, stop });
+            Controls.AddRange(new Control[] { open, start, pauseAfterQso, stop });
             lists.SetBounds(26, 413, 908, 149); lists.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
             TabPage waitTab=new TabPage("Очередь станций"),cqTab=new TabPage("Станции из левого окна JTDX");
             lists.TabPages.Add(waitTab);lists.TabPages.Add(cqTab);lists.TabPages.Add(timeoutTab);Controls.Add(lists);lists.SelectedIndexChanged+=delegate{UpdateEditors();};
@@ -437,6 +439,7 @@ namespace JtdxAutoCq
             engine.SessionFinished = SaveSessionSummary;
             open.Click += delegate { Guard(PrepareConnection); };
             start.Click += delegate { Guard(StartAutomation); };
+            pauseAfterQso.Click += delegate { Guard(ChangePause); };
             stop.Click += delegate { HaltAutomation(); };
             restore.Click += delegate { Guard(Restore); };
             FormClosing += ClosingForm;
@@ -1017,7 +1020,11 @@ namespace JtdxAutoCq
                 }
                 tail.Reset(); direction = settings.Direction();
             }
-            engine.Start(DateTime.UtcNow, search, expeditions);
+            DateTime started = DateTime.UtcNow;
+            engine.Start(started, search, expeditions);
+            sessionTrace.Start(started, engine.Status, engine.Options, engine.UseNativeSelection,
+                expeditions != null ? "Экспедиции" : search != null ? "HAMLOG" : engine.Monitoring ? "Мониторинг" : "Автомат CQ");
+            TraceAction(TraceEvent.Decision, lastNotice);
             UpdateNativeSelection(DateTime.UtcNow);
             UpdateUi();
         }
@@ -1051,6 +1058,7 @@ namespace JtdxAutoCq
         { if (!demo && client != null) bridge.SendToClient(data); }
         void SendCq()
         {
+            TraceCommand("Общий вызов");
             if (demo) { demoPeer = "W1AW"; SetDemoStatus(true, false, "", engine.CqTxFirst); demoStep = 0; demoNext = DateTime.UtcNow.AddSeconds(2); return; }
             UpdateNativeSelection(DateTime.UtcNow);
             byte[] request = QtPacket.TriggerCq(clientId, schema, direction, engine.CqTxFirst, true);
@@ -1061,6 +1069,7 @@ namespace JtdxAutoCq
 
         void SendReply(DecodedMessage decode, bool queued)
         {
+            TraceCommand(queued ? "Ответ вызывающей станции" : "Вызов по декоду", decode.Message);
             if (demo)
             {
                 CqStation candidate = queued ? null : engine.Cqs.Rows.FirstOrDefault(row => row.Decode.Message == decode.Message);
@@ -1074,6 +1083,7 @@ namespace JtdxAutoCq
         }
         void SendDirectCall(string call)
         {
+            TraceCommand("Вызов", call);
             if (demo) { DemoCall(call, engine.Status.TxFirst); return; }
             UpdateNativeSelection(DateTime.UtcNow);
             DiagnosticEvent("TX COMMAND DirectCall call=" + call + " period=" + engine.Status.TxFirst);
@@ -1087,6 +1097,7 @@ namespace JtdxAutoCq
         }
         void SendHalt()
         {
+            TraceCommand("Стоп TX");
             if (demo)
             {
                 if (engine.Status != null)
@@ -1150,22 +1161,30 @@ namespace JtdxAutoCq
                 if (engine.Status == null || engine.Status.Decoding && !packet.Status.Decoding)
                     replayWanted = true;
                 if (engine.Status == null || engine.Status.DxCall != packet.Status.DxCall || engine.Status.TxFirst != packet.Status.TxFirst) queueUiDirty = true;
-                engine.OnStatus(packet.Status, DateTime.UtcNow);
+                DateTime now = DateTime.UtcNow;
+                sessionTrace.Status(packet.Status, now);
+                decodeDiagnostics.Status(packet.Status, now);
+                engine.OnStatus(packet.Status, now);
             }
             if (packet.Decode != null && nativeStatusSeen)
             {
                 if (packet.Decode.IsNew) replayWanted = true;
-                engine.OnDecode(packet.Decode, DateTime.UtcNow);
+                DateTime now = DateTime.UtcNow;
+                if (sessionTrace.Active) sessionTrace.Add(new TraceFrame { Kind = TraceEvent.Decode, AtUtc = now, Decode = packet.Decode.Copy() });
+                decodeDiagnostics.Decode(packet.Decode, now);
+                engine.OnDecode(packet.Decode, now);
+                ObserveListeningDecode(packet.Decode, now);
             }
             if (packet.Type == 3)
             {
+                TraceAction(TraceEvent.Clear, "");
                 engine.Cqs.Invalidate();
                 replayWanted = true;
             }
             if (!replayRequested && clientVersion == "2.2.160-32A-rc10")
             { replayRequested = true; Send(QtPacket.Replay(clientId,schema)); }
             if (packet.Type == 6)
-            { engine.Stop("JTDX закрыт. Автомат выключен.", false); client = null; clientId = null; replayRequested = nativeStatusSeen = false; engine.Waiting.Invalidate(); engine.Cqs.Invalidate(); }
+            { StopTraced("JTDX закрыт. Автомат выключен.", false); client = null; clientId = null; replayRequested = nativeStatusSeen = false; engine.Waiting.Invalidate(); engine.Cqs.Invalidate(); }
             UpdateNativeSelection(DateTime.UtcNow);
         }
         void Tick(object sender, EventArgs args)
@@ -1178,14 +1197,14 @@ namespace JtdxAutoCq
                     // A user double-click is logged after JTDX sends its status.
                     // Drain the log on both sides of UDP polling so that the
                     // engine sees that explicit choice before validating TX.
-                    if (engine.Armed) tail.Read(line => engine.OnLine(line, DateTime.UtcNow));
-                    bridge.Poll(); tail.Read(line => engine.OnLine(line, DateTime.UtcNow));
+                    if (engine.Armed) tail.Read(ReadRadioLine);
+                    bridge.Poll(); tail.Read(ReadRadioLine);
                     bool running = JtdxPatcher.IsRunning();
                     jtdxPresent = running;
                     if (running && settings.Record != null) hadProcess = true;
                     if (!running && hadProcess)
                     {
-                        hadProcess = false; engine.Stop("JTDX закрыт. Автомат выключен.", false);
+                        hadProcess = false; StopTraced("JTDX закрыт. Автомат выключен.", false);
                         settings.Restore(); upstream = null; bridge.Upstream = null; bridge.ResetClient(); client = null; clientId = null;
                         replayRequested = nativeStatusSeen = false; engine.Waiting.Invalidate(); engine.Cqs.Invalidate();
                         Log("Прежние настройки JTDX восстановлены.");
@@ -1199,25 +1218,33 @@ namespace JtdxAutoCq
                     {
                         replayWanted = false;
                         nextReplayRequest = now.AddMilliseconds(500);
+                        TraceAction(TraceEvent.Clear, "");
                         engine.Cqs.Invalidate();
                         Send(QtPacket.Replay(clientId, schema));
                         pendingReplayUntil = now.AddMilliseconds(130);
                     }
                 }
                 engine.WaitForVisibleCqsUntil = pendingReplayUntil;
-                engine.Tick(DateTime.UtcNow, demo || (client != null && (DateTime.UtcNow - lastSeen).TotalSeconds < 35));
+                DateTime tick = DateTime.UtcNow;
+                bool connected = demo || (client != null && (tick - lastSeen).TotalSeconds < 35);
+                if (sessionTrace.Active) sessionTrace.Add(new TraceFrame { Kind = TraceEvent.Timer, AtUtc = tick,
+                    Connected = connected, WaitForReplayUntil = pendingReplayUntil });
+                engine.Tick(tick, connected);
                 UpdateNativeSelection(now);
                 if (DateTime.UtcNow >= nextOperatorSave) SaveOperatorState();
                 UpdateUi();
                 WriteDiagnostic();
             }
-            catch (Exception e) { engine.Stop("Ошибка: " + e.Message, true); UpdateUi(); }
+            catch (Exception e) { StopTraced("Ошибка: " + e.Message, true); UpdateUi(); }
+            UpdateAuxiliaryViews(DateTime.UtcNow);
         }
         void UpdateUi()
         {
             start.Enabled = !startingWithHistory && !engine.Armed && (demo || (client != null && clientVersion == "2.2.160-32A-rc10"));
             start.BackColor = start.Enabled ? Teal : Color.FromArgb(226, 235, 235);
             start.FlatAppearance.BorderColor = start.Enabled ? Teal : Color.FromArgb(199, 213, 215);
+            pauseAfterQso.Text = engine.Paused ? "Продолжить" : engine.PauseRequested ? "Завершаю связь…" : "Пауза после QSO";
+            pauseAfterQso.Enabled = engine.Armed && (engine.Paused || !engine.PauseRequested && !engine.Finishing);
             waitPeriods.Enabled = callAttempts.Enabled = !engine.Armed && (demo || !jtdxPresent);
             runMinutes.Enabled = cqAttempts.Enabled = searchEnabled.Enabled = priorityAfter73.Enabled =
                 switchMinutes.Enabled = queueMinutes.Enabled = !engine.Armed;
@@ -1227,7 +1254,7 @@ namespace JtdxAutoCq
                 : monitor.Checked ? "2. Включить мониторинг" : "2. Включить автомат";
             int targetCount = engine.Options.MonitorDxcc.Length + engine.Options.MonitorCalls.Length + engine.Options.MonitorMasks.Length;
             monitorSetup.Text = targetCount == 0 ? "Цели мониторинга" : "Цели мониторинга  ·  " + targetCount;
-            callSelectedCq.Enabled = !engine.Finishing;
+            callSelectedCq.Enabled = !engine.Finishing && !engine.Paused && !engine.PauseRequested;
             UpdateListHint();
             exclusions.Text = engine.Options.ExcludedDxcc.Length == 0 ? "Исключения DXCC"
                 : "Исключения DXCC  ·  " + engine.Options.ExcludedDxcc.Length;
@@ -1267,8 +1294,8 @@ namespace JtdxAutoCq
             {sessionInfo.Text="Завершаю QSO и очередь";sessionInfo.ForeColor=Amber;}
             else if(engine.Armed)
             {
-                TimeSpan remaining=engine.SessionDeadline-DateTime.UtcNow;if(remaining<TimeSpan.Zero)remaining=TimeSpan.Zero;
-                sessionInfo.Text=String.Format("{0} {1:00}:{2:00}:{3:00}", engine.Expeditions != null ? "Экспедиции"
+                TimeSpan remaining = engine.RemainingTime(DateTime.UtcNow);
+                sessionInfo.Text=String.Format("{0} {1:00}:{2:00}:{3:00}", engine.Paused ? "Пауза" : engine.Expeditions != null ? "Экспедиции"
                     : engine.Awards != null ? "Дипломы" : engine.Monitoring ? "Мониторинг" : "Осталось",
                     (int)remaining.TotalHours,remaining.Minutes,remaining.Seconds);sessionInfo.ForeColor=Mint;
             }
@@ -1279,6 +1306,7 @@ namespace JtdxAutoCq
         }
         void Log(string message)
         {
+            TraceAction(TraceEvent.Decision, message);
             lastNotice = message;
             status.Text = message;
             if (journal.TextLength > 30000) journal.Text = journal.Text.Substring(journal.TextLength - 15000);
@@ -1312,6 +1340,8 @@ namespace JtdxAutoCq
                     x.WriteElementString("Connected", (client != null && (DateTime.UtcNow - lastSeen).TotalSeconds < 35).ToString());
                     x.WriteElementString("JtdxVersion", clientVersion ?? "");
                     x.WriteElementString("Armed", engine.Armed.ToString());
+                    x.WriteElementString("PauseRequested", engine.PauseRequested.ToString());
+                    x.WriteElementString("Paused", engine.Paused.ToString());
                     x.WriteElementString("Monitoring", engine.Monitoring.ToString());
                     x.WriteElementString("ManualMonitorCall", engine.ManualMonitorCall);
                     x.WriteElementString("IncomingMonitorCall", engine.IncomingMonitorCall);

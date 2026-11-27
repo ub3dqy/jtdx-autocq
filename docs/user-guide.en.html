@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="author" content="UB3DQY"><title>Using AutoCQ · UB3DQY</title><link rel="icon" href="icon.png"><link rel="stylesheet" href="guide.css"></head><body><main><h1>Using AutoCQ</h1>
-<p>Guide for AutoCQ 0.9.53 · <strong>UB3DQY</strong> · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
+<p>Guide for AutoCQ 0.9.54 · <strong>UB3DQY</strong> · <a href="user-guide.ru.html">Русский</a> · <a href="https://github.com/ub3dqy/jtdx-autocq/blob/main/README.en.md">Project overview</a></p>
 <p>AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.</p>
 <p>Monitoring works differently: JTDX listens until a wanted country or callsign appears, calls that station, then returns to receive. The application interface is currently in Russian; this guide includes the labels you will see.</p>
 <h2>1. Downloads</h2>
@@ -24,6 +24,10 @@
 <p>If a frequency, mode or TX period change stops the session, AutoCQ tells you what changed. For a frequency change, it shows both frequencies and the difference in hertz. The reason also appears in the log and session results.</p>
 <p><img loading="lazy" src="frequency-stop-demo.png" alt="AutoCQ shows a 40 Hz retune in the status message and log"></p>
 <p><strong>«Как пользоваться»</strong> opens the Russian offline guide. The English offline guide is <strong>docs/user-guide.en.html</strong>. <strong>«Обновления»</strong> opens Updates.</p>
+<h3 id="pause-qso">Pause after a QSO</h3>
+<p>When you need a break, click <strong>«Пауза после QSO»</strong> (Pause after QSO). AutoCQ finishes the current contact or CQ and waits for JTDX to return to receive. The header shows the remaining session time while paused.</p>
+<p>Click <strong>«Продолжить»</strong> (Resume) while JTDX is receiving. AutoCQ resumes the same session with its remaining time and queue. It waits for a fresh message if a queued station's decode expired during the pause.</p>
+<p><img loading="lazy" src="pause-qso-demo.png" alt="Remaining time during a pause and the Resume button"></p>
 <h2>4. Main settings</h2>
 <div class="table-scroll"><table><thead><tr><th>Russian label</th><th>Meaning</th></tr></thead><tbody>
 <tr><td>Время автомата, мин</td><td>Session duration in minutes. An active contact is finished before stopping.</td></tr>
@@ -94,6 +98,22 @@
 <p>DX cluster comments can also identify an activation by a park reference marked POTA or a WWFF reference such as DLFF-0123. These spots keep the search going when the main feeds are unavailable. The last column shows where each spot came from.</p>
 <p>Rows marked <strong>DXSPOT</strong> show recent FT8 and FT4 spots. <strong>DXSPOT · календарь</strong> (DXSPOT calendar) shows announcements from operators, including RDA, WWFF, RAFA, IOTA, POTA, and SOTA. Tick the targets you want to find. For RAFA and IOTA, choose <strong>«DX-выезды и экспедиции»</strong> (DX trips and expeditions). When CQDX has no Club Log rank for a station, AutoCQ uses the rank from a fresh DXSPOT spot. <a href="https://dxspot.ru/">DXSPOT live spots</a> · <a href="https://dxspot.ru/expeditions">Calendar</a></p>
 <p>NG3K and 425 DX News supply announcements. DX Summit and CQDX supply general DX spots. CQDX also provides Club Log Most Wanted rankings and SOTA activations. POTA, WWFF, WWBOTA, and the RDA cluster add field activations. Wanted RDA identifies rare Russian districts. Source status appears above the table. <a href="https://www.ng3k.com/Misc/adxoplain.html">NG3K</a> · <a href="https://www.425dxn.org/index.php?op=wcal">425 DX News</a> · <a href="https://www.dxsummit.fi/">DX Summit</a> · <a href="https://clublog.org/mostwanted.php">Club Log</a> · <a href="https://cqdx.io/api/docs">CQDX</a> · <a href="https://pota.app/">POTA</a> · <a href="https://spots.wwff.co/info">WWFF</a> · <a href="https://wwbota.net/cluster/">WWBOTA</a> · <a href="https://rdaward.ru/?p=cluster">RDA cluster</a> · <a href="https://rdaward.ru/?p=rda_wtd">Wanted RDA</a></p>
+<h2 id="listening-watch">Listening watch</h2>
+<p>Open <strong>«Журнал и дипломы → Дежурный приём»</strong> (Logbook and awards → Listening watch). Choose your monitoring targets, selected expeditions, or locator prefixes. Separate locators with spaces or commas, for example <code>KO</code>, <code>KO85</code>, and <code>KO85AA</code>. Connected JTDX supplies decodes from the current band. If you select expeditions, AutoCQ also checks their spot feeds.</p>
+<p>Enable <strong>«Уведомления Windows»</strong> (Windows notifications) or <strong>«Звук при новой цели»</strong> (Play a sound for new matches) if you want an alert. Click <strong>«Начать приём»</strong> (Start listening). Matching stations appear with the reason they matched. The watch pauses during an AutoCQ session or while JTDX has TX enabled. Closing the window leaves the watch running. Click <strong>«Остановить приём»</strong> (Stop listening) to end it.</p>
+<p><img loading="lazy" src="listening-demo.png" alt="JTDX decodes and expedition spots in the listening watch"></p>
+<h2 id="propagation">Where am I heard?</h2>
+<p>With JTDX connected, open <strong>«Журнал и дипломы → Где меня слышат»</strong> (Logbook and awards → Where am I heard?) and click <strong>«Загрузить»</strong> (Load). AutoCQ requests FT8 and FT4 reception reports from the past hour using your callsign from JTDX. The table shows the receiving station, grid, DXCC entity, band and SNR when available. Choose a band to filter the table. The status above it shows when another request is available. <a href="https://pskreporter.info/pskmap.html">PSK Reporter</a></p>
+<p><img loading="lazy" src="propagation-demo.png" alt="FT8 and FT4 reception reports across several bands"></p>
+<h2 id="decode-diagnostics">JTDX decoding</h2>
+<p>Open <strong>«Журнал и дипломы → Декодирование JTDX»</strong> (Logbook and awards → JTDX decoding). Choose FT8 or FT4. The window shows measurements from the last five minutes, including decode duration, time from the TX boundary and lost audio blocks. A positive value in <strong>«От границы TX, мс»</strong> means decoding finished after that boundary. A negative value means it finished earlier.</p>
+<p>To compare two JTDX settings, let the receiver run and click <strong>«Зафиксировать замер»</strong> (Save a baseline). Change the setting in JTDX. After a few periods, compare your baseline with <strong>«Сейчас»</strong> (Now). Run each setup for five minutes to compare two full windows.</p>
+<p><img loading="lazy" src="decode-diagnostics-demo.png" alt="Decode timings, offsets from the TX boundary, and lost audio blocks"></p>
+<h2 id="session-trace">Review a session</h2>
+<p>Open <strong>«Журнал и дипломы → Разбор сеанса»</strong> (Logbook and awards → Review a session). The timeline shows AutoCQ commands and decisions alongside JTDX log lines in UTC. Enter an exact callsign to narrow the view to that station. Turn on <strong>«Показывать декоды»</strong> (Show decodes) to see received messages. <strong>«Текущий сеанс»</strong> (Current session) refreshes the view from memory.</p>
+<p>AutoCQ keeps up to 20 minutes of the latest session events in memory. Use <strong>«Сохранить XML…»</strong> (Save XML) to keep that segment or <strong>«Открыть XML…»</strong> (Open XML) to review a saved trace. The file contains callsigns and message text.</p>
+<p>To compare settings for CQ or ordinary station monitoring, choose <strong>«Настройки из записи»</strong> (Recorded settings) or a saved profile and click <strong>«Прогнать запись»</strong> (Replay trace). AutoCQ compares commands offline and shows the first difference it finds. You can also use the timeline and filters to review award and expedition sessions.</p>
+<p><img loading="lazy" src="session-trace-demo.png" alt="A session timeline with AutoCQ commands and JTDX transmissions"></p>
 <h2>Main logbook and profiles</h2>
 <p><strong>«Журнал и дипломы»</strong> (Logbook and awards) sits next to the station list. Open <strong>«Основной журнал»</strong> (Main logbook) to see which history AutoCQ uses. When AutoCQ can identify the open LogHX logbook, it offers that file automatically. If the source is JTDX and the complete history lives elsewhere, click <strong>«Выбрать файл»</strong> (Choose file) and select your LogHX logbook (.lhx2) or an ADIF export (.adi, .adif). AutoCQ reads a copy of the LogHX database while the logger stays open.</p>
 <p><img loading="lazy" src="logbook-source-demo.png" alt="Choosing the main logbook"></p>
@@ -105,6 +125,10 @@
 <p><img loading="lazy" src="station-reason-demo.png" alt="Why a station was skipped"></p>
 <p><strong>«Итоги сеанса»</strong> (Session results) shows JTDX log entries, final confirmations and the reason for stopping. AutoCQ checks the main logbook by callsign, band, mode and time. With an ADIF export, refresh the export file before checking recent contacts.</p>
 <p><img loading="lazy" src="session-summary-demo.png" alt="Session results compared with the LogHX logbook"></p>
+<h3 id="log-recovery">Export contacts to LogHX</h3>
+<p>If the session results show a JTDX contact that is missing from the main logbook, choose your LogHX <code>.lhx2</code> file under <strong>«Основной журнал»</strong> (Main logbook) and open <strong>«Итоги сеанса → Экспорт для LogHX…»</strong> (Session results → Export for LogHX). AutoCQ offers only JTDX ADIF records it can match to logged contacts in that session.</p>
+<p>Tick the contacts you want and click <strong>«Сохранить ADIF…»</strong> (Save ADIF). Before saving, AutoCQ checks both logs again and drops any contact that has since appeared in LogHX. Import the resulting ADIF file into LogHX.</p>
+<p><img loading="lazy" src="log-recovery-demo.png" alt="Preview of JTDX contacts to import into LogHX"></p>
 <h3 id="hamlog-awards">Search for HAMLOG award contacts</h3>
 <ol>
 <li>Open <strong>«Журнал и дипломы → Дипломы HAMLOG»</strong> (Logbook and awards → HAMLOG awards) and click <strong>«Обновить каталог»</strong> (Update catalog). AutoCQ downloads the award list, then the published conditions. You can select awards as their search rules become ready. After updating AutoCQ, use <strong>«Разобрать скачанное»</strong> (Process downloaded rules) to process documents already on your computer.</li>

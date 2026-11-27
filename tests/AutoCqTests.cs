@@ -164,6 +164,10 @@ class AutoCqTests
                 UpdateTests.RunAll(Run, args.Length > 1 ? args[1] : null);
                 BugReportTests.RunAll(Run);
                 OperatorToolsTests.RunAll(Run);
+                PauseTests.RunAll(Run);
+                ListeningTests.RunAll(Run);
+                RecoveryTests.RunAll(Run);
+                NewOperatorToolsTests.RunAll(Run);
                 Run("Expedition ages, new rows and expired rows preserve the native list viewport", () => {
                     var catalog = new ExpeditionCatalog();
                     var engine = new AutoCqEngine();

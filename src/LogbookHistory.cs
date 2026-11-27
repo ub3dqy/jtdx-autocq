@@ -13,6 +13,7 @@ namespace JtdxAutoCq
     {
         public string Call, Station, Band, Mode;
         public DateTime? StartedUtc, EndedUtc;
+        internal string RawAdif;
 
         public bool BelongsTo(string station)
         { return String.IsNullOrEmpty(Station) || String.IsNullOrEmpty(station) || Station == station; }

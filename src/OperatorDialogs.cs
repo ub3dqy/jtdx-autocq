@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -283,10 +284,18 @@ namespace JtdxAutoCq
         readonly OperatingSession session;
         readonly ListView contacts = new ListView { View = View.Details, FullRowSelect = true, GridLines = true };
         readonly Label check;
+        readonly Button recover;
+        readonly string nativeLogbook;
+        readonly Func<string> currentLogbook;
+        string recoverySource;
+        LogbookQso[] recoveryDemo;
 
-        internal SessionSummaryDialog(OperatingSession session) : base("Итоги сеанса", 746, 509)
+        internal SessionSummaryDialog(OperatingSession session, string nativeLogbook = null, Func<string> currentLogbook = null)
+            : base("Итоги сеанса", 746, 509)
         {
             this.session = session;
+            this.nativeLogbook = nativeLogbook;
+            this.currentLogbook = currentLogbook;
             string elapsed = session.StartedUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")
                 + (session.StoppedUtc.HasValue ? " – " + session.StoppedUtc.Value.ToLocalTime().ToString("HH:mm:ss") : " · сеанс продолжается");
             LabelAt(elapsed + " · " + (session.Band ?? "—") + " · " + session.Mode + " · "
@@ -302,12 +311,15 @@ namespace JtdxAutoCq
             contacts.Columns.Add("В JTDX", 91);
             contacts.Columns.Add("В основном журнале", 193);
             Place(contacts, 23, 205, 701, 237);
+            recover = ButtonAt("Экспорт для LogHX…", 23, 457, 196, OpenRecovery);
             ButtonAt("Закрыть", 588, 457, 136, Close);
             Fill();
         }
 
         internal void Fill(LogbookHistory history = null, string source = null, Exception failure = null)
         {
+            recoverySource = failure == null && JtdxLogbookRecovery.CanCompare(session, history) ? history.Path : null;
+            recover.Enabled = recoverySource != null && !String.IsNullOrEmpty(nativeLogbook) && currentLogbook != null;
             var matched = history == null ? null : session.FindIn(history);
             if (matched != null)
                 check.Text = "Журнал · " + source + "   |   Найдено · " + matched.Count + " из " + session.Contacts.Count;
@@ -328,6 +340,141 @@ namespace JtdxAutoCq
                 }
             }
             finally { contacts.EndUpdate(); }
+        }
+
+        internal void FillRecoveryDemo(LogbookHistory history, string source, IEnumerable<LogbookQso> native)
+        {
+            Fill(history, source);
+            recoveryDemo = JtdxLogbookRecovery.FindMissing(session, history, native);
+            recover.Enabled = recoveryDemo.Length != 0;
+        }
+
+        internal Form RecoveryDemoForm()
+        { return new RecoveryPreviewDialog(recoveryDemo ?? new LogbookQso[0], demo: true); }
+
+        void OpenRecovery()
+        {
+            if (recoveryDemo != null)
+            {
+                using (var demo = RecoveryDemoForm()) demo.ShowDialog(this);
+                return;
+            }
+            try
+            {
+                CheckRecoverySource();
+                RunRecovery("Сверяю записи JTDX и LogHX…",
+                    () => JtdxLogbookRecovery.ReadMissing(session, nativeLogbook, recoverySource), PreviewRecovery);
+            }
+            catch (Exception error) { ShowRecoveryError(error); }
+        }
+
+        void CheckRecoverySource()
+        {
+            if (recoverySource == null || currentLogbook == null
+                || !String.Equals(recoverySource, currentLogbook(), StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Основной журнал изменился. Откройте итоги сеанса заново.");
+        }
+
+        void PreviewRecovery(LogbookQso[] missing)
+        {
+            CheckRecoverySource();
+            if (missing.Length == 0)
+            {
+                check.Text = "Записей JTDX для переноса в LogHX не найдено.";
+                return;
+            }
+            using (var preview = new RecoveryPreviewDialog(missing))
+            {
+                if (preview.ShowDialog(this) != DialogResult.OK) return;
+                var selected = new HashSet<string>(preview.Selected.Select(row => row.RawAdif), StringComparer.Ordinal);
+                using (var save = new SaveFileDialog {
+                    Title = "Сохранить ADIF для LogHX", Filter = "ADIF (*.adi)|*.adi",
+                    AddExtension = true, DefaultExt = "adi", OverwritePrompt = false,
+                    FileName = "AutoCQ-LogHX-" + session.StartedUtc.ToString("yyyyMMdd-HHmmss") + ".adi",
+                })
+                {
+                    if (save.ShowDialog(this) != DialogResult.OK) return;
+                    CheckRecoverySource();
+                    string destination = save.FileName;
+                    RunRecovery("Проверяю оба журнала перед сохранением…",
+                        () => JtdxLogbookRecovery.ReadMissing(session, nativeLogbook, recoverySource),
+                        current => SaveRecovery(destination, selected, current));
+                }
+            }
+        }
+
+        void SaveRecovery(string destination, HashSet<string> selected, LogbookQso[] current)
+        {
+            CheckRecoverySource();
+            var records = current.Where(row => selected.Contains(row.RawAdif)).ToArray();
+            if (records.Length == 0)
+            {
+                check.Text = "После сверки не осталось записей для экспорта.";
+                return;
+            }
+            RunRecovery("Сохраняю файл ADIF…", () => JtdxLogbookRecovery.Save(destination, records), saved => {
+                check.Text = "Записей в файле ADIF · " + saved + " из " + selected.Count;
+                MessageBox.Show(this, "В файл ADIF сохранено " + saved + " из " + selected.Count + " записей.\r\n"
+                    + "Импортируйте в LogHX файл " + Path.GetFileName(destination) + ".",
+                    "Экспорт для LogHX", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            });
+        }
+
+        void RunRecovery<T>(string progress, Func<T> work, Action<T> complete)
+        {
+            string previous = check.Text;
+            check.Text = progress;
+            recover.Enabled = false;
+            var worker = new BackgroundWorker();
+            worker.DoWork += delegate(object sender, DoWorkEventArgs e) { e.Result = work(); };
+            worker.RunWorkerCompleted += delegate(object sender, RunWorkerCompletedEventArgs e) {
+                worker.Dispose();
+                if (IsDisposed || Disposing) return;
+                check.Text = previous;
+                recover.Enabled = true;
+                if (e.Error != null) ShowRecoveryError(e.Error);
+                else
+                {
+                    try { complete((T)e.Result); }
+                    catch (Exception error) { ShowRecoveryError(error); }
+                }
+            };
+            worker.RunWorkerAsync();
+        }
+
+        void ShowRecoveryError(Exception error)
+        { MessageBox.Show(this, error.Message, "Экспорт для LogHX", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+    }
+
+    internal sealed class RecoveryPreviewDialog : OperatorDialog
+    {
+        readonly ListView records = new ListView { View = View.Details, FullRowSelect = true, GridLines = true, CheckBoxes = true };
+        internal LogbookQso[] Selected
+        { get { return records.CheckedItems.Cast<ListViewItem>().Select(row => (LogbookQso)row.Tag).ToArray(); } }
+
+        internal RecoveryPreviewDialog(IEnumerable<LogbookQso> missing, bool demo = false)
+            : base("Связи для импорта в LogHX", 625, 416)
+        {
+            LabelAt("Отметьте записи JTDX, которые хотите сохранить в файл ADIF.", 23, 58, 578, 25);
+            LabelAt("Перед сохранением AutoCQ ещё раз сверит оба журнала.", 23, 87, 578, 26);
+            records.Columns.Add("Позывной", 143);
+            records.Columns.Add("Начало QSO, UTC", 211);
+            records.Columns.Add("Диапазон", 108);
+            records.Columns.Add("Режим", 88);
+            foreach (LogbookQso row in missing)
+            {
+                var item = new ListViewItem(row.Call) { Checked = true, Tag = row };
+                item.SubItems.Add(row.StartedUtc.Value.ToString("dd.MM.yyyy HH:mm:ss"));
+                item.SubItems.Add(row.Band);
+                item.SubItems.Add(row.Mode);
+                records.Items.Add(item);
+            }
+            Place(records, 23, 119, 579, 235);
+            var back = ButtonAt("Назад", 331, 365, 96, () => DialogResult = DialogResult.Cancel);
+            CancelButton = back;
+            var save = ButtonAt("Сохранить ADIF…", 438, 365, 164, () => DialogResult = DialogResult.OK, true);
+            save.Enabled = !demo && records.Items.Count > 0;
+            records.ItemChecked += delegate { save.Enabled = !demo && records.CheckedItems.Count > 0; };
         }
     }
 }

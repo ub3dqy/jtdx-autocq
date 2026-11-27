@@ -38,6 +38,10 @@ namespace JtdxAutoCq
             var awards = menu.Items.Add("Дипломы HAMLOG", null, delegate { Guard(ShowAwards); });
             var awardMonitor = menu.Items.Add("Мониторинг дипломов", null, delegate { Guard(() => StartRadioSession(preferences.Awards)); });
             menu.Items.Add("Экспедиции и редкие станции", null, delegate { Guard(ShowExpeditions); });
+            menu.Items.Add("Дежурный приём", null, delegate { Guard(ShowListening); });
+            menu.Items.Add("Где меня слышат", null, delegate { Guard(ShowPropagation); });
+            menu.Items.Add("Декодирование JTDX", null, delegate { Guard(ShowDecodeDiagnostics); });
+            menu.Items.Add("Разбор сеанса", null, delegate { Guard(ShowSessionTrace); });
             menu.Items.Add("Итоги сеанса", null, delegate { Guard(ShowSessionSummary); });
             menu.Opening += delegate {
                 source.Enabled = !engine.Armed && !startingWithHistory;
@@ -164,7 +168,7 @@ namespace JtdxAutoCq
         {
             ++historyStartRequest;
             startingWithHistory = false;
-            engine.Stop("Остановлено оператором.", true);
+            StopTraced("Остановлено оператором.", true);
             UpdateUi();
         }
 
@@ -264,6 +268,7 @@ namespace JtdxAutoCq
 
         void SaveSessionSummary(OperatingSession session)
         {
+            sessionTrace.Stop();
             preferences.LastSession = session.Snapshot();
             if (demo) return;
             try { preferenceStore.Save(preferences); }
@@ -276,13 +281,27 @@ namespace JtdxAutoCq
             OperatingSession session = engine.Session ?? preferences.LastSession;
             if (session == null) throw new InvalidOperationException("Запустите автомат или мониторинг, чтобы появились итоги сеанса.");
             string file = PrimaryLogbook();
-            using (var dialog = new SessionSummaryDialog(session.Snapshot()))
+            using (var dialog = new SessionSummaryDialog(session.Snapshot(), NativeLogbook, PrimaryLogbook))
             {
                 // Start the read after the dialog has a message loop.
                 dialog.Shown += delegate { ReadLogbook(file, (history, error) => {
                     if (!dialog.IsDisposed) dialog.Fill(history, LogbookName(file), error);
                 }); };
                 dialog.ShowDialog(this);
+            }
+        }
+
+        Form RecoveryDemoForm()
+        {
+            var session = new OperatingSession { OwnCall = "K1ABC", StartedUtc = DemoStart, Band = "20m", Mode = "FT8",
+                Contacts = new List<SessionContact> {
+                    new SessionContact { Call = "PY2XYZ", LoggedUtc = DemoStart.AddMinutes(10), ConfirmedUtc = DemoStart.AddMinutes(10.5) },
+                } };
+            using (var summary = new SessionSummaryDialog(session))
+            {
+                summary.FillRecoveryDemo(DemoLogbook(), "LogHX", JtdxAdif.ContactsFromText(
+                    "<CALL:6>PY2XYZ<BAND:3>20m<MODE:3>FT8<STATION_CALLSIGN:5>K1ABC<QSO_DATE:8>20260115<TIME_ON:6>120910<QSO_DATE_OFF:8>20260115<TIME_OFF:6>121000<EOR>", true));
+                return summary.RecoveryDemoForm();
             }
         }
 
