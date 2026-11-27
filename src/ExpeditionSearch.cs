@@ -84,6 +84,11 @@ namespace JtdxAutoCq
 
         internal IEnumerable<ExpeditionActivity> Activities { get { return items.Values.SelectMany(item => item.Activities); } }
         internal IEnumerable<ExpeditionActivity> ForCall(string call) { return calls[call]; }
+        internal bool HasRecentSpots(ExpeditionSource source, DateTime now)
+        {
+            ExpeditionFeedData feed;
+            return items.TryGetValue(source, out feed) && feed.Activities.Any(item => item.Current(now));
+        }
 
         internal void Replace(ExpeditionSource source, ExpeditionFeedData data)
         {

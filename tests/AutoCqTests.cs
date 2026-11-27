@@ -349,6 +349,14 @@ class AutoCqTests
                     catalog.MergeLogHx(gap, At);
                     Assert(catalog.ForCall("R0AAA/P").Count() == 1, "A gap discarded a fresh cached spot");
                     File.WriteAllBytes(path, packet);
+                    using (var writer = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.None))
+                    {
+                        var busy = LogHxSpotFeed.ReadBatch(path, At, true);
+                        Assert(busy.Activities.Length == 0, "A batch held open by the writer was read");
+                        catalog.MergeLogHx(busy, At);
+                        Assert(catalog.HasRecentSpots(ExpeditionSource.LogHx, At),
+                            "A temporary write lock discarded the recent LogHX spot");
+                    }
                     Assert(LogHxSpotFeed.ReadBatch(path, At, true).Activities.Length == 1, "The next LogHX batch was missed");
                     File.Delete(path);
                     bool missing = false;
@@ -363,6 +371,37 @@ class AutoCqTests
                         && MainForm.DescribeFeedFailure(new FileNotFoundException()) == "файл спотов не найден"
                         && MainForm.DescribeFeedFailure(new InvalidDataException()) == "ошибка формата данных",
                         "The source failed without an actionable reason");
+                });
+                Run("Live spot feeds retry a first network failure soon and respect the service wait", () => {
+                    var timeout = new WebException("Timeout", WebExceptionStatus.Timeout);
+                    Assert(MainForm.SourceRetryDelay(ExpeditionSource.Pota, timeout, At, true) == TimeSpan.FromMinutes(1)
+                        && MainForm.SourceRetryDelay(ExpeditionSource.Wwff, timeout, At, false) == TimeSpan.FromMinutes(5)
+                        && MainForm.SourceRetryDelay(ExpeditionSource.Ng3k, timeout, At, true) == TimeSpan.FromMinutes(5)
+                        && MainForm.RetryAfter("360", At) == TimeSpan.FromMinutes(6)
+                        && MainForm.RetryAfter(At.AddMinutes(12).ToString("r"), At) == TimeSpan.FromMinutes(12),
+                        "Unexpected retry delay for an unavailable source");
+                });
+                Run("Cluster spot references keep POTA and WWFF targets searchable when their feeds are unavailable", () => {
+                    var options = new ExpeditionOptions {
+                        DxTrips = false, RareDx = false, WantedRda = false, PortableRda = false, Summits = false, Bunkers = false,
+                        Parks = true, Nature = true, LogHxSpots = true
+                    };
+                    var sources = ExpeditionFeeds.Enabled(options).ToArray();
+                    Assert(sources.Contains(ExpeditionSource.LogHx) && sources.Contains(ExpeditionSource.DxSummit)
+                        && sources.Contains(ExpeditionSource.DxSpots), "Park-only and nature-only searches lost enabled cluster sources");
+                    var park = ExpeditionFeeds.ClusterSpot(ExpeditionSource.DxSpot, "W2ABC/P", "FT8", 14074000, At, "POTA US-1234");
+                    var nature = ExpeditionFeeds.ClusterSpot(ExpeditionSource.LogHx, "DL1AAA/P", "DIGI", 14080000, At, "DLFF-0123 FT4");
+                    var unrelated = ExpeditionFeeds.ClusterSpot(ExpeditionSource.DxSpot, "DL2AAA", "FT8", 14074000, At, "US-1234");
+                    var analog = ExpeditionFeeds.ClusterSpot(ExpeditionSource.LogHx, "DL3AAA/P", "CW", 14040000, At, "DLFF-0123");
+                    var catalog = new ExpeditionCatalog();
+                    catalog.Replace(ExpeditionSource.DxSpot, new ExpeditionFeedData { Activities = new[] { park, unrelated } });
+                    catalog.MergeLogHx(new ExpeditionFeedData { Activities = new[] { nature } }, At);
+                    var search = new ExpeditionSearch(options, catalog, call => null);
+                    Assert(park.ReferenceProgram == "POTA" && nature.ReferenceProgram == "WWFF" && analog == null
+                        && search.Match(park.Call, "20m", "FT8", At).Reason.Contains("US-1234")
+                        && search.Match(nature.Call, "20m", "FT4", At).Reason.Contains("DLFF-0123")
+                        && search.Match(unrelated.Call, "20m", "FT8", At) == null,
+                        "Cluster spots did not preserve confirmed field references and the digital-mode requirement");
                 });
                 Run("DX activity announcements require an exact advertised call and valid UTC dates", () => {
                     const string html = "<h1>Announced DX Operations</h1>"

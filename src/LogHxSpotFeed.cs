@@ -44,6 +44,13 @@ namespace JtdxAutoCq
                 // LogHX removes the file after consuming a batch. Poll for the next one.
                 return new ExpeditionFeedData();
             }
+            catch (IOException error)
+            {
+                const int SharingViolation = unchecked((int)0x80070020), LockViolation = unchecked((int)0x80070021);
+                if (!serverRunning || (error.HResult != SharingViolation && error.HResult != LockViolation)) throw;
+                // SpotMachineServer may hold the batch open while writing.
+                return new ExpeditionFeedData();
+            }
             return Parse(bytes, now);
         }
 

@@ -19,6 +19,7 @@ namespace JtdxAutoCq
         internal const string WantedRdaUrl = "https://rdaward.ru/?p=rda_wtd";
         const string DxSpotUrl = "https://dxspot.ru/api/spots?mode=FT8,FT4&limit=150&windowMin=15";
         const string DxSpotCalendarUrl = "https://dxspot.ru/api/expeditions?status=all";
+        internal static readonly TimeSpan LiveSpotInterval = TimeSpan.FromMinutes(2);
         static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
         static readonly DateTime Epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         static readonly Regex Paragraphs = Html(@"<p\b[^>]*>(.*?)</p>");
@@ -41,6 +42,7 @@ namespace JtdxAutoCq
         static readonly Regex SummitReference = Html(@"\A[A-Z0-9]{1,4}/[A-Z0-9]{1,4}-[0-9]{3,4}\z");
         static readonly Regex BunkerReference = Html(@"\AB/[A-Z0-9]{1,4}-[0-9]{3,6}\z");
         static readonly Regex ClusterReference = Html(@"\b(?:(IOTA)\s*[:=]?\s*((?:AF|AN|AS|EU|NA|OC|SA)-\d{3})|(RDA)\s*[:=]?\s*([A-Z]{2}-\d{2}))\b");
+        static readonly Regex FieldClusterReference = Html(@"\b(?:POTA\b\s*[:=]?\s*(?<park>[A-Z0-9]{1,4}-\d{4,5})|(?<nature>[A-Z0-9]{1,5}FF-\d{4,5}))\b");
         static readonly Regex OffAir = Html(@"\A(?:QRT|OFF\s*AIR|OFFLINE)\b");
         static readonly string[] DxSpotPrograms = { "RDA", "WWFF", "RAFA", "IOTA", "POTA", "SOTA" };
 
@@ -65,12 +67,13 @@ namespace JtdxAutoCq
                 || options.WantedRda || options.PortableRda;
             if (activationTargets) yield return ExpeditionSource.DxSpotCalendar;
             if (activationTargets || options.RareDx || options.WantedDxcc.Length > 0) yield return ExpeditionSource.DxSpot;
-            if (options.DxTrips || options.RareDx || options.WantedDxcc.Length > 0 || options.WantedRda || options.PortableRda)
+            if (options.DxTrips || options.RareDx || options.WantedDxcc.Length > 0 || options.WantedRda || options.PortableRda
+                || options.Parks || options.Nature)
             {
                 yield return ExpeditionSource.DxSpots;
                 yield return ExpeditionSource.DxSummit;
-                if (options.LogHxSpots) yield return ExpeditionSource.LogHx;
             }
+            if (options.LogHxSpots && options.HasTargets) yield return ExpeditionSource.LogHx;
         }
 
         internal static string Name(ExpeditionSource source)
@@ -104,7 +107,7 @@ namespace JtdxAutoCq
                 case ExpeditionSource.WantedRda:
                 case ExpeditionSource.DxRanks: return TimeSpan.FromHours(6);
                 case ExpeditionSource.LogHx: return TimeSpan.FromSeconds(2);
-                default: return TimeSpan.FromMinutes(2);
+                default: return LiveSpotInterval;
             }
         }
 
@@ -395,9 +398,19 @@ namespace JtdxAutoCq
             }
             Match reference = ClusterReference.Match(message);
             string place = reference.Groups[2].Success ? reference.Groups[2].Value : reference.Groups[4].Value;
+            string program = reference.Success ? (reference.Groups[1].Success ? "IOTA" : "RDA") : null;
+            if (program == null)
+            {
+                Match field = FieldClusterReference.Match(message);
+                if (field.Success)
+                {
+                    bool park = field.Groups["park"].Success;
+                    place = field.Groups[park ? "park" : "nature"].Value;
+                    program = park ? "POTA" : "WWFF";
+                }
+            }
             ExpeditionActivity spot = Spot(source, call, place, mode, frequency, time, dxcc, message);
-            if (spot != null && reference.Success)
-                spot.ReferenceProgram = reference.Groups[1].Success ? "IOTA" : "RDA";
+            if (spot != null) spot.ReferenceProgram = program;
             return spot;
         }
 

@@ -1,6 +1,6 @@
 # Using AutoCQ
 
-Guide for AutoCQ 0.9.25 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
+Guide for AutoCQ 0.9.51 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
 
 AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.
 
@@ -164,6 +164,10 @@ Use **«Диапазон списка»** (List band) to browse 20 m, 40 m, or a
 Select a station on another band to see its frequency and mode. After the current contact, stop the search, change bands in JTDX, and click **«Начать поиск»** again. If you close the search window, you can stop the active session from the main window with **«СТОП»** (Stop).
 
 To include your own clusters, open **«Окна → DX-кластеры»** (Windows → DX clusters) in LogHX and connect to your servers as usual. In AutoCQ, tick **«Кластеры LogHX»** (LogHX clusters). The search uses recent FT8 and FT4 spots received by LogHX.
+
+**«Без свежих спотов FT8/FT4»** means the source has no recent FT8 or FT4 spots. LogHX may be receiving CW or SSB spots, for example. If a source shows **«Недоступно»** (Unavailable), the reason appears next to its name. Hover over the status to see the full line. After the first network error, AutoCQ retries a live spot feed in one minute. If errors continue, you can click **«Обновить споты»** (Refresh spots) a minute after the last attempt unless the server has asked for a longer wait.
+
+DX cluster comments can also identify an activation by a park reference marked POTA or a WWFF reference such as DLFF-0123. These spots keep the search going when the main feeds are unavailable. The last column shows where each spot came from.
 
 Rows marked **DXSPOT** show recent FT8 and FT4 spots. **DXSPOT · календарь** (DXSPOT calendar) shows announcements from operators, including RDA, WWFF, RAFA, IOTA, POTA, and SOTA. Tick the targets you want to find. For RAFA and IOTA, choose **«DX-выезды и экспедиции»** (DX trips and expeditions). When CQDX has no Club Log rank for a station, AutoCQ uses the rank from a fresh DXSPOT spot. [DXSPOT live spots](https://dxspot.ru/) · [Calendar](https://dxspot.ru/expeditions)
 

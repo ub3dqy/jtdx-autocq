@@ -70,6 +70,8 @@ Open **«Журнал и дипломы → Экспедиции и редкие
 
 DXSPOT adds recent FT8 and FT4 spots and expedition announcements posted by the operators. [DXSPOT](https://dxspot.ru/)
 
+The status above the table shows when a source failed to respond or has no recent FT8 or FT4 spots. AutoCQ also looks for POTA and WWFF references in DX cluster spots while their feeds are unavailable.
+
 Click **«Начать поиск»** (Start search) while JTDX is receiving. AutoCQ calls a match after JTDX decodes it on the current band. Spots from other bands help you decide where to tune in JTDX. [Details and sources](USER-GUIDE.en.md#expeditions-and-rare-stations)
 
 ![Expedition, field activation, and rare station search in the AutoCQ demo](docs/expeditions-demo.png)

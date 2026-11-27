@@ -31,7 +31,13 @@ function render(source) {
     const heading = /^(#{1,6}) (.+)$/.exec(line);
     if (heading) {
       const n = heading[1].length;
-      const id = ['Поиск для дипломов HAMLOG', 'Search for HAMLOG award contacts'].includes(heading[2]) ? ' id="hamlog-awards"' : '';
+      const anchors = {
+        'Поиск для дипломов HAMLOG': 'hamlog-awards',
+        'Search for HAMLOG award contacts': 'hamlog-awards',
+        'Экспедиции и редкие станции': 'expeditions',
+        'Expeditions and rare stations': 'expeditions'
+      };
+      const id = anchors[heading[2]] ? ' id="' + anchors[heading[2]] + '"' : '';
       out.push('<h' + n + id + '>' + inline(heading[2]) + '</h' + n + '>');
       continue;
     }

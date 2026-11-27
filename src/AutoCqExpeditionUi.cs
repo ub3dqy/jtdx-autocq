@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -14,13 +15,14 @@ namespace JtdxAutoCq
         readonly ExpeditionCatalog expeditionCatalog = new ExpeditionCatalog();
         readonly Dictionary<ExpeditionSource, FeedStatus> expeditionFeeds = new Dictionary<ExpeditionSource, FeedStatus>();
         readonly Timer expeditionTimer = new Timer { Interval = 1000 };
+        static readonly TimeSpan LiveSpotRetry = TimeSpan.FromMinutes(1);
         ExpeditionDialog expeditionDialog;
 
         sealed class FeedStatus
         {
             internal bool Loading;
             internal string Failure;
-            internal DateTime LastAttempt, LastSuccess, NextAttempt;
+            internal DateTime LastSuccess, NextAttempt, NextManualAttempt;
         }
 
         void InitializeExpeditions()
@@ -88,7 +90,8 @@ namespace JtdxAutoCq
                 && (now - lastSeen).TotalSeconds < 35;
             bool canStart = connected && !engine.Armed && !startingWithHistory && engine.Status != null
                 && !engine.Status.TxEnabled && !engine.Status.Transmitting;
-            expeditionDialog.Render(expeditionCatalog, engine, canStart, ExpeditionSourceStatus(enabled), now);
+            string sources = demo ? "Демонстрационные данные" : ExpeditionSourceStatus(enabled, now);
+            expeditionDialog.Render(expeditionCatalog, engine, canStart, sources, now);
         }
 
         void UpdateExpeditionFeed(ExpeditionSource source, DateTime now, bool refresh)
@@ -99,11 +102,9 @@ namespace JtdxAutoCq
                 status = new FeedStatus();
                 expeditionFeeds.Add(source, status);
             }
-            bool mayRefreshNow = refresh && status.Failure == null && ExpeditionFeeds.Interval(source) == TimeSpan.FromMinutes(2)
-                && now - status.LastAttempt >= TimeSpan.FromMinutes(2);
-            if (status.Loading || now < status.NextAttempt && !mayRefreshNow) return;
+            DateTime next = refresh ? status.NextManualAttempt : status.NextAttempt;
+            if (status.Loading || now < next) return;
             status.Loading = true;
-            status.LastAttempt = now;
             var worker = new BackgroundWorker();
             bool local = source == ExpeditionSource.LogHx;
             worker.DoWork += delegate(object sender, DoWorkEventArgs args) {
@@ -113,6 +114,7 @@ namespace JtdxAutoCq
                 worker.Dispose();
                 if (IsDisposed || Disposing) return;
                 status.Loading = false;
+                bool firstFailure = status.Failure == null;
                 string failure = args.Error == null ? null : DescribeFeedFailure(args.Error);
                 if (failure != status.Failure)
                 {
@@ -128,9 +130,12 @@ namespace JtdxAutoCq
                     else expeditionCatalog.Replace(source, (ExpeditionFeedData)args.Result);
                     status.LastSuccess = received;
                 }
-                status.NextAttempt = received + (failure != null
-                    ? local ? TimeSpan.FromSeconds(10) : SourceRetryDelay(args.Error)
-                    : ExpeditionFeeds.Interval(source));
+                TimeSpan interval = ExpeditionFeeds.Interval(source);
+                bool retrySoon = IsLiveSpotNetworkFailure(source, args.Error);
+                status.NextAttempt = received + (failure == null ? interval
+                    : SourceRetryDelay(source, args.Error, received, firstFailure));
+                status.NextManualAttempt = retrySoon ? received + LiveSpotRetry
+                    : failure == null && interval == ExpeditionFeeds.LiveSpotInterval ? now + interval : status.NextAttempt;
             };
             worker.RunWorkerAsync();
         }
@@ -152,30 +157,58 @@ namespace JtdxAutoCq
             return "ошибка чтения";
         }
 
-        static TimeSpan SourceRetryDelay(Exception error)
+        static bool IsLiveSpotNetworkFailure(ExpeditionSource source, Exception error)
         {
+            var network = error as WebException;
+            return ExpeditionFeeds.Interval(source) == ExpeditionFeeds.LiveSpotInterval && network != null && network.Response == null
+                && (network.Status == WebExceptionStatus.Timeout || network.Status == WebExceptionStatus.ConnectFailure
+                    || network.Status == WebExceptionStatus.ReceiveFailure || network.Status == WebExceptionStatus.NameResolutionFailure);
+        }
+
+        internal static TimeSpan SourceRetryDelay(ExpeditionSource source, Exception error, DateTime now, bool firstFailure)
+        {
+            if (source == ExpeditionSource.LogHx) return TimeSpan.FromSeconds(10);
+            if (firstFailure && IsLiveSpotNetworkFailure(source, error)) return LiveSpotRetry;
             var network = error as WebException;
             var response = network == null ? null : network.Response;
             using (response)
-            {
-                int delay;
-                if (response != null && Int32.TryParse(response.Headers["Retry-After"], out delay))
-                    return TimeSpan.FromSeconds(Math.Max(300, Math.Min(86400, delay)));
-            }
-            return TimeSpan.FromMinutes(5);
+                return RetryAfter(response == null ? null : response.Headers["Retry-After"], now);
         }
 
-        string ExpeditionSourceStatus(ExpeditionSource[] selected)
+        internal static TimeSpan RetryAfter(string header, DateTime now)
         {
-            if (demo) return "Демонстрационные данные";
+            int seconds;
+            DateTimeOffset date;
+            double delay = 0;
+            if (Int32.TryParse(header, NumberStyles.None, CultureInfo.InvariantCulture, out seconds)) delay = seconds;
+            else if (DateTimeOffset.TryParse(header, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out date))
+                delay = (date.UtcDateTime - now).TotalSeconds;
+            return TimeSpan.FromSeconds(Math.Max(300, delay));
+        }
+
+        string ExpeditionSourceStatus(ExpeditionSource[] selected, DateTime now)
+        {
             if (selected.Length == 0) return "Выберите, что искать. Список обновится автоматически.";
-            var unavailable = selected.Where(source => expeditionFeeds[source].Failure != null && !expeditionFeeds[source].Loading)
-                .Select(source => ExpeditionFeeds.Name(source) + " (" + expeditionFeeds[source].Failure + ")").ToArray();
-            var loading = selected.Where(source => expeditionFeeds[source].Loading).Select(ExpeditionFeeds.Name).ToArray();
-            DateTime last = selected.Max(source => expeditionFeeds[source].LastSuccess);
-            return (last == DateTime.MinValue ? "" : "Обновлено " + last.ToLocalTime().ToString("HH:mm:ss") + "   ")
-                + (loading.Length == 0 ? "" : "Загружаю " + String.Join(", ", loading) + "   ")
-                + (unavailable.Length == 0 ? "" : "Недоступно " + String.Join(", ", unavailable));
+            var unavailable = new List<string>();
+            var loading = new List<string>();
+            var empty = new List<string>();
+            DateTime last = DateTime.MinValue;
+            foreach (ExpeditionSource source in selected)
+            {
+                FeedStatus status = expeditionFeeds[source];
+                string name = ExpeditionFeeds.Name(source);
+                if (status.LastSuccess > last) last = status.LastSuccess;
+                if (status.Loading) loading.Add(name);
+                else if (status.Failure != null) unavailable.Add(name + " (" + status.Failure + ")");
+                else if ((source == ExpeditionSource.LogHx || source == ExpeditionSource.Pota || source == ExpeditionSource.Wwff)
+                    && !expeditionCatalog.HasRecentSpots(source, now)) empty.Add(name);
+            }
+            var parts = new List<string>();
+            if (unavailable.Count > 0) parts.Add("Недоступно " + String.Join(", ", unavailable));
+            if (empty.Count > 0) parts.Add("Без свежих спотов FT8/FT4 — " + String.Join(", ", empty));
+            if (loading.Count > 0) parts.Add("Загружаю " + String.Join(", ", loading));
+            if (last != DateTime.MinValue) parts.Add("Обновлено " + last.ToLocalTime().ToString("HH:mm:ss"));
+            return String.Join(" · ", parts);
         }
 
         void SeedExpeditionDemo(DateTime now)
@@ -195,6 +228,7 @@ namespace JtdxAutoCq
             } });
             expeditionCatalog.Replace(ExpeditionSource.DxSpot, new ExpeditionFeedData { Activities = new[] {
                 DemoSpot(ExpeditionSource.DxSpot, "T30AAA", "", "FT8", 21074000, now.AddMinutes(-3), 173),
+                ExpeditionFeeds.ClusterSpot(ExpeditionSource.DxSpot, "DL1AAA/P", "FT8", 10136000, now.AddMinutes(-4), "DLFF-0123"),
             } });
             expeditionCatalog.Replace(ExpeditionSource.WantedRda, new ExpeditionFeedData {
                 RdaRanks = new Dictionary<string, int> { { "CK-04", 1 } },
@@ -204,9 +238,6 @@ namespace JtdxAutoCq
             } });
             expeditionCatalog.Replace(ExpeditionSource.Pota, new ExpeditionFeedData { Activities = new[] {
                 DemoSpot(ExpeditionSource.Pota, "W2ABC", "US-1234", "FT4", 14080000, now.AddMinutes(-6)),
-            } });
-            expeditionCatalog.Replace(ExpeditionSource.Wwff, new ExpeditionFeedData { Activities = new[] {
-                DemoSpot(ExpeditionSource.Wwff, "DL1AAA/P", "DLFF-0123", "FT8", 10136000, now.AddMinutes(-4)),
             } });
             expeditionCatalog.Replace(ExpeditionSource.Sota, new ExpeditionFeedData { Activities = new[] {
                 DemoSpot(ExpeditionSource.Sota, "HB0AAA/P", "HB0/LI-004", "FT8", 7074000, now.AddMinutes(-5)),
@@ -229,12 +260,17 @@ namespace JtdxAutoCq
         {
             DateTime now = DateTime.UtcNow;
             SeedExpeditionDemo(now);
+            expeditionCatalog.Replace(ExpeditionSource.LogHx, new ExpeditionFeedData());
+            var example = new[] { ExpeditionSource.Pota, ExpeditionSource.Wwff, ExpeditionSource.LogHx };
+            expeditionFeeds[ExpeditionSource.Pota] = new FeedStatus { LastSuccess = now };
+            expeditionFeeds[ExpeditionSource.Wwff] = new FeedStatus { Failure = "тайм-аут" };
+            expeditionFeeds[ExpeditionSource.LogHx] = new FeedStatus { LastSuccess = now };
             engine.Cqs.Observe(new DecodedMessage { Message = "CQ V6AAA QJ57", IsNew = true, Mode = "~",
                 Milliseconds = (uint)now.TimeOfDay.TotalMilliseconds, Snr = -10, DeltaFrequency = 1128 },
                 engine.Status, now);
             var form = new ExpeditionDialog(new ExpeditionOptions { LogHxSpots = true },
                 (dialog, values) => values, options => { }, options => { }, () => { }, () => { });
-            form.Render(expeditionCatalog, engine, true, ExpeditionSourceStatus(new ExpeditionSource[0]), now);
+            form.Render(expeditionCatalog, engine, true, "Демо · " + ExpeditionSourceStatus(example, now), now);
             return form;
         }
     }

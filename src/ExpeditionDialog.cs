@@ -13,6 +13,7 @@ namespace JtdxAutoCq
         readonly NumericUpDown rank = new NumericUpDown { Minimum = 1, Maximum = 340, AccessibleName = "Порог редкости DXCC" };
         readonly ComboBox listBand, wantedBand;
         readonly Label radio, sources, selection, wantedBandLabel;
+        readonly ToolTip sourcesTip = new ToolTip();
         readonly Button start, refresh, personal;
         readonly ListView results = new ListView { View = View.Details, FullRowSelect = true, MultiSelect = false, HideSelection = false, ShowItemToolTips = true };
         string[] wanted;
@@ -49,6 +50,7 @@ namespace JtdxAutoCq
             sources = LabelAt("Ожидаю данные от источников…", 378, 155, 632, 23);
             sources.ForeColor = Color.FromArgb(79, 96, 112);
             sources.AutoEllipsis = true;
+            Disposed += delegate { sourcesTip.Dispose(); };
 
             results.AccessibleName = "Экспедиции и споты";
             results.Columns.Add("Позывной", 106);
@@ -125,7 +127,11 @@ namespace JtdxAutoCq
             start.BackColor = active ? Color.FromArgb(137, 39, 36) : Color.FromArgb(0, 100, 91);
             radio.Text = (currentRadio == null ? "Ожидаю JTDX" : "JTDX  ·  " + (JtdxAdif.Band(currentRadio.Frequency) ?? "—") + "  ·  " + currentRadio.Mode)
                 + (active ? "     Поиск включён" : engine.Armed ? "     Идёт другой сеанс AutoCQ" : "     Поиск выключен");
-            sources.Text = sourceStatus;
+            if (sources.Text != sourceStatus)
+            {
+                sources.Text = sourceStatus;
+                sourcesTip.SetToolTip(sources, sourceStatus);
+            }
             UpdateControls();
 
             var search = engine.Expeditions ?? new ExpeditionSearch(Options, catalog, engine.DxccForCall);
