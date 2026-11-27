@@ -19,6 +19,8 @@ namespace JtdxAutoCq
         internal const string WantedRdaUrl = "https://rdaward.ru/?p=rda_wtd";
         const string DxSpotUrl = "https://dxspot.ru/api/spots?mode=FT8,FT4&limit=150&windowMin=15";
         const string DxSpotCalendarUrl = "https://dxspot.ru/api/expeditions?status=all";
+        const string WwffUrl = "https://spots.wwff.co/static/spots.json";
+        const string WwffBackupUrl = "https://s50clx.si/api/v3/spots?activity=WWFF&mode=FT8,FT4&needs_activity_ref=true&max_age=900&fields=dx_call,time,freq,mode,activity_refs,comment";
         internal static readonly TimeSpan LiveSpotInterval = TimeSpan.FromMinutes(2);
         static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
         static readonly DateTime Epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -84,6 +86,7 @@ namespace JtdxAutoCq
                 case ExpeditionSource.DxNews: return "425 DX News";
                 case ExpeditionSource.Pota: return "POTA";
                 case ExpeditionSource.Wwff: return "WWFF";
+                case ExpeditionSource.WwffSpothole: return "WWFF через Spothole";
                 case ExpeditionSource.Sota: return "SOTA / CQDX";
                 case ExpeditionSource.Wwbota: return "WWBOTA";
                 case ExpeditionSource.Rda: return "Кластер RDA";
@@ -119,7 +122,7 @@ namespace JtdxAutoCq
                 case ExpeditionSource.Ng3k: url = CalendarUrl; break;
                 case ExpeditionSource.DxNews: url = DxNewsCalendarUrl; break;
                 case ExpeditionSource.Pota: url = "https://api.pota.app/spot/activator"; break;
-                case ExpeditionSource.Wwff: url = "https://spots.wwff.co/static/spots.json"; break;
+                case ExpeditionSource.Wwff: return FetchWwff(Download);
                 case ExpeditionSource.Sota: url = "https://cqdx.io/api/v1/pota"; break;
                 case ExpeditionSource.Wwbota: url = "https://api.wwbota.org/spots/?age=1"; break;
                 case ExpeditionSource.Rda: url = RdaUrl; break;
@@ -131,7 +134,29 @@ namespace JtdxAutoCq
                 case ExpeditionSource.DxSpotCalendar: url = DxSpotCalendarUrl; break;
                 default: throw new ArgumentOutOfRangeException("source");
             }
+            return Parse(source, Download(url), DateTime.UtcNow);
+        }
 
+        internal static bool IsConnectionFailure(Exception error)
+        {
+            var network = error as WebException;
+            return network != null && network.Response == null
+                && (network.Status == WebExceptionStatus.Timeout || network.Status == WebExceptionStatus.ConnectFailure
+                    || network.Status == WebExceptionStatus.ReceiveFailure || network.Status == WebExceptionStatus.NameResolutionFailure);
+        }
+
+        internal static ExpeditionFeedData FetchWwff(Func<string, string> download)
+        {
+            try { return Parse(ExpeditionSource.Wwff, download(WwffUrl), DateTime.UtcNow); }
+            catch (WebException error)
+            {
+                if (!IsConnectionFailure(error)) throw;
+                return Parse(ExpeditionSource.WwffSpothole, download(WwffBackupUrl), DateTime.UtcNow);
+            }
+        }
+
+        static string Download(string url)
+        {
             ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072;
             var request = (HttpWebRequest)WebRequest.Create(url);
             request.UserAgent = "AutoCQ/" + typeof(ExpeditionFeeds).Assembly.GetName().Version.ToString(3) + " (ub3dqy.com)";
@@ -152,7 +177,7 @@ namespace JtdxAutoCq
                     if (output.Length + count > maxBody) throw new IOException("Ответ источника слишком большой.");
                     output.Write(buffer, 0, count);
                 }
-                return Parse(source, Encoding.UTF8.GetString(output.ToArray()), DateTime.UtcNow);
+                return Encoding.UTF8.GetString(output.ToArray());
             }
         }
 
@@ -175,6 +200,11 @@ namespace JtdxAutoCq
                 case ExpeditionSource.Wwff:
                     data.Activities = Json<NatureSpot[]>(content).Where(row => row != null).Select(row => Spot(source, row.Call, row.Reference,
                         row.Mode, row.Frequency * 1000, Unix(row.Time), 0, row.Comment)).Where(row => row != null).ToArray();
+                    break;
+                case ExpeditionSource.WwffSpothole:
+                    data.BackupSource = source;
+                    Require(content.TrimStart('\uFEFF', ' ', '\t', '\r', '\n').StartsWith("[", StringComparison.Ordinal));
+                    data.Activities = SpotholeWwffSpots(Json<SpotholeSpot[]>(content)).ToArray();
                     break;
                 case ExpeditionSource.Sota:
                     CqdxActivation[] activations = Json<ActivationList>(content).Activations;
@@ -276,6 +306,22 @@ namespace JtdxAutoCq
                 foreach (string call in row.Title.Substring(0, separator).Split(',').Select(FullCall).Where(call => call != null).Distinct())
                     yield return new ExpeditionActivity { Source = ExpeditionSource.DxNews, Call = call,
                         Place = Bounded(place), StartUtc = start, EndUtc = end.AddDays(1) };
+            }
+        }
+
+        static IEnumerable<ExpeditionActivity> SpotholeWwffSpots(IEnumerable<SpotholeSpot> entries)
+        {
+            foreach (SpotholeSpot row in entries)
+            {
+                if (row == null || row.References == null || !(row.Time > 0 && row.Time < 4102444800L)) continue;
+                DateTime time = Unix((long)row.Time);
+                foreach (SpotholeReference reference in row.References)
+                {
+                    if (reference == null || !String.Equals(reference.Activity, "WWFF", StringComparison.OrdinalIgnoreCase)) continue;
+                    ExpeditionActivity spot = Spot(ExpeditionSource.WwffSpothole, row.Call, reference.Id,
+                        row.Mode, row.Frequency, time, 0, row.Comment);
+                    if (spot != null) yield return spot;
+                }
             }
         }
 
@@ -424,7 +470,7 @@ namespace JtdxAutoCq
                 || time == DateTime.MinValue || OffAir.IsMatch((comment ?? "").Trim())) return null;
             if (source == ExpeditionSource.Rda && !RdaReference.IsMatch(place)
                 || source == ExpeditionSource.Pota && !ParkReference.IsMatch(place)
-                || source == ExpeditionSource.Wwff && !NatureReference.IsMatch(place)
+                || (source == ExpeditionSource.Wwff || source == ExpeditionSource.WwffSpothole) && !NatureReference.IsMatch(place)
                 || source == ExpeditionSource.Sota && !SummitReference.IsMatch(place)
                 || source == ExpeditionSource.Wwbota && !BunkerReference.IsMatch(place)) return null;
             return new ExpeditionActivity { Source = source, Call = call, Place = place, Mode = mode,
@@ -526,6 +572,22 @@ namespace JtdxAutoCq
             [DataMember(Name = "reference")] public string Reference { get; set; }
             [DataMember(Name = "spot_time")] public long Time { get; set; }
             [DataMember(Name = "remarks")] public string Comment { get; set; }
+        }
+
+        [DataContract] sealed class SpotholeSpot
+        {
+            [DataMember(Name = "dx_call")] public string Call { get; set; }
+            [DataMember(Name = "time")] public double Time { get; set; }
+            [DataMember(Name = "freq")] public double Frequency { get; set; }
+            [DataMember(Name = "mode")] public string Mode { get; set; }
+            [DataMember(Name = "comment")] public string Comment { get; set; }
+            [DataMember(Name = "activity_refs")] public SpotholeReference[] References { get; set; }
+        }
+
+        [DataContract] sealed class SpotholeReference
+        {
+            [DataMember(Name = "activity")] public string Activity { get; set; }
+            [DataMember(Name = "id")] public string Id { get; set; }
         }
 
         [DataContract] sealed class EntityList { [DataMember(Name = "entities")] public CqdxEntity[] Entities { get; set; } }

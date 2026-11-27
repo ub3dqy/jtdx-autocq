@@ -403,6 +403,61 @@ class AutoCqTests
                         && search.Match(unrelated.Call, "20m", "FT8", At) == null,
                         "Cluster spots did not preserve confirmed field references and the digital-mode requirement");
                 });
+                Run("WWFF uses Spothole after a network failure and preserves the primary response and errors", () => {
+                    var attempted = new List<string>();
+                    var recovered = ExpeditionFeeds.FetchWwff(url => {
+                        attempted.Add(new Uri(url).Host);
+                        if (attempted.Count == 1) throw new WebException("Timeout", WebExceptionStatus.Timeout);
+                        return "[]";
+                    });
+                    Assert(attempted.SequenceEqual(new[] { "spots.wwff.co", "s50clx.si" })
+                        && recovered.BackupSource == ExpeditionSource.WwffSpothole && recovered.Activities.Length == 0,
+                        "The timeout did not switch to Spothole or an empty backup failed");
+                    attempted.Clear();
+                    var primary = ExpeditionFeeds.FetchWwff(url => { attempted.Add(url); return "[]"; });
+                    Assert(attempted.Count == 1 && !primary.BackupSource.HasValue,
+                        "A healthy primary response requested the backup");
+                    var httpError = new WebException("HTTP error", WebExceptionStatus.ProtocolError);
+                    try
+                    {
+                        ExpeditionFeeds.FetchWwff(url => { attempted.Add(url); throw httpError; });
+                        Assert(false, "The primary HTTP error was lost");
+                    }
+                    catch (WebException error)
+                    {
+                        Assert(error == httpError && attempted.Count == 2, "The backup was used despite an HTTP error");
+                    }
+                    Assert(MainForm.SourceRetryDelay(ExpeditionSource.Wwff,
+                        new WebException("Timeout", WebExceptionStatus.Timeout), At, true) >= ExpeditionFeeds.LiveSpotInterval,
+                        "A failed backup could be queried ahead of its polling interval");
+                });
+                Run("Spothole WWFF uses current digital spots with typed WWFF references", () => {
+                    long seconds = (long)(At - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
+                    Func<string, string, long, string, string, string> row = (call, mode, time, activity, id) =>
+                        "{\"dx_call\":\"" + call + "\",\"time\":" + time + ".0,\"freq\":14080000.0,\"mode\":\"" + mode
+                        + "\",\"activity_refs\":[{\"activity\":\"" + activity + "\",\"id\":\"" + id + "\"}]}";
+                    string content = "[" + String.Join(",", new[] {
+                        row("DL1AAA/P", "FT4", seconds - 60, "WWFF", "DLFF-0042"),
+                        row("DL2AAA/P", "FT8", seconds, "WWFF", "DLFF-0003"),
+                        row("DL3AAA/P", "FT8", seconds - 901, "WWFF", "DLFF-0003"),
+                        row("DL4AAA/P", "CW", seconds, "WWFF", "DLFF-0003"),
+                        row("DL5AAA/P", "FT8", seconds, "POTA", "DLFF-0003"),
+                        row("DL6AAA/P", "FT8", seconds, "WWFF", "DE-0123"),
+                        row("DL7AAA/P", "FT8", seconds + 61, "WWFF", "DLFF-0003")
+                    }) + "]";
+                    var data = ExpeditionFeeds.Parse(ExpeditionSource.WwffSpothole, content, At);
+                    Assert(data.Activities.Select(item => item.Mode).SequenceEqual(new[] { "FT8", "FT4" }),
+                        "The backup accepted a stale, future or non-WWFF digital spot");
+                    ExpeditionActivity ft4 = data.Activities[1];
+                    Assert(ft4.Frequency == 14080000 && ft4.SpottedUtc == At.AddMinutes(-1) && ft4.Place == "DLFF-0042",
+                        "The backup lost the spot frequency, timestamp or WWFF reference");
+                    var catalog = new ExpeditionCatalog();
+                    catalog.Replace(ExpeditionSource.Wwff, data);
+                    var search = new ExpeditionSearch(new ExpeditionOptions { Nature = true }, catalog, call => null);
+                    var match = search.Match("DL1AAA/P", "20m", "FT4", At);
+                    Assert(catalog.HasRecentSpots(ExpeditionSource.Wwff, At) && match != null
+                        && match.Source == "WWFF через Spothole", "The backup result lost its WWFF target or source label");
+                });
                 Run("DX activity announcements require an exact advertised call and valid UTC dates", () => {
                     const string html = "<h1>Announced DX Operations</h1>"
                         + "<p>Nov 7-9, 2025<br>DXCC: Micronesia<br>Callsign: <b>V6</b><br>Info: By JA1AAA as V6/JA1AAA; 40-10m; CW FT8</p>"

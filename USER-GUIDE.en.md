@@ -1,6 +1,6 @@
 # Using AutoCQ
 
-Guide for AutoCQ 0.9.51 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
+Guide for AutoCQ 0.9.52 · **UB3DQY** · [Русский](USER-GUIDE.md) · [Project overview](README.en.md)
 
 AutoCQ lets JTDX continue after each contact. It remembers callers while you are busy, then answers the next station or calls CQ again. You choose the session length and selection rules.
 
@@ -165,7 +165,9 @@ Select a station on another band to see its frequency and mode. After the curren
 
 To include your own clusters, open **«Окна → DX-кластеры»** (Windows → DX clusters) in LogHX and connect to your servers as usual. In AutoCQ, tick **«Кластеры LogHX»** (LogHX clusters). The search uses recent FT8 and FT4 spots received by LogHX.
 
-**«Без свежих спотов FT8/FT4»** means the source has no recent FT8 or FT4 spots. LogHX may be receiving CW or SSB spots, for example. If a source shows **«Недоступно»** (Unavailable), the reason appears next to its name. Hover over the status to see the full line. After the first network error, AutoCQ retries a live spot feed in one minute. If errors continue, you can click **«Обновить споты»** (Refresh spots) a minute after the last attempt unless the server has asked for a longer wait.
+**«Без свежих спотов FT8/FT4»** means the source has no recent FT8 or FT4 spots. LogHX may be receiving CW or SSB spots, for example. If a source shows **«Недоступно»** (Unavailable), the reason appears next to its name. Hover over the status to see the full line. **«Обновить споты»** (Refresh spots) requests fresh data within the polling intervals.
+
+If WWFF Spotline does not respond, AutoCQ uses Spothole on S50CLX to fetch recent FT8 and FT4 spots with WWFF references. The status above the table and the **Source** column show **«WWFF через Spothole»** (WWFF via Spothole). AutoCQ checks Spotline again on the next refresh. [Spothole](https://s50clx.si/)
 
 DX cluster comments can also identify an activation by a park reference marked POTA or a WWFF reference such as DLFF-0123. These spots keep the search going when the main feeds are unavailable. The last column shows where each spot came from.
 

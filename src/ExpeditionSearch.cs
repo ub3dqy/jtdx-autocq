@@ -30,7 +30,7 @@ namespace JtdxAutoCq
         }
     }
 
-    internal enum ExpeditionSource { Ng3k, Pota, Wwff, Rda, WantedRda, DxRanks, DxSpots, DxSummit, Sota, Wwbota, LogHx, DxNews, DxSpot, DxSpotCalendar }
+    internal enum ExpeditionSource { Ng3k, Pota, Wwff, Rda, WantedRda, DxRanks, DxSpots, DxSummit, Sota, Wwbota, LogHx, DxNews, DxSpot, DxSpotCalendar, WwffSpothole }
 
     internal sealed class ExpeditionActivity
     {
@@ -69,6 +69,7 @@ namespace JtdxAutoCq
 
     internal sealed class ExpeditionFeedData
     {
+        internal ExpeditionSource? BackupSource;
         internal ExpeditionActivity[] Activities = new ExpeditionActivity[0];
         internal ExpeditionEntity[] Entities = new ExpeditionEntity[0];
         internal Dictionary<string, int> RdaRanks = new Dictionary<string, int>();
@@ -207,7 +208,7 @@ namespace JtdxAutoCq
             string source = ExpeditionFeeds.Name(item.Source);
             if (item.Source == ExpeditionSource.Pota || item.ReferenceProgram == "POTA")
                 return options.Parks ? Description("Парк " + item.Place, source, 1000) : null;
-            if (item.Source == ExpeditionSource.Wwff || item.ReferenceProgram == "WWFF")
+            if (item.Source == ExpeditionSource.Wwff || item.Source == ExpeditionSource.WwffSpothole || item.ReferenceProgram == "WWFF")
                 return options.Nature ? Description("Природная территория " + item.Place, source, 1000) : null;
             if (item.Source == ExpeditionSource.Sota || item.ReferenceProgram == "SOTA")
                 return options.Summits ? Description("Горная вершина " + item.Place, source, 1000) : null;

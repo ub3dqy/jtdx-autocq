@@ -22,6 +22,7 @@ namespace JtdxAutoCq
         {
             internal bool Loading;
             internal string Failure;
+            internal ExpeditionSource? BackupSource;
             internal DateTime LastSuccess, NextAttempt, NextManualAttempt;
         }
 
@@ -126,16 +127,24 @@ namespace JtdxAutoCq
                 DateTime received = DateTime.UtcNow;
                 if (failure == null)
                 {
-                    if (local) expeditionCatalog.MergeLogHx((ExpeditionFeedData)args.Result, received);
-                    else expeditionCatalog.Replace(source, (ExpeditionFeedData)args.Result);
+                    var data = (ExpeditionFeedData)args.Result;
+                    if (local) expeditionCatalog.MergeLogHx(data, received);
+                    else expeditionCatalog.Replace(source, data);
+                    if (data.BackupSource != status.BackupSource)
+                    {
+                        DiagnosticEvent(data.BackupSource.HasValue ? "Лента WWFF Spotline не ответила. Получаю споты через Spothole."
+                            : "Лента WWFF Spotline снова отвечает.");
+                        status.BackupSource = data.BackupSource;
+                    }
                     status.LastSuccess = received;
                 }
                 TimeSpan interval = ExpeditionFeeds.Interval(source);
-                bool retrySoon = IsLiveSpotNetworkFailure(source, args.Error);
+                bool retrySoon = CanRetrySpotFeedSoon(source, args.Error);
                 status.NextAttempt = received + (failure == null ? interval
                     : SourceRetryDelay(source, args.Error, received, firstFailure));
                 status.NextManualAttempt = retrySoon ? received + LiveSpotRetry
-                    : failure == null && interval == ExpeditionFeeds.LiveSpotInterval ? now + interval : status.NextAttempt;
+                    : failure == null && source != ExpeditionSource.Wwff && interval == ExpeditionFeeds.LiveSpotInterval
+                        ? now + interval : status.NextAttempt;
             };
             worker.RunWorkerAsync();
         }
@@ -157,18 +166,16 @@ namespace JtdxAutoCq
             return "ошибка чтения";
         }
 
-        static bool IsLiveSpotNetworkFailure(ExpeditionSource source, Exception error)
+        static bool CanRetrySpotFeedSoon(ExpeditionSource source, Exception error)
         {
-            var network = error as WebException;
-            return ExpeditionFeeds.Interval(source) == ExpeditionFeeds.LiveSpotInterval && network != null && network.Response == null
-                && (network.Status == WebExceptionStatus.Timeout || network.Status == WebExceptionStatus.ConnectFailure
-                    || network.Status == WebExceptionStatus.ReceiveFailure || network.Status == WebExceptionStatus.NameResolutionFailure);
+            return source != ExpeditionSource.Wwff && ExpeditionFeeds.Interval(source) == ExpeditionFeeds.LiveSpotInterval
+                && ExpeditionFeeds.IsConnectionFailure(error);
         }
 
         internal static TimeSpan SourceRetryDelay(ExpeditionSource source, Exception error, DateTime now, bool firstFailure)
         {
             if (source == ExpeditionSource.LogHx) return TimeSpan.FromSeconds(10);
-            if (firstFailure && IsLiveSpotNetworkFailure(source, error)) return LiveSpotRetry;
+            if (firstFailure && CanRetrySpotFeedSoon(source, error)) return LiveSpotRetry;
             var network = error as WebException;
             var response = network == null ? null : network.Response;
             using (response)
@@ -192,19 +199,22 @@ namespace JtdxAutoCq
             var unavailable = new List<string>();
             var loading = new List<string>();
             var empty = new List<string>();
+            string backup = null;
             DateTime last = DateTime.MinValue;
             foreach (ExpeditionSource source in selected)
             {
                 FeedStatus status = expeditionFeeds[source];
-                string name = ExpeditionFeeds.Name(source);
+                string name = ExpeditionFeeds.Name(status.Failure == null ? status.BackupSource ?? source : source);
                 if (status.LastSuccess > last) last = status.LastSuccess;
                 if (status.Loading) loading.Add(name);
                 else if (status.Failure != null) unavailable.Add(name + " (" + status.Failure + ")");
                 else if ((source == ExpeditionSource.LogHx || source == ExpeditionSource.Pota || source == ExpeditionSource.Wwff)
                     && !expeditionCatalog.HasRecentSpots(source, now)) empty.Add(name);
+                else if (status.BackupSource.HasValue) backup = name;
             }
             var parts = new List<string>();
             if (unavailable.Count > 0) parts.Add("Недоступно " + String.Join(", ", unavailable));
+            if (backup != null) parts.Add(backup);
             if (empty.Count > 0) parts.Add("Без свежих спотов FT8/FT4 — " + String.Join(", ", empty));
             if (loading.Count > 0) parts.Add("Загружаю " + String.Join(", ", loading));
             if (last != DateTime.MinValue) parts.Add("Обновлено " + last.ToLocalTime().ToString("HH:mm:ss"));
@@ -228,7 +238,9 @@ namespace JtdxAutoCq
             } });
             expeditionCatalog.Replace(ExpeditionSource.DxSpot, new ExpeditionFeedData { Activities = new[] {
                 DemoSpot(ExpeditionSource.DxSpot, "T30AAA", "", "FT8", 21074000, now.AddMinutes(-3), 173),
-                ExpeditionFeeds.ClusterSpot(ExpeditionSource.DxSpot, "DL1AAA/P", "FT8", 10136000, now.AddMinutes(-4), "DLFF-0123"),
+            } });
+            expeditionCatalog.Replace(ExpeditionSource.Wwff, new ExpeditionFeedData { Activities = new[] {
+                DemoSpot(ExpeditionSource.WwffSpothole, "DL1AAA/P", "DLFF-0123", "FT8", 10136000, now.AddMinutes(-4)),
             } });
             expeditionCatalog.Replace(ExpeditionSource.WantedRda, new ExpeditionFeedData {
                 RdaRanks = new Dictionary<string, int> { { "CK-04", 1 } },
@@ -263,7 +275,7 @@ namespace JtdxAutoCq
             expeditionCatalog.Replace(ExpeditionSource.LogHx, new ExpeditionFeedData());
             var example = new[] { ExpeditionSource.Pota, ExpeditionSource.Wwff, ExpeditionSource.LogHx };
             expeditionFeeds[ExpeditionSource.Pota] = new FeedStatus { LastSuccess = now };
-            expeditionFeeds[ExpeditionSource.Wwff] = new FeedStatus { Failure = "тайм-аут" };
+            expeditionFeeds[ExpeditionSource.Wwff] = new FeedStatus { BackupSource = ExpeditionSource.WwffSpothole, LastSuccess = now };
             expeditionFeeds[ExpeditionSource.LogHx] = new FeedStatus { LastSuccess = now };
             engine.Cqs.Observe(new DecodedMessage { Message = "CQ V6AAA QJ57", IsNew = true, Mode = "~",
                 Milliseconds = (uint)now.TimeOfDay.TotalMilliseconds, Snr = -10, DeltaFrequency = 1128 },
