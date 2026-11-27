@@ -871,6 +871,32 @@ class AutoCqTests
                     File.AppendAllText(file,"Tx triggered at RX: FIN, end of QSO, Autolog 14.074 MHz\r\n");tail.Read(lines.Add);
                     Assert(lines.Count==2 && lines[1].StartsWith("Halt Tx"),"Split write lost");
                 });
+                Run("The log tail preserves split UTF-8, consumes one leading BOM, and clears decoder state on reset", () => {
+                    string folder = Fixture(), file = Path.Combine(folder, DateTime.UtcNow.ToString("yyyyMM") + "_ALL.TXT");
+                    var tail = new LogTail(folder);
+                    var lines = new List<string>();
+                    Action<byte[]> append = bytes => {
+                        using (var stream = new FileStream(file, FileMode.Append, FileAccess.Write))
+                            stream.Write(bytes, 0, bytes.Length);
+                    };
+                    string line = "120000 RX FT8 CQ \u00D8A1ABC JO48";
+                    byte[] payload = Encoding.UTF8.GetBytes(line + "\r\n");
+                    int split = Array.IndexOf(payload, (byte)0xC3) + 1;
+                    append(new byte[] { 0xEF, 0xBB }); tail.Read(lines.Add);
+                    append(new byte[] { 0xBF }.Concat(payload.Take(split)).ToArray()); tail.Read(lines.Add);
+                    Assert(lines.Count == 0, "A partial BOM or UTF-8 line was emitted");
+                    append(payload.Skip(split).ToArray()); tail.Read(lines.Add);
+                    Assert(lines.SequenceEqual(new[] { line }), "A split UTF-8 character or its leading BOM was mishandled");
+
+                    append(new byte[] { 0xC3 }); tail.Read(lines.Add);
+                    File.WriteAllBytes(file, Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes("new\r\n")).ToArray());
+                    tail.Read(lines.Add);
+                    Assert(lines.SequenceEqual(new[] { line, "new" }), "Truncation retained partial UTF-8");
+                    append(new byte[] { 0xC3 }); tail.Read(lines.Add);
+                    tail.Reset();
+                    append(Encoding.UTF8.GetBytes("reset\r\n")); tail.Read(lines.Add);
+                    Assert(lines.SequenceEqual(new[] { line, "new", "reset" }), "Explicit reset retained partial UTF-8");
+                });
                 Run("A busy radio log is retried and the reader releases it before processing", () => {
                     string folder = Fixture();
                     string path = Path.Combine(folder, DateTime.UtcNow.ToString("yyyyMM") + "_ALL.TXT");
@@ -1551,6 +1577,72 @@ class AutoCqTests
                     e.OnLine(Tx(At.AddSeconds(15),"W1AW","73"),At.AddSeconds(15));e.OnLine("QSO logged: W1AW",At.AddSeconds(15));
                     e.OnLine("Halt Tx triggered at RX: S73, none received ",At.AddSeconds(29));e.OnStatus(S(false,""),At.AddSeconds(29));e.Tick(At.AddSeconds(30),true);
                     Assert(c.SequenceEqual(new[]{"CQ"}) && e.ConfirmedCount==1,"Reverse final acknowledgement blocked");
+                });
+                Run("Another station's acknowledgement cannot replace the current exchange's sign-off", () => {
+                    foreach (string mode in new[] { "FT8", "FT4" })
+                    foreach (string signoff in new[] { "RR73", "RRR", "73" })
+                    {
+                        double slot = mode == "FT4" ? 7.5 : 15;
+                        var commands = new List<string>();
+                        var engine = new AutoCqEngine { UseNativeSelection = true };
+                        engine.RequestHalt = () => commands.Add("HALT");
+                        engine.RequestCq = () => commands.Add("CQ");
+                        RadioStatus active = S(true, "W1AW"); active.Mode = mode;
+                        engine.OnStatus(active, At);
+                        engine.Start(At);
+                        engine.OnLine(Tx(At, "W1AW", "R-10").Replace("FT8:", mode + ":"), At);
+
+                        DateTime received = At.AddSeconds(2 * slot - 0.5);
+                        var current = D(At.AddSeconds(slot), "W1AW", signoff);
+                        var other = D(At.AddSeconds(slot), "W2ABC", "RR73");
+                        current.Mode = other.Mode = mode == "FT4" ? ":" : "~";
+                        engine.OnDecode(current, received);
+                        engine.OnDecode(other, received);
+                        DateTime sent = At.AddSeconds(2 * slot);
+                        engine.OnLine(Tx(sent, "W1AW", "73").Replace("FT8:", mode + ":"), sent);
+                        Assert(engine.ConfirmedCount == 1 && !engine.Awaiting73,
+                            mode + " did not confirm the current peer's " + signoff);
+                        Assert(!engine.Waiting.Rows.Any(row => row.Call == "W2ABC"),
+                            "An unverified acknowledgement became a new caller");
+
+                        DateTime end = At.AddSeconds(4 * slot + 0.6);
+                        engine.Tick(end, true);
+                        Assert(commands.SequenceEqual(new[] { "HALT" }), mode + " did not finish the exchange");
+                        engine.OnLine("Halt Tx triggered at RX: UDP request", end);
+                        RadioStatus idle = S(false, ""); idle.Mode = mode;
+                        engine.OnStatus(idle, end);
+                        engine.Tick(end, true);
+                        Assert(commands.SequenceEqual(new[] { "HALT", "CQ" }) && engine.Armed && engine.Missing73Count == 0,
+                            mode + " did not resume CQ after the exchange");
+                    }
+                });
+                Run("Only a timely addressed acknowledgement can confirm the reverse exchange", () => {
+                    foreach (string mode in new[] { "FT8", "FT4" })
+                    foreach (string timing in new[] { "current", "old", "future" })
+                    foreach (bool fromLog in new[] { false, true })
+                    {
+                        double slot = mode == "FT4" ? 7.5 : 15;
+                        var engine = new AutoCqEngine();
+                        RadioStatus active = S(true, "W1AW"); active.Mode = mode;
+                        engine.OnStatus(active, At);
+                        engine.Start(At);
+                        engine.OnLine(Tx(At, "W1AW", "R-10").Replace("FT8:", mode + ":"), At);
+
+                        DateTime heard = At.AddSeconds((timing == "current" ? 1 : timing == "old" ? -2 : 4) * slot);
+                        DateTime received = At.AddSeconds(2 * slot - 0.5);
+                        if (fromLog) engine.OnLine(Rx(heard, "W1AW", "RR73"), received);
+                        else
+                        {
+                            var decode = D(heard, "W1AW", "RR73");
+                            decode.Mode = mode == "FT4" ? ":" : "~";
+                            engine.OnDecode(decode, received);
+                        }
+                        DateTime sent = At.AddSeconds(2 * slot);
+                        engine.OnLine(Tx(sent, "W1AW", "73").Replace("FT8:", mode + ":"), sent);
+                        bool confirmed = timing == "current";
+                        Assert((engine.ConfirmedCount == 1) == confirmed && engine.Awaiting73 != confirmed,
+                            mode + " mishandled a " + timing + " acknowledgement from the " + (fromLog ? "log" : "UDP"));
+                    }
                 });
                 Run("G0ZZA regression: the 22:07:45 handoff must wait until 22:08:15", () => {
                     DateTime sent=new DateTime(2025,11,7,22,7,15,DateTimeKind.Utc);RadioStatus s=S(true,"G0ZZA");s.DeCall="K1ABC";
@@ -2902,6 +2994,36 @@ class AutoCqTests
                     engine.Tick(At.AddSeconds(90.1), true);
                     Assert(commands.SequenceEqual(new[] { "DIRECT W3ABC", "DIRECT W2ABC" }) && engine.Armed,
                         "A failed direct call blocked the next operator entry.");
+                });
+                Run("An operator's portable callsign is excluded from the heard and manual queues", () => {
+                    foreach (string mode in new[] { "FT8", "FT4" })
+                    {
+                        var engine = new AutoCqEngine { UseNativeSelection = true };
+                        engine.AddQueuedCall("JA1ABC", At);
+                        RadioStatus idle = S(false, ""); idle.Mode = mode; idle.DeCall = "JA1ABC/P";
+                        engine.OnStatus(idle, At);
+                        bool rejected = false;
+                        try { engine.AddQueuedCall("JA1ABC", At); }
+                        catch (InvalidOperationException) { rejected = true; }
+                        engine.Start(At); engine.Tick(At.AddSeconds(2), true);
+                        Assert(rejected && engine.ReplyCommands == 0, "The direct queue admitted the operator's base call");
+                        engine.Stop("fixture", false);
+
+                        engine.Options.MonitorEnabled = true;
+                        engine.Options.MonitorMasks = new[] { "JA*" };
+                        engine.Start(At);
+                        double slot = mode == "FT4" ? 7.5 : 15;
+                        DateTime rx = At.AddSeconds(slot), decoded = At.AddSeconds(2 * slot - 0.4);
+                        var ownCq = CqD(rx, "JA1ABC"); ownCq.IsNew = false;
+                        var ownReply = D(rx, "JA1ABC", "FN20"); ownReply.Message = "JA1ABC/P JA1ABC FN20";
+                        ownCq.Mode = ownReply.Mode = mode == "FT4" ? ":" : "~";
+                        engine.OnDecode(ownCq, decoded); engine.OnDecode(ownReply, decoded); engine.Tick(decoded, true);
+                        Assert(engine.ReplyCommands == 0 && !engine.Cqs.Rows.Any()
+                            && engine.Waiting.Rows.All(row => row.Decode == null), "The own base became a decoded target");
+                        var other = CqD(rx, "JA2ZZB/P"); other.IsNew = false; other.Mode = ownCq.Mode;
+                        engine.OnDecode(other, decoded); engine.Tick(decoded, true);
+                        Assert(engine.ReplyCommands == 1, "A different portable station was rejected");
+                    }
                 });
                 Run("Direct call carries the callsign alone in a source-checked extension", () => {
                     using (var packet = new QtReader(QtPacket.CallStation("JTDX", 2, "w3abc")))

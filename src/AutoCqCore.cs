@@ -951,7 +951,7 @@ namespace JtdxAutoCq
 
         void EnsureOtherCall(string call)
         {
-            if (Status != null && call == CleanCall(Status.DeCall))
+            if (Status != null && Callsign.BaseCall(call) == Callsign.BaseCall(CleanCall(Status.DeCall)))
                 throw new InvalidOperationException("Введите позывной другой станции.");
         }
         WaitingStation FreshCaller(DateTime now, string exceptCall = null)
@@ -1224,10 +1224,11 @@ namespace JtdxAutoCq
                 && SlotNumber(radioTime.Value) > lastInitialSlot && response)
                 lastAttemptReplySlot = SlotNumber(radioTime.Value);
             if((payload=="73" || acknowledgement) && waitingCall==peer && terminalRadioTime.HasValue && radioTime.HasValue && radioTime.Value<terminalRadioTime.Value)return;
+            bool freshRadioTime = radioTime.HasValue && radioTime.Value <= now.AddSeconds(2)
+                && now - radioTime.Value <= SlotDuration + SlotDuration;
             // Round FT4 decodes logged at a whole second back to their 7.5-second slot.
-            bool freshReply = peer == waitingCall && lastTerminalSlot.HasValue && radioTime.HasValue
-                && SlotNumber(radioTime.Value) > SlotNumber(lastTerminalSlot.Value)
-                && radioTime.Value <= now.AddSeconds(2) && now - radioTime.Value <= SlotDuration + SlotDuration;
+            bool freshReply = peer == waitingCall && lastTerminalSlot.HasValue && freshRadioTime
+                && SlotNumber(radioTime.Value) > SlotNumber(lastTerminalSlot.Value);
             if (freshReply && Awaiting73 && Report.IsMatch(payload) && !terminalReportReceived)
             {
                 terminalReportReceived = true;
@@ -1236,10 +1237,17 @@ namespace JtdxAutoCq
                 waitUntil = nextTx.AddTicks(2 * SlotDuration.Ticks * (sessionWaitPeriods + 1));
                 Notice("Повторный рапорт от " + peer + ". Повторяю завершающее сообщение.");
             }
-            if(acknowledgement)
+            if (acknowledgement)
             {
-                lastRemoteFinalCall=peer;lastRemoteFinalAt=now;
-                lastRemoteFinalWas73 = false;
+                // Other stations can send a late acknowledgement in the same
+                // receive period. It must not replace this exchange's sign-off.
+                string currentPeer = waitingCall ?? selectedQueuedCall ?? attemptCall ?? CleanCall(Status.DxCall);
+                if (peer == currentPeer && freshRadioTime)
+                {
+                    lastRemoteFinalCall = peer;
+                    lastRemoteFinalAt = now;
+                    lastRemoteFinalWas73 = false;
+                }
                 if (freshReply)
                 {
                     if (reverse73)
@@ -1259,8 +1267,7 @@ namespace JtdxAutoCq
             }
             // Some operators answer an acknowledged report directly with 73.
             // Remember only the current exchange's immediately following RX slot.
-            if (payload == "73" && waitingCall != peer && peer == attemptCall && peer == lastContact
-                && radioTime.HasValue && radioTime.Value <= now.AddSeconds(2) && now - radioTime.Value <= SlotDuration + SlotDuration)
+            if (payload == "73" && waitingCall != peer && peer == attemptCall && peer == lastContact && freshRadioTime)
             {
                 DateTime sent;
                 if (sentAcknowledgedReports.TryGetValue(peer, out sent) && SlotNumber(radioTime.Value) == SlotNumber(sent) + 1)
@@ -1768,18 +1775,27 @@ namespace JtdxAutoCq
     public sealed class LogTail
     {
         readonly string directory;
+        readonly Decoder decoder = Encoding.UTF8.GetDecoder();
         string file, remainder = "";
         long offset;
+        bool atStart;
         public LogTail(string directory) { this.directory = directory; Reset(); }
         public void Reset()
         {
             file = Path.Combine(directory, DateTime.UtcNow.ToString("yyyyMM") + "_ALL.TXT");
-            offset = File.Exists(file) ? new FileInfo(file).Length : 0; remainder = "";
+            ResetReadState(File.Exists(file) ? new FileInfo(file).Length : 0);
+        }
+        void ResetReadState(long position)
+        {
+            offset = position;
+            remainder = "";
+            atStart = position == 0;
+            decoder.Reset();
         }
         public void Read(Action<string> onLine)
         {
             string current = Path.Combine(directory, DateTime.UtcNow.ToString("yyyyMM") + "_ALL.TXT");
-            if (current != file) { file = current; offset = 0; remainder = ""; }
+            if (current != file) { file = current; ResetReadState(0); }
             if (!File.Exists(file)) return;
             byte[] bytes;
             int count;
@@ -1788,7 +1804,7 @@ namespace JtdxAutoCq
                 using (FileStream s = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
                 {
                     long length = s.Length;
-                    if (length < offset) { offset = 0; remainder = ""; }
+                    if (length < offset) ResetReadState(0);
                     if (length == offset) return;
                     s.Position = offset;
                     // Bound each read and release the file before invoking callbacks.
@@ -1804,7 +1820,12 @@ namespace JtdxAutoCq
                 throw;
             }
             offset += count;
-            string text = remainder + Encoding.UTF8.GetString(bytes, 0, count);
+            var characters = new char[Encoding.UTF8.GetMaxCharCount(count)];
+            int lengthDecoded = decoder.GetChars(bytes, 0, count, characters, 0, false);
+            if (lengthDecoded == 0) return;
+            int start = atStart && characters[0] == '\uFEFF' ? 1 : 0;
+            atStart = false;
+            string text = remainder + new string(characters, start, lengthDecoded - start);
             int end = text.LastIndexOf('\n');
             if (end < 0) { remainder = text.Length < 65536 ? text : ""; return; }
             foreach (string line in text.Substring(0, end).Split('\n')) onLine(line.TrimEnd('\r'));

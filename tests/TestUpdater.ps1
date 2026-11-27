@@ -36,6 +36,26 @@ Test-UpdateCase 'Update helper installs verified files and keeps operator settin
     Assert-UpdateTest ([IO.File]::ReadAllText($f.Settings) -eq 'keep-profile') 'Operator data changed'
     Assert-UpdateTest ([IO.File]::ReadAllText((Join-Path $f.App 'README.md')) -eq 'new-guide') 'Guide was not updated'
 }
+Test-UpdateCase 'Update helper stages replacements locally and saves verified backups with the download' {
+    $f=New-UpdateFixture
+    $creation=[datetime]::new(2025,1,2,3,4,5,[DateTimeKind]::Utc)
+    [IO.File]::SetCreationTimeUtc($f.Request.TargetExe,$creation)
+    $calls=New-Object 'Collections.Generic.List[string]'
+    $replace={
+        param($stage,$target,$localBackup)
+        $targetDirectory=[IO.Path]::GetDirectoryName($target)
+        # Simulate a volume boundary between the installation and download directories.
+        if([IO.Path]::GetDirectoryName($stage) -ne $targetDirectory -or
+           [IO.Path]::GetDirectoryName($localBackup) -ne $targetDirectory){throw 'Windows cannot replace across volumes'}
+        $calls.Add($target)
+        [IO.File]::Replace($stage,$target,$localBackup)
+    }
+    $backup=Invoke-AutoCQUpdate -Request $f.Request -JtdxRunning {$false} -ApplyPatch $patch -ReplaceExisting $replace
+    $savedExe=Get-ChildItem -LiteralPath $backup -Filter '*-JTDX-AutoCQ.exe' -File
+    Assert-UpdateTest ($calls.Contains($f.Request.TargetExe) -and (Get-UpdateHash $savedExe.FullName) -eq $f.BeforeExe) 'The replaced module was not verified and saved'
+    Assert-UpdateTest ([IO.File]::GetCreationTimeUtc($f.Request.TargetExe) -eq $creation) 'Replacement did not preserve the module creation time'
+    Assert-UpdateTest (@(Get-ChildItem -LiteralPath $f.App -Filter '*.autocq-*' -File).Count -eq 0) 'A local staging file was left behind'
+}
 Test-UpdateCase 'Update helper rolls application and native files back after a partial failure' {
     $f=New-UpdateFixture;$failed=$false
     try{$null=Invoke-AutoCQUpdate -Request $f.Request -JtdxRunning {$false} -ApplyPatch $patch -ProtectedPaths @($f.Settings) -AfterFile {param($index)if($index -eq 1){throw 'Injected write failure'}}}catch{$failed=$true}
@@ -45,6 +65,23 @@ Test-UpdateCase 'Update helper rolls application and native files back after a p
     Assert-UpdateTest ((Get-UpdateHash $f.Request.JtdxExe) -eq $f.BeforeNative) 'Native executable was not restored'
     Assert-UpdateTest ([IO.File]::ReadAllText($f.Settings) -eq 'keep-profile') 'Settings were not preserved'
     Assert-UpdateTest ([IO.File]::ReadAllText((Join-Path $f.App 'README.md')) -eq 'previous-guide') 'Guide was not restored'
+}
+Test-UpdateCase 'Update helper restores the original when replacement fails after saving it' {
+    $f=New-UpdateFixture
+    $replace={
+        param($stage,$target,$localBackup)
+        if($target -eq $f.Request.TargetExe){
+            [IO.File]::Move($target,$localBackup)
+            throw 'Injected replacement failure after the original moved'
+        }
+        [IO.File]::Replace($stage,$target,$localBackup)
+    }
+    $failed=$false
+    try{$null=Invoke-AutoCQUpdate -Request $f.Request -JtdxRunning {$false} -ApplyPatch $patch -ReplaceExisting $replace}
+    catch{$failed=$_.Exception.Message -eq 'Injected replacement failure after the original moved'}
+    Assert-UpdateTest $failed 'The expected replacement failure was not observed'
+    Assert-UpdateTest ((Get-UpdateHash $f.Request.TargetExe) -eq $f.BeforeExe) 'The original module was not restored to its path'
+    Assert-UpdateTest ((Get-UpdateHash $f.Request.JtdxExe) -eq $f.BeforeNative) 'The earlier native patch was not rolled back'
 }
 Test-UpdateCase 'Update helper refuses installation while JTDX is running' {
     $f=New-UpdateFixture;$failed=$false

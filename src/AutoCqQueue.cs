@@ -219,7 +219,7 @@ namespace JtdxAutoCq
                 : !(IsCaller(payload) || IsCallsignPair(words))) return false;
             string call;
             try { call = Callsign.Require(words[1]); } catch (InvalidOperationException) { return false; }
-            if (call == Callsign.Clean(status.DeCall)) return false;
+            if (Callsign.BaseCall(call) == Callsign.BaseCall(Callsign.Clean(status.DeCall))) return false;
             DateTime time = decode.UtcTime(now);
             if (time > now.AddSeconds(2) || (decode.IsNew && (now - time).TotalSeconds > 120)) return false;
             WaitingStation row = rows.FirstOrDefault(r => r.Call == call);
@@ -349,9 +349,9 @@ namespace JtdxAutoCq
         }
         public WaitingStation NextManual(string ownCall, Predicate<string> canCall)
         {
-            string own = Callsign.Clean(ownCall);
+            string own = Callsign.BaseCall(Callsign.Clean(ownCall));
             return rows.FirstOrDefault(row => row.AddedByOperator && String.IsNullOrEmpty(row.PauseReason)
-                && row.Call != own && Callsign.IsDirect(row.Call) && canCall(row.Call));
+                && Callsign.BaseCall(row.Call) != own && Callsign.IsDirect(row.Call) && canCall(row.Call));
         }
         public WaitingStation Next(RadioStatus status)
         { return Next(status,false); }

@@ -72,7 +72,8 @@ function Start-UpdatedAutoCQ($Request) {
     Start-Process -FilePath $Request.TargetExe -WorkingDirectory ([IO.Path]::GetDirectoryName($Request.TargetExe)) -ArgumentList $arguments -WindowStyle Normal
 }
 function Invoke-AutoCQUpdate {
-    param($Request,[scriptblock]$JtdxRunning={Test-UpdateJtdxRunning},[scriptblock]$ApplyPatch={param($patcher,$jtdx) Invoke-UpdatePatch $patcher $jtdx},[scriptblock]$AfterFile={param($index)},[string[]]$ProtectedPaths)
+    param($Request,[scriptblock]$JtdxRunning={Test-UpdateJtdxRunning},[scriptblock]$ApplyPatch={param($patcher,$jtdx) Invoke-UpdatePatch $patcher $jtdx},[scriptblock]$AfterFile={param($index)},[string[]]$ProtectedPaths,
+        [scriptblock]$ReplaceExisting={param($stage,$target,$backup) [IO.File]::Replace($stage,$target,$backup)})
     if ($Request.Version -notmatch '^\d+\.\d+\.\d+$' -or $Request.ArchiveSha256 -notmatch '^[a-fA-F0-9]{64}$' -or $Request.JtdxSha256 -notmatch '^[a-fA-F0-9]{64}$') { throw 'Invalid update request.' }
     $target=[IO.Path]::GetFullPath($Request.TargetExe)
     if (![IO.File]::Exists($target) -or [IO.Path]::GetExtension($target) -ne '.exe') { throw 'Installed AutoCQ executable was not found.' }
@@ -110,6 +111,7 @@ function Invoke-AutoCQUpdate {
     $nativeBackup=Join-Path $backup 'jtdx-before.exe'
     $applied=New-Object 'Collections.Generic.List[object]'
     $stages=New-Object 'Collections.Generic.List[string]'
+    $complete=$false
     try {
         if (& $JtdxRunning) { throw 'JTDX was opened during update preparation.' }
         if ($nativeBefore -and $nativeBefore -ne $Request.JtdxSha256) {
@@ -120,15 +122,28 @@ function Invoke-AutoCQUpdate {
         $index=0
         foreach ($item in ($sources | Sort-Object @{Expression={if($_.Target -eq $target){1}else{0}}})) {
             [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($item.Target))
-            $stage=$item.Target+'.autocq-update-'+[guid]::NewGuid().ToString('N')
+            $nonce=[guid]::NewGuid().ToString('N')
+            $stage=$item.Target+'.autocq-update-'+$nonce
             $stages.Add($stage)
             $item.Backup=Join-Path $backup ($index.ToString('D3')+'-'+[IO.Path]::GetFileName($item.Target))
             $item.Existed=[IO.File]::Exists($item.Target)
-            $item.Before=if($item.Existed){Get-UpdateHash $item.Target}else{''}
             [IO.File]::Copy($item.Source,$stage,$false)
             if ((Get-UpdateHash $stage) -ne (Get-UpdateHash $item.Source)) { throw 'Staged file verification failed.' }
-            if ($item.Existed) { [IO.File]::Replace($stage,$item.Target,$item.Backup) } else { [IO.File]::Move($stage,$item.Target) }
+            if ($item.Existed) {
+                # Windows requires all paths passed to File.Replace to be on one volume.
+                $item.LocalBackup=$item.Target+'.autocq-backup-'+$nonce
+                try { & $ReplaceExisting $stage $item.Target $item.LocalBackup }
+                catch {
+                    # Replace can move the original to the backup before reporting a failure.
+                    if ([IO.File]::Exists($item.LocalBackup)) { $applied.Add($item) }
+                    throw
+                }
+            } else { [IO.File]::Move($stage,$item.Target) }
             $applied.Add($item)
+            if ($item.Existed) {
+                [IO.File]::Copy($item.LocalBackup,$item.Backup,$false)
+                if ((Get-UpdateHash $item.Backup) -ne (Get-UpdateHash $item.LocalBackup)) { throw 'Saved backup verification failed.' }
+            }
             if ((Get-UpdateHash $item.Target) -ne (Get-UpdateHash $item.Source)) { throw 'Installed file verification failed.' }
             & $AfterFile $index
             $index++
@@ -137,15 +152,17 @@ function Invoke-AutoCQUpdate {
             if ([IO.File]::Exists($item.Path) -ne $item.Exists -or ($item.Exists -and (Get-UpdateHash $item.Path) -ne $item.Hash)) { throw 'An operator settings file changed during the update.' }
         }
         @{version=$Request.Version;success=$true;backup=$backup} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $folder 'result.json') -Encoding UTF8
+        $complete=$true
         return $backup
     } catch {
         $failure=$_
         for($index=$applied.Count-1;$index -ge 0;$index--) {
             $item=$applied[$index]
             if ($item.Existed) {
-                $restore=$item.Target+'.autocq-restore-'+[guid]::NewGuid().ToString('N')
-                [IO.File]::Copy($item.Backup,$restore,$false);[IO.File]::Replace($restore,$item.Target,[NullString]::Value)
-                if ((Get-UpdateHash $item.Target) -ne $item.Before) { throw 'Could not verify restored application file.' }
+                $before=Get-UpdateHash $item.LocalBackup
+                if ([IO.File]::Exists($item.Target)) { [IO.File]::Replace($item.LocalBackup,$item.Target,[NullString]::Value) }
+                else { [IO.File]::Move($item.LocalBackup,$item.Target) }
+                if ((Get-UpdateHash $item.Target) -ne $before) { throw 'Could not verify restored application file.' }
             } else { Remove-Item -LiteralPath $item.Target -Force }
         }
         if ([IO.File]::Exists($nativeBackup) -and (Get-UpdateHash $native) -ne $nativeBefore) {
@@ -154,7 +171,14 @@ function Invoke-AutoCQUpdate {
             if ((Get-UpdateHash $native) -ne $nativeBefore) { throw 'Could not verify restored JTDX file.' }
         }
         throw $failure
-    } finally { foreach ($stage in $stages) { if ([IO.File]::Exists($stage)) { Remove-Item -LiteralPath $stage -Force } } }
+    } finally {
+        foreach ($stage in $stages) { if ([IO.File]::Exists($stage)) { Remove-Item -LiteralPath $stage -Force } }
+        if ($complete) {
+            foreach ($item in $applied) {
+                if ($item.Existed) { Remove-Item -LiteralPath $item.LocalBackup -Force -ErrorAction SilentlyContinue }
+            }
+        }
+    }
 }
 
 if ($LibraryOnly) { return }
