@@ -253,6 +253,69 @@ class AutoCqTests
                     Assert(bunker.Frequency == 7047500 && bunker.Place == "B/ON-0051" && bunker.Dxcc == 209,
                         "WWBOTA lost the activation or treated a QRT as live");
                 });
+                Run("DXSPOT keeps actual FT8 and FT4 spots and supplies a rank when the main catalog has none", () => {
+                    const string spots = @"[{""dx"":""P4/K1ABC"",""freq"":7.0475,""mode"":""FT4"",""timestamp"":1762516740,""dxCountry"":""Aruba"",""dxMostWantedRank"":37},
+                        {""dx"":""R0AAA/P"",""freq"":14.074,""mode"":""FT8"",""timestamp"":1762516740,""comment"":""RDA CK-04""},
+                        {""dx"":""W2ABC"",""freq"":14.074,""mode"":""CW"",""timestamp"":1762516740},
+                        {""dx"":""W3ABC"",""freq"":14.074,""mode"":""FT8"",""timestamp"":1762515840},
+                        {""dx"":""W4ABC"",""freq"":14.074,""mode"":""FT8"",""timestamp"":1762516740,""comment"":""QRT""},
+                        {""dx"":""W5ABC"",""freq"":null,""mode"":""FT8"",""timestamp"":null}]";
+                    var data = ExpeditionFeeds.Parse(ExpeditionSource.DxSpot, spots, At);
+                    Assert(data.Activities.Length == 2, "An expired, off-air, analog or malformed DXSPOT entry was accepted");
+                    var ft4 = data.Activities.Single(item => item.Call == "P4/K1ABC");
+                    var ft8 = data.Activities.Single(item => item.Call == "R0AAA/P");
+                    Assert(ft4.Frequency == 7047500 && ft4.Mode == "FT4" && ft4.SpottedUtc == At.AddMinutes(-1)
+                        && ft8.Place == "CK-04" && ft8.ReferenceProgram == "RDA", "DXSPOT frequency, timestamp or reference was misread");
+                    var options = new ExpeditionOptions();
+                    Assert(ExpeditionFeeds.Enabled(options).Contains(ExpeditionSource.DxSpot)
+                        && ExpeditionFeeds.Enabled(options).Contains(ExpeditionSource.DxSpotCalendar),
+                        "DXSPOT feeds were not enabled for relevant expedition targets");
+                    var catalog = new ExpeditionCatalog();
+                    catalog.Replace(ExpeditionSource.DxSpot, data);
+                    var search = new ExpeditionSearch(options, catalog, call => "P4");
+                    var match = search.Match("P4/K1ABC", "40m", "FT4", At);
+                    Assert(match != null && match.Source == "DXSPOT" && match.Reason.Contains("#37")
+                        && search.Match("P4/K1ABC", "40m", "FT8", At) == null
+                        && search.Match("P4/K1ABC", "20m", "FT4", At) == null,
+                        "The rank was lost or applied outside the spotted band and mode");
+                    catalog.Replace(ExpeditionSource.DxRanks, new ExpeditionFeedData { Entities = new[] {
+                        new ExpeditionEntity { Dxcc = 91, Prefix = "P4", Name = "Aruba", Rank = 160 },
+                    } });
+                    Assert(search.Match("P4/K1ABC", "40m", "FT4", At) == null, "A fallback rank overrode the main catalog");
+                });
+                Run("DXSPOT calendar targets published activations once the local decoder hears them", () => {
+                    const string events = @"[{""callsign"":""V6/JA1AAA"",""source"":""manual"",""dateFrom"":1762473600,""dateTo"":1762473600,
+                        ""descriptionEn"":""FT8 40-20m"",""activations"":[{""program"":""iota"",""reference"":""OC-011""},{""program"":""wwff"",""reference"":""V6FF-0001""}]},
+                        {""callsign"":""T88AAA"",""source"":""ng3k"",""dateFrom"":1762473600,""dateTo"":1762473600},
+                        {""callsign"":""T88BBB"",""source"":""manual"",""dateFrom"":1762300800,""dateTo"":1762387200},
+                        {""callsign"":""W2ABC"",""source"":""manual"",""dateFrom"":1762473600,""dateTo"":null},
+                        {""callsign"":""W3ABC"",""source"":""manual"",""dateFrom"":1762473600,""dateTo"":1762473600,""descriptionEn"":""CW SSB""}]";
+                    var data = ExpeditionFeeds.Parse(ExpeditionSource.DxSpotCalendar, events, At);
+                    Assert(data.Activities.Length == 2 && data.Activities.All(item => item.Announced && item.Call == "V6/JA1AAA"
+                        && item.Current(At) && item.EndUtc == At.Date.AddDays(1)), "The calendar lost an activation or repeated the NG3K mirror");
+                    var catalog = new ExpeditionCatalog();
+                    catalog.Replace(ExpeditionSource.DxSpotCalendar, data);
+                    var options = new ExpeditionOptions { DxTrips = false, RareDx = false };
+                    var search = new ExpeditionSearch(options, catalog, call => null);
+                    var match = search.Match("V6/JA1AAA", "20m", "FT8", At);
+                    Assert(match != null && match.Source == "DXSPOT · календарь" && match.Reason.Contains("V6FF-0001")
+                        && search.Match("V6/JA1AAA", "80m", "FT8", At) == null
+                        && search.Match("V6/JA1AAA", "20m", "FT4", At) == null,
+                        "The published activation did not respect the selected program, band and mode");
+
+                    var commands = new List<string>();
+                    var engine = new AutoCqEngine { UseNativeSelection = true };
+                    engine.RequestReply = decode => commands.Add(decode.Message);
+                    engine.OnStatus(S(false, ""), At);
+                    engine.Start(At, null, search);
+                    engine.Tick(At.AddSeconds(2), true);
+                    Assert(commands.Count == 0, "A calendar entry caused a call before reception");
+                    var cq = CqD(At.AddSeconds(15), "V6/JA1AAA");
+                    cq.IsNew = false;
+                    engine.OnDecode(cq, At.AddSeconds(29));
+                    engine.Tick(At.AddSeconds(29), true);
+                    Assert(commands.SequenceEqual(new[] { cq.Message }), "A local decode did not select the DXSPOT activation");
+                });
                 Run("LogHX cluster batches keep recent spots, expire them, and respect the source switch", () => {
                     const int recordBytes = 267;
                     byte[] packet = new byte[recordBytes * 2];

@@ -30,7 +30,7 @@ namespace JtdxAutoCq
         }
     }
 
-    internal enum ExpeditionSource { Ng3k, Pota, Wwff, Rda, WantedRda, DxRanks, DxSpots, DxSummit, Sota, Wwbota, LogHx, DxNews }
+    internal enum ExpeditionSource { Ng3k, Pota, Wwff, Rda, WantedRda, DxRanks, DxSpots, DxSummit, Sota, Wwbota, LogHx, DxNews, DxSpot, DxSpotCalendar }
 
     internal sealed class ExpeditionActivity
     {
@@ -38,11 +38,13 @@ namespace JtdxAutoCq
         internal string Call, Place, Mode, Bands, ReferenceProgram;
         internal double Frequency;
         internal int Dxcc;
+        internal ExpeditionEntity RankedEntity;
         internal DateTime StartUtc, EndUtc, SpottedUtc;
 
-        internal bool Announced { get { return Source == ExpeditionSource.Ng3k || Source == ExpeditionSource.DxNews; } }
+        internal bool Announced
+        { get { return Source == ExpeditionSource.Ng3k || Source == ExpeditionSource.DxNews || Source == ExpeditionSource.DxSpotCalendar; } }
         internal bool ClusterSpot
-        { get { return Source == ExpeditionSource.DxSpots || Source == ExpeditionSource.DxSummit || Source == ExpeditionSource.LogHx; } }
+        { get { return Source == ExpeditionSource.DxSpots || Source == ExpeditionSource.DxSummit || Source == ExpeditionSource.LogHx || Source == ExpeditionSource.DxSpot; } }
         internal string Band { get { return JtdxAdif.Band(Frequency); } }
 
         internal bool Current(DateTime now)
@@ -179,33 +181,40 @@ namespace JtdxAutoCq
             {
                 int id = evidence.Where(item => item.Dxcc > 0).Select(item => item.Dxcc).FirstOrDefault();
                 ExpeditionEntity entity = catalog.Entity(id, prefix);
+                string source = "Club Log / CQDX";
+                if (entity == null || entity.Rank <= 0)
+                {
+                    ExpeditionActivity rankedSpot = evidence.FirstOrDefault(item => item.RankedEntity != null);
+                    if (rankedSpot != null)
+                    {
+                        entity = rankedSpot.RankedEntity;
+                        source = ExpeditionFeeds.Name(rankedSpot.Source);
+                    }
+                }
                 if (entity != null && entity.Rank > 0 && entity.Rank <= options.MaxDxRank)
-                    return Description("Редкая DXCC #" + entity.Rank + " · " + entity.Name, "Club Log / CQDX", 4000 - entity.Rank, match);
+                    return Description("Редкая DXCC #" + entity.Rank + " · " + entity.Name, source, 4000 - entity.Rank, match);
             }
             return match;
         }
 
         internal ExpeditionMatch MatchActivity(ExpeditionActivity item)
         {
-            switch (item.Source)
-            {
-                case ExpeditionSource.Ng3k:
-                case ExpeditionSource.DxNews:
-                    return options.DxTrips ? Description("DX-выезд · " + item.Place, ExpeditionFeeds.Name(item.Source), 2000) : null;
-                case ExpeditionSource.Pota:
-                    return options.Parks ? Description("Парк " + item.Place, "POTA", 1000) : null;
-                case ExpeditionSource.Wwff:
-                    return options.Nature ? Description("Природная территория " + item.Place, "WWFF", 1000) : null;
-                case ExpeditionSource.Sota:
-                    return options.Summits ? Description("Горная вершина " + item.Place, "SOTA / CQDX", 1000) : null;
-                case ExpeditionSource.Wwbota:
-                    return options.Bunkers ? Description("Бункер " + item.Place, "WWBOTA", 1000) : null;
-                case ExpeditionSource.Rda:
-                    return MatchRda(item);
-            }
-            if (item.ReferenceProgram == "RDA") return MatchRda(item);
+            string source = ExpeditionFeeds.Name(item.Source);
+            if (item.Source == ExpeditionSource.Pota || item.ReferenceProgram == "POTA")
+                return options.Parks ? Description("Парк " + item.Place, source, 1000) : null;
+            if (item.Source == ExpeditionSource.Wwff || item.ReferenceProgram == "WWFF")
+                return options.Nature ? Description("Природная территория " + item.Place, source, 1000) : null;
+            if (item.Source == ExpeditionSource.Sota || item.ReferenceProgram == "SOTA")
+                return options.Summits ? Description("Горная вершина " + item.Place, source, 1000) : null;
+            if (item.Source == ExpeditionSource.Wwbota)
+                return options.Bunkers ? Description("Бункер " + item.Place, source, 1000) : null;
+            if (item.Source == ExpeditionSource.Rda || item.ReferenceProgram == "RDA") return MatchRda(item);
             if (options.DxTrips && item.ReferenceProgram == "IOTA")
-                return Description("Островная активация " + item.Place, ExpeditionFeeds.Name(item.Source), 2000);
+                return Description("Островная активация " + item.Place, source, 2000);
+            if (options.DxTrips && item.ReferenceProgram == "RAFA")
+                return Description("Активация RAFA " + item.Place, source, 2000);
+            if (options.DxTrips && item.Announced && String.IsNullOrEmpty(item.ReferenceProgram))
+                return Description("DX-выезд · " + item.Place, source, 2000);
             return null;
         }
 
@@ -214,7 +223,7 @@ namespace JtdxAutoCq
             int rank = catalog.RdaRank(item.Place);
             if (options.WantedRda && rank > 0)
                 return Description("Редкий район " + item.Place, "Wanted RDA", 3000 - rank);
-            if (options.PortableRda && (item.Call.EndsWith("/P", StringComparison.Ordinal)
+            if (options.PortableRda && (item.Announced || item.Call.EndsWith("/P", StringComparison.Ordinal)
                 || item.Call.EndsWith("/M", StringComparison.Ordinal)))
                 return Description("Полевой выезд · RDA " + item.Place, ExpeditionFeeds.Name(item.Source), 1000);
             return null;

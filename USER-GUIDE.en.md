@@ -165,6 +165,8 @@ Select a station on another band to see its frequency and mode. After the curren
 
 To include your own clusters, open **«Окна → DX-кластеры»** (Windows → DX clusters) in LogHX and connect to your servers as usual. In AutoCQ, tick **«Кластеры LogHX»** (LogHX clusters). The search uses recent FT8 and FT4 spots received by LogHX.
 
+Rows marked **DXSPOT** show recent FT8 and FT4 spots. **DXSPOT · календарь** (DXSPOT calendar) shows announcements from operators, including RDA, WWFF, RAFA, IOTA, POTA, and SOTA. Tick the targets you want to find. For RAFA and IOTA, choose **«DX-выезды и экспедиции»** (DX trips and expeditions). When CQDX has no Club Log rank for a station, AutoCQ uses the rank from a fresh DXSPOT spot. [DXSPOT live spots](https://dxspot.ru/) · [Calendar](https://dxspot.ru/expeditions)
+
 NG3K and 425 DX News supply announcements. DX Summit and CQDX supply general DX spots. CQDX also provides Club Log Most Wanted rankings and SOTA activations. POTA, WWFF, WWBOTA, and the RDA cluster add field activations. Wanted RDA identifies rare Russian districts. Source status appears above the table. [NG3K](https://www.ng3k.com/Misc/adxoplain.html) · [425 DX News](https://www.425dxn.org/index.php?op=wcal) · [DX Summit](https://www.dxsummit.fi/) · [Club Log](https://clublog.org/mostwanted.php) · [CQDX](https://cqdx.io/api/docs) · [POTA](https://pota.app/) · [WWFF](https://spots.wwff.co/info) · [WWBOTA](https://wwbota.net/cluster/) · [RDA cluster](https://rdaward.ru/?p=cluster) · [Wanted RDA](https://rdaward.ru/?p=rda_wtd)
 
 ## Main logbook and profiles

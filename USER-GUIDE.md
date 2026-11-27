@@ -165,6 +165,8 @@ AutoCQ отвечает на вызовы по вашему позывному �
 
 Чтобы добавить свои кластеры, откройте **«Окна → DX-кластеры»** в LogHX и подключитесь к нужным серверам как обычно. В AutoCQ поставьте галочку **«Кластеры LogHX»**. Модуль подхватит свежие споты FT8 и FT4, которые уже получает журнал.
 
+Строки с источником **DXSPOT** показывают свежие споты FT8 и FT4. Строки **DXSPOT · календарь** содержат анонсы активаторов, в том числе RDA, WWFF, RAFA, IOTA, POTA и SOTA. Включите галочки тех целей, которые вас интересуют. Для RAFA и IOTA выберите **«DX-выезды и экспедиции»**. Если для станции пока нет рейтинга Club Log из CQDX, AutoCQ использует оценку редкости из свежего спота DXSPOT. [Лента DXSPOT](https://dxspot.ru/) · [Календарь](https://dxspot.ru/expeditions)
+
 Анонсы поступают из календарей NG3K и 425 DX News. Споты DX поступают из DX Summit и CQDX, а CQDX также передаёт рейтинг Club Log Most Wanted и активации SOTA. Для полевых выездов есть ленты POTA, WWFF, WWBOTA и кластера RDA. Wanted RDA помогает выделить редкие российские районы. Статус источников виден над таблицей. [NG3K](https://www.ng3k.com/Misc/adxoplain.html) · [425 DX News](https://www.425dxn.org/index.php?op=wcal) · [DX Summit](https://www.dxsummit.fi/) · [Club Log](https://clublog.org/mostwanted.php) · [CQDX](https://cqdx.io/api/docs) · [POTA](https://pota.app/) · [WWFF](https://spots.wwff.co/info) · [WWBOTA](https://wwbota.net/cluster/) · [Кластер RDA](https://rdaward.ru/?p=cluster) · [Wanted RDA](https://rdaward.ru/?p=rda_wtd)
 
 ## Рабочий журнал и профили

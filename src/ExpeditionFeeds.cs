@@ -17,6 +17,8 @@ namespace JtdxAutoCq
         internal const string DxNewsCalendarUrl = "https://www.425dxn.org/dx4win.php";
         internal const string RdaUrl = "https://rdaward.ru/?p=cluster";
         internal const string WantedRdaUrl = "https://rdaward.ru/?p=rda_wtd";
+        const string DxSpotUrl = "https://dxspot.ru/api/spots?mode=FT8,FT4&limit=150&windowMin=15";
+        const string DxSpotCalendarUrl = "https://dxspot.ru/api/expeditions?status=all";
         static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
         static readonly DateTime Epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         static readonly Regex Paragraphs = Html(@"<p\b[^>]*>(.*?)</p>");
@@ -40,6 +42,7 @@ namespace JtdxAutoCq
         static readonly Regex BunkerReference = Html(@"\AB/[A-Z0-9]{1,4}-[0-9]{3,6}\z");
         static readonly Regex ClusterReference = Html(@"\b(?:(IOTA)\s*[:=]?\s*((?:AF|AN|AS|EU|NA|OC|SA)-\d{3})|(RDA)\s*[:=]?\s*([A-Z]{2}-\d{2}))\b");
         static readonly Regex OffAir = Html(@"\A(?:QRT|OFF\s*AIR|OFFLINE)\b");
+        static readonly string[] DxSpotPrograms = { "RDA", "WWFF", "RAFA", "IOTA", "POTA", "SOTA" };
 
         static Regex Html(string pattern)
         { return new Regex(pattern, RegexOptions.Singleline | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(2)); }
@@ -58,6 +61,10 @@ namespace JtdxAutoCq
             if (options.WantedRda || options.PortableRda) yield return ExpeditionSource.Rda;
             if (options.WantedRda) yield return ExpeditionSource.WantedRda;
             if (options.RareDx) yield return ExpeditionSource.DxRanks;
+            bool activationTargets = options.DxTrips || options.Parks || options.Nature || options.Summits
+                || options.WantedRda || options.PortableRda;
+            if (activationTargets) yield return ExpeditionSource.DxSpotCalendar;
+            if (activationTargets || options.RareDx || options.WantedDxcc.Length > 0) yield return ExpeditionSource.DxSpot;
             if (options.DxTrips || options.RareDx || options.WantedDxcc.Length > 0 || options.WantedRda || options.PortableRda)
             {
                 yield return ExpeditionSource.DxSpots;
@@ -81,6 +88,8 @@ namespace JtdxAutoCq
                 case ExpeditionSource.DxRanks: return "Club Log";
                 case ExpeditionSource.DxSummit: return "DX Summit";
                 case ExpeditionSource.LogHx: return "LogHX";
+                case ExpeditionSource.DxSpot: return "DXSPOT";
+                case ExpeditionSource.DxSpotCalendar: return "DXSPOT · календарь";
                 default: return "CQDX";
             }
         }
@@ -90,7 +99,8 @@ namespace JtdxAutoCq
             switch (source)
             {
                 case ExpeditionSource.Ng3k:
-                case ExpeditionSource.DxNews: return TimeSpan.FromHours(1);
+                case ExpeditionSource.DxNews:
+                case ExpeditionSource.DxSpotCalendar: return TimeSpan.FromHours(1);
                 case ExpeditionSource.WantedRda:
                 case ExpeditionSource.DxRanks: return TimeSpan.FromHours(6);
                 case ExpeditionSource.LogHx: return TimeSpan.FromSeconds(2);
@@ -114,6 +124,8 @@ namespace JtdxAutoCq
                 case ExpeditionSource.DxRanks: url = "https://cqdx.io/api/v1/entities"; break;
                 case ExpeditionSource.DxSpots: url = "https://cqdx.io/api/v1/spots?live=true"; break;
                 case ExpeditionSource.DxSummit: url = "https://www.dxsummit.fi/api/v1/spots?limit=100"; break;
+                case ExpeditionSource.DxSpot: url = DxSpotUrl; break;
+                case ExpeditionSource.DxSpotCalendar: url = DxSpotCalendarUrl; break;
                 default: throw new ArgumentOutOfRangeException("source");
             }
 
@@ -212,6 +224,12 @@ namespace JtdxAutoCq
                         .Select(row => ClusterSpot(source, row.Call, null, row.Frequency * 1000, Utc(row.Time), row.Comment))
                         .Where(row => row != null).ToArray();
                     break;
+                case ExpeditionSource.DxSpot:
+                    data.Activities = DxSpotActivities(Json<DxSpotEntry[]>(content)).ToArray();
+                    break;
+                case ExpeditionSource.DxSpotCalendar:
+                    data.Activities = DxSpotAnnouncements(Json<DxSpotEvent[]>(content), now).ToArray();
+                    break;
             }
             data.Activities = data.Activities.Where(row => row.Announced || row.Current(now))
                 .OrderByDescending(row => row.SpottedUtc).ThenBy(row => row.StartUtc).Take(2000).ToArray();
@@ -227,8 +245,8 @@ namespace JtdxAutoCq
                 if (lines.Length < 3 || !Dates(lines[0], out from, out until) || until <= now || from > now.AddDays(60)) continue;
                 string place = Field(lines, "DXCC:"), info = Field(lines, "Info:");
                 if (place.Length == 0) continue;
-                string modes = String.Join(" ", DigitalMode.Matches(info).Cast<Match>().Select(mode => mode.Value.ToUpperInvariant()).Distinct());
-                if (modes.Length == 0 && Analog.IsMatch(info) && !DigitalHint.IsMatch(info)) continue;
+                string modes = AnnouncedModes(info);
+                if (modes == null) continue;
                 string bands = Bands(info);
                 IEnumerable<string> calls = CallTokens.Matches(Field(lines, "Callsign:")).Cast<Match>().Select(match => match.Value);
                 calls = calls.Concat(OperatingAs.Matches(info).Cast<Match>().Select(match => match.Groups[1].Value));
@@ -256,6 +274,59 @@ namespace JtdxAutoCq
                     yield return new ExpeditionActivity { Source = ExpeditionSource.DxNews, Call = call,
                         Place = Bounded(place), StartUtc = start, EndUtc = end.AddDays(1) };
             }
+        }
+
+        static IEnumerable<ExpeditionActivity> DxSpotActivities(IEnumerable<DxSpotEntry> entries)
+        {
+            foreach (DxSpotEntry row in entries.Where(item => item != null))
+            {
+                ExpeditionActivity spot = ClusterSpot(ExpeditionSource.DxSpot, row.Call, row.Mode,
+                    row.Frequency.GetValueOrDefault() * 1000000, Unix(row.Timestamp.GetValueOrDefault()), row.Comment);
+                if (spot == null) continue;
+                string country = Bounded(Text(row.Country ?? ""));
+                if (row.Rank >= 1 && row.Rank <= 340 && country.Length > 0)
+                    spot.RankedEntity = new ExpeditionEntity { Name = country, Rank = row.Rank.Value };
+                yield return spot;
+            }
+        }
+
+        static IEnumerable<ExpeditionActivity> DxSpotAnnouncements(IEnumerable<DxSpotEvent> entries, DateTime now)
+        {
+            foreach (DxSpotEvent row in entries.Where(item => item != null))
+            {
+                // Load NG3K announcements from their original calendar.
+                if (String.Equals(row.Source, "ng3k", StringComparison.OrdinalIgnoreCase)) continue;
+                string call = FullCall(row.Call);
+                DateTime start = Unix(row.From.GetValueOrDefault()), lastDay = Unix(row.To.GetValueOrDefault());
+                if (call == null || start == DateTime.MinValue || lastDay == DateTime.MinValue || lastDay < start
+                    || lastDay.Date < now.Date || start > now.AddDays(60)) continue;
+                string info = Text((row.DescriptionRu ?? "") + " " + (row.DescriptionEn ?? ""));
+                string modes = AnnouncedModes(info);
+                if (modes == null) continue;
+                var references = (row.Activations ?? new DxSpotActivation[0]).Where(reference => reference != null)
+                    .Select(reference => new { Program = (reference.Program ?? "").Trim().ToUpperInvariant(),
+                        Place = Bounded(Text(reference.Reference ?? "")).ToUpperInvariant() })
+                    .Where(reference => DxSpotPrograms.Contains(reference.Program) && reference.Place.Length > 0)
+                    .Distinct().ToList();
+                if (references.Count == 0)
+                {
+                    string iota = Bounded(row.Iota).ToUpperInvariant();
+                    string country = Bounded(Text(row.Country ?? ""));
+                    if (iota.Length > 0) references.Add(new { Program = "IOTA", Place = iota });
+                    else references.Add(new { Program = "", Place = country.Length > 0 ? country : call });
+                }
+                string bands = Bands(info);
+                foreach (var reference in references)
+                    yield return new ExpeditionActivity { Source = ExpeditionSource.DxSpotCalendar, Call = call,
+                        Place = reference.Place, ReferenceProgram = reference.Program, Mode = modes, Bands = bands,
+                        StartUtc = start, EndUtc = lastDay.Date.AddDays(1) };
+            }
+        }
+
+        static string AnnouncedModes(string info)
+        {
+            string modes = String.Join(" ", DigitalMode.Matches(info).Cast<Match>().Select(mode => mode.Value.ToUpperInvariant()).Distinct());
+            return modes.Length == 0 && Analog.IsMatch(info) && !DigitalHint.IsMatch(info) ? null : modes;
         }
 
         static string Bands(string text)
@@ -393,6 +464,36 @@ namespace JtdxAutoCq
 
         static void Require(bool valid)
         { if (!valid) throw new InvalidDataException("Источник вернул данные в неожиданном формате."); }
+
+        [DataContract] sealed class DxSpotEntry
+        {
+            [DataMember(Name = "dx")] public string Call { get; set; }
+            [DataMember(Name = "freq")] public double? Frequency { get; set; }
+            [DataMember(Name = "mode")] public string Mode { get; set; }
+            [DataMember(Name = "comment")] public string Comment { get; set; }
+            [DataMember(Name = "timestamp")] public long? Timestamp { get; set; }
+            [DataMember(Name = "dxMostWantedRank")] public int? Rank { get; set; }
+            [DataMember(Name = "dxCountry")] public string Country { get; set; }
+        }
+
+        [DataContract] sealed class DxSpotEvent
+        {
+            [DataMember(Name = "callsign")] public string Call { get; set; }
+            [DataMember(Name = "dxcc")] public string Country { get; set; }
+            [DataMember(Name = "iota")] public string Iota { get; set; }
+            [DataMember(Name = "dateFrom")] public long? From { get; set; }
+            [DataMember(Name = "dateTo")] public long? To { get; set; }
+            [DataMember(Name = "descriptionRu")] public string DescriptionRu { get; set; }
+            [DataMember(Name = "descriptionEn")] public string DescriptionEn { get; set; }
+            [DataMember(Name = "source")] public string Source { get; set; }
+            [DataMember(Name = "activations")] public DxSpotActivation[] Activations { get; set; }
+        }
+
+        [DataContract] sealed class DxSpotActivation
+        {
+            [DataMember(Name = "program")] public string Program { get; set; }
+            [DataMember(Name = "reference")] public string Reference { get; set; }
+        }
 
         [DataContract] sealed class ParkSpot
         {

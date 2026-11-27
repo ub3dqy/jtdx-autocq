@@ -186,15 +186,15 @@ namespace JtdxAutoCq
                 new ExpeditionActivity { Source = ExpeditionSource.Ng3k, Call = "T88BBB", Place = "Палау",
                     Mode = "FT8 FT4", StartUtc = now.Date.AddDays(3), EndUtc = now.Date.AddDays(8) },
             } });
-            expeditionCatalog.Replace(ExpeditionSource.DxNews, new ExpeditionFeedData { Activities = new[] {
-                new ExpeditionActivity { Source = ExpeditionSource.DxNews, Call = "A35AAA", Place = "Тонга",
-                    StartUtc = now.Date.AddDays(4), EndUtc = now.Date.AddDays(11) },
+            expeditionCatalog.Replace(ExpeditionSource.DxSpotCalendar, new ExpeditionFeedData { Activities = new[] {
+                new ExpeditionActivity { Source = ExpeditionSource.DxSpotCalendar, Call = "R4AAA/P", Place = "RFF-0123",
+                    ReferenceProgram = "WWFF", Mode = "FT8", StartUtc = now.Date.AddDays(1), EndUtc = now.Date.AddDays(3) },
             } });
             expeditionCatalog.Replace(ExpeditionSource.DxRanks, new ExpeditionFeedData { Entities = new[] {
                 new ExpeditionEntity { Dxcc = 173, Name = "Острова Гилберта", Prefix = "T30", Rank = 42 },
             } });
-            expeditionCatalog.Replace(ExpeditionSource.DxSpots, new ExpeditionFeedData { Activities = new[] {
-                DemoSpot(ExpeditionSource.DxSpots, "T30AAA", "", "FT8", 21074000, now.AddMinutes(-3), 173),
+            expeditionCatalog.Replace(ExpeditionSource.DxSpot, new ExpeditionFeedData { Activities = new[] {
+                DemoSpot(ExpeditionSource.DxSpot, "T30AAA", "", "FT8", 21074000, now.AddMinutes(-3), 173),
             } });
             expeditionCatalog.Replace(ExpeditionSource.WantedRda, new ExpeditionFeedData {
                 RdaRanks = new Dictionary<string, int> { { "CK-04", 1 } },

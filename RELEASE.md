@@ -1,17 +1,17 @@
-# AutoCQ 0.9.49
+# AutoCQ 0.9.50
 
 ## Русский
 
-- После заданного числа вызовов AutoCQ дожидается конца ответного периода. Если ответа нет, модуль переходит к следующей станции или CQ. В мониторинге он продолжает поиск целей.
-- Лишний рапорт пропускается, даже когда JTDX не запустил декодирование в ответном периоде. Если JTDX ещё декодирует, AutoCQ ждёт результат. Исправление действует в FT4 и FT8.
+- В разделе **«Экспедиции и редкие станции»** появились свежие споты DXSPOT в FT8 и FT4 и анонсы выездов от активаторов. В столбце **«Источник»** видны лента и календарь DXSPOT. [DXSPOT](https://dxspot.ru/) · [Календарь](https://dxspot.ru/expeditions)
+- AutoCQ учитывает выбранные цели и диапазон. Для вызова он ждёт, пока JTDX декодирует станцию. Оценка редкости из спота DXSPOT помогает, когда для станции пока нет рейтинга Club Log из CQDX.
 - Установите выпуск через **«Обновления»**. После текущей связи закройте JTDX, затем нажмите **«Обновить и перезапустить»**. При работе с LogHX снова откройте JTDX его значком в журнале.
 
 [Руководство](https://github.com/ub3dqy/jtdx-autocq/blob/main/USER-GUIDE.md) · [Сайт UB3DQY](https://ub3dqy.com/ru/read/5/)
 
 ## English
 
-- After the configured number of calls, AutoCQ waits for the reply window to end. With no reply, it moves on to the next station or CQ. In monitoring mode it returns to looking for targets.
-- An extra report is blocked even if JTDX skips decoding the reply slot. If JTDX is still decoding, AutoCQ waits for the result. This fix applies to FT4 and FT8.
+- **Expeditions and rare stations** now shows recent DXSPOT spots in FT8 and FT4 and activation announcements from operators. The Source column shows the DXSPOT feed and calendar. [DXSPOT](https://dxspot.ru/) · [Calendar](https://dxspot.ru/expeditions)
+- AutoCQ uses your target and band settings and waits for JTDX to decode a station before calling it. It uses the rank from a DXSPOT spot when CQDX has no Club Log rank for that station.
 - Open **«Обновления»** (Updates). Finish the current contact and close JTDX before clicking **«Обновить и перезапустить»** (Update and restart). If you use LogHX, launch JTDX from its icon afterward.
 
 [User guide](https://github.com/ub3dqy/jtdx-autocq/blob/main/USER-GUIDE.en.md) · [UB3DQY website](https://ub3dqy.com/ru/read/5/)

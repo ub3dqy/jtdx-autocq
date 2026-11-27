@@ -153,17 +153,19 @@ namespace JtdxAutoCq
                 }
             }
             var spotted = new HashSet<string>(rows.Select(row => row.Call));
-            foreach (ExpeditionActivity item in catalog.Activities.Where(item => item.Announced && item.EndUtc > now
+            var announcements = catalog.Activities.Where(item => item.Announced && item.EndUtc > now
                 && !spotted.Contains(item.Call) && (filteredBand.Length == 0
                     || (item.Bands ?? "").Split(' ').Contains(filteredBand)))
-                .GroupBy(item => item.Call).Select(group => group.OrderBy(row => row.StartUtc > now)
-                    .ThenByDescending(row => !String.IsNullOrEmpty(row.Mode)).ThenBy(row => row.StartUtc).First()))
+                .Select(item => new { Activity = item, Match = search.MatchActivity(item) }).Where(row => row.Match != null)
+                .GroupBy(row => row.Activity.Call).Select(group => group.OrderBy(row => row.Activity.StartUtc > now)
+                    .ThenByDescending(row => !String.IsNullOrEmpty(row.Activity.Mode)).ThenBy(row => row.Activity.StartUtc)
+                    .ThenByDescending(row => row.Match.Priority).First());
+            foreach (var announcement in announcements)
             {
-                ExpeditionMatch match = search.MatchActivity(item);
-                if (match == null) continue;
+                ExpeditionActivity item = announcement.Activity;
                 string when = (item.StartUtc <= now ? "По календарю " : "Анонс с ") + item.StartUtc.ToString("dd.MM", CultureInfo.InvariantCulture)
                     + "–" + item.EndUtc.AddDays(-1).ToString("dd.MM", CultureInfo.InvariantCulture);
-                rows.Add(new ResultRow(item.Call, null, item.Mode, 0, match, when, item.StartUtc,
+                rows.Add(new ResultRow(item.Call, null, item.Mode, 0, announcement.Match, when, item.StartUtc,
                     ExpeditionFeeds.Name(item.Source)) { Announced = true });
             }
             ResultRow[] visible = rows.GroupBy(row => row.Key).Select(group => group.OrderByDescending(row => row.Local)

@@ -68,6 +68,8 @@ Spotted an interesting station outside your targets? While monitoring is listeni
 
 Open **«Журнал и дипломы → Экспедиции и редкие станции»** (Logbook and awards → Expeditions and rare stations). Choose what you want to find, such as DX trips, POTA parks, WWFF areas, SOTA summits, WWBOTA bunkers, or rare RDA districts. Use **«Диапазон списка»** (List band) above the table. Each row shows the source, frequency, and age of the spot. Turn on **«Кластеры LogHX»** (LogHX clusters) to include spots from your connections in LogHX.
 
+DXSPOT adds recent FT8 and FT4 spots and expedition announcements posted by the operators. [DXSPOT](https://dxspot.ru/)
+
 Click **«Начать поиск»** (Start search) while JTDX is receiving. AutoCQ calls a match after JTDX decodes it on the current band. Spots from other bands help you decide where to tune in JTDX. [Details and sources](USER-GUIDE.en.md#expeditions-and-rare-stations)
 
 ![Expedition, field activation, and rare station search in the AutoCQ demo](docs/expeditions-demo.png)
